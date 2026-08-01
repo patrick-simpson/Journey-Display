@@ -41,10 +41,10 @@
 // despite appearing under the "Journey: Advocates" Book Track. So
 // "Faith Foundations #7" means "7 weeks into the entrance gate," not
 // "week 7 of Advocates." While a club is still in the entrance gate,
-// there is no Advocates lesson to resolve yet — this writes an
-// explicit "no lesson" feed (not a refusal) so the display correctly
-// falls back to the placeholder instead of showing an unrelated video
-// or going stale.
+// there is no real "current lesson" to resolve from TwoTimTwo yet — by
+// request, this defaults to week 1 (the first Advocates video) during
+// that period, rather than leaving the display blank, so there's
+// always something to show; it's an explicit default, not a match.
 //
 // Once a club finishes the entrance gate, the Section text is expected
 // to actually reflect the book itself — but the real shape of that
@@ -59,8 +59,8 @@
 // overwrite a good file with an unconfident parse — a bad night here
 // means the display keeps yesterday's lesson, not a wrong one. The
 // entrance-gate case is different: that IS a confident read (we know
-// for certain there's no book lesson yet), so it positively writes
-// "no lesson" rather than refusing.
+// for certain the club hasn't started the book), so it positively
+// writes the week-1 default rather than refusing.
 // ─────────────────────────────────────────────────────────────
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -166,14 +166,26 @@ if (!sectionText) {
 }
 
 if (sectionText.startsWith(ENTRANCE_GATE_LABEL)) {
+  const firstLesson = lessons.find((l) => l.week === 1);
+  if (!firstLesson) {
+    console.error(`${lessonsPath} has no week 1 entry — can't apply the entrance-gate default.`);
+    process.exit(1);
+  }
   const existing = readExisting(out);
-  if (existing && existing.week === null && !heartbeatDue(existing)) {
-    console.log(`Still in the entrance gate ("${sectionText}") — ${out} untouched.`);
+  const unchanged = existing && existing.week === firstLesson.week;
+  if (unchanged && !heartbeatDue(existing)) {
+    console.log(`Still in the entrance gate ("${sectionText}") — ${out} untouched (week 1 default).`);
     process.exit(0);
   }
-  writeFeed(out, { version: 1, week: null, title: null, downloadUrl: null, resolvedAt: new Date().toISOString() });
+  writeFeed(out, {
+    version: 1,
+    week: firstLesson.week,
+    title: firstLesson.title,
+    downloadUrl: firstLesson.downloadUrl,
+    resolvedAt: new Date().toISOString(),
+  });
   console.log(
-    `Still in the entrance gate ("${sectionText}") — no Advocates lesson yet. Wrote "no lesson" to ${out}.`
+    `Still in the entrance gate ("${sectionText}") — defaulted to week 1: "${firstLesson.title}".`
   );
   process.exit(0);
 }

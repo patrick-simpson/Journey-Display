@@ -114,9 +114,9 @@ runs through this generic onboarding sequence before starting whatever
 book they're actually assigned — "Faith Foundations #7" means "7 weeks
 into the entrance gate," **not** "week 7 of Advocates," even though it
 shows up under the "Journey: Advocates" Book Track. While a club is
-still there, the script positively writes a "no lesson" feed
-(`week: null`) rather than guessing — confirmed correct, not just
-refused, since we know for certain there's no book lesson yet.
+still there, the script defaults to **week 1** (the first Advocates
+video) rather than leaving the display blank — an explicit default, by
+request, not a match against the entrance-gate count.
 
 Once a club finishes the entrance gate, the Section text is expected
 to actually reflect the book — but **the real shape of that text
