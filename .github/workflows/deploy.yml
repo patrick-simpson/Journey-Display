@@ -1,0 +1,72 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Force Pages source to "GitHub Actions"
+        # `actions/configure-pages@v5` + `enablement: true` only creates
+        # Pages if it doesn't exist — it won't flip an already-enabled
+        # site from "Deploy from a branch" to "GitHub Actions". This
+        # step calls the Pages REST API directly to switch build_type,
+        # so a novice who enabled Pages the wrong way never sees the
+        # source files served as-is.
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            try {
+              await github.rest.repos.updateInformationAboutPagesSite({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                build_type: 'workflow',
+              });
+              core.info('Pages build_type set to "workflow".');
+            } catch (err) {
+              if (err.status === 404) {
+                core.info('Pages not enabled yet — configure-pages will create it.');
+              } else {
+                core.warning(`Could not update Pages build_type: ${err.message}`);
+              }
+            }
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # Auto-enable Pages with "GitHub Actions" as the source the
+          # first time this workflow runs, so a novice fork doesn't have
+          # to flip a setting in the UI.
+          enablement: true
+
+      - name: Upload artifact
+        # No build step — this is a plain static HTML/CSS/JS site
+        # (deliberately no framework/bundler, see CLAUDE.md). Only
+        # `public/` is deployed, so repo docs and workflow files never
+        # end up served on the live site.
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
