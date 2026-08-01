@@ -46,14 +46,16 @@
 // that period, rather than leaving the display blank, so there's
 // always something to show; it's an explicit default, not a match.
 //
-// Once a club finishes the entrance gate, the Section text is expected
-// to actually reflect the book itself — but the real shape of that
-// text has NOT been observed yet (this church's Journey club was still
-// in the entrance gate as of writing). The matching logic below
-// (trailing "#N" -> a flat 1..32 count through lessons.json's `week`
-// field) is a best guess for that later stage and MUST be verified
-// against a real sample once the club actually reaches the book —
-// don't trust its first real output blindly.
+// Once a club finishes the entrance gate, the Section text becomes
+// "Unit N #M" — VERIFIED against this church's own full-year schedule
+// (fetched `?current_only=N`, which returns one book-track table per
+// scheduled meeting date for the whole year): the Journey club's last
+// entrance-gate meeting is "Faith Foundations #7" (2026-09-02), then
+// the very next meeting (2026-09-09) is "Unit 1 #1", continuing in
+// lockstep with the Advocates page's own numbering all the way to
+// "Unit 8 #4" (2027-05-19). So "Unit N #M" maps directly to
+// lessons.json's `unit`/`lesson` fields — no flat 1..32 counting
+// needed, unlike an earlier, wrong guess this script used to make.
 //
 // Safety rail, same as fetch-calendar.mjs: refuse (exit 1) rather than
 // overwrite a good file with an unconfident parse — a bad night here
@@ -108,14 +110,15 @@ function extractSectionText(html) {
   return null;
 }
 
-/** "Faith Foundations #7" (or any "<label> #N") -> week N. Only call
- * this once the entrance gate has been ruled out. */
+/** "Unit N #M" -> the lessons.json entry with matching unit/lesson.
+ * Only call this once the entrance gate has been ruled out. */
 function matchLesson(text, lessons) {
   if (!text || !Array.isArray(lessons) || lessons.length === 0) return null;
-  const m = text.match(/#\s*(\d{1,2})\s*$/);
+  const m = text.match(/Unit\s+(\d+)\s*#\s*(\d+)/i);
   if (!m) return null;
-  const week = Number(m[1]);
-  return lessons.find((l) => l.week === week) || null;
+  const unit = Number(m[1]);
+  const lessonNum = Number(m[2]);
+  return lessons.find((l) => l.unit === unit && l.lesson === lessonNum) || null;
 }
 
 function writeFeed(out, feed) {

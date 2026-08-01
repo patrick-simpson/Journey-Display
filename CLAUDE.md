@@ -118,6 +118,19 @@ still there, the script defaults to **week 1** (the first Advocates
 video) rather than leaving the display blank — an explicit default, by
 request, not a match against the entrance-gate count.
 
+**Once in the book, the Section text is "Unit N #M"** — verified
+against this church's own full-year schedule (fetch
+`?current_only=N`, one book-track table per scheduled meeting date for
+the whole year, rather than just the current one). The Journey club's
+schedule shows the last entrance-gate meeting as "Faith Foundations #7"
+(2026-09-02), then the very next meeting (2026-09-09) as "Unit 1 #1",
+continuing in lockstep with the Advocates page's own numbering through
+"Unit 8 #4" (2027-05-19). So "Unit N #M" maps directly to
+`lessons.json`'s `unit`/`lesson` fields — an earlier version of this
+script guessed a flat 1-32 count instead, which happened to work for
+Unit 1 by coincidence but would have been wrong from Unit 2 onward;
+that guess has been replaced with this verified mapping.
+
 Once a club finishes the entrance gate, the Section text is expected
 to actually reflect the book — but **the real shape of that text
 hasn't been observed yet** (this church's Journey club was still in
