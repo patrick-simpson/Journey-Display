@@ -59,8 +59,8 @@ async function cacheLessonVideo(lesson) {
       keys.filter((req) => req.url !== lesson.downloadUrl).map((req) => cache.delete(req))
     );
   } catch {
-    // Offline, or Vimeo unreachable right now — keep whatever's already
-    // cached and try again on the next poll.
+    // Offline, or Awana's site unreachable right now — keep whatever's
+    // already cached and try again on the next poll.
   }
 }
 

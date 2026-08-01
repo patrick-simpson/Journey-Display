@@ -7,27 +7,40 @@
 //   node scripts/fetch-current-lesson.mjs --from-file sample.html
 //   node scripts/fetch-current-lesson.mjs --url https://… --out public/current-lesson.json
 //
-// Fetches the church's TwoTimTwo "current lesson" view, figures out
-// which Journey: Advocates lesson that corresponds to, and writes
+// Fetches the church's TwoTimTwo "current lesson" view and figures out
+// which Journey: Advocates lesson that corresponds to, then writes
 // public/current-lesson.json. The actual video files are NOT touched
-// here — that's public/lessons.json's fixed week→video map, hand-built
+// here — that's public/lessons.json's fixed week->video map, built
 // from https://clubs.awana.org/ym-course/advocates/ (see CLAUDE.md).
 //
-// IMPORTANT — unverified against a real response: this environment's
-// outbound network could not reach kvbchurch.twotimtwo.com to see the
-// real shape of `?current_only=Y`, so this script tries two strategies
-// defensively rather than assuming one:
-//   1. JSON response — look for common field names.
-//   2. HTML response — reuse the `.dayline` / `.msg .desc` /
-//      `.fields[calendar_date]` contract that this SAME TwoTimTwo
-//      instance's general calendar page uses (see the sibling
-//      Awana-Check-in-Display repo's `src/lib/calendarParse.js`,
-//      which is verified against real HTML from this church's
-//      account) — `current_only=Y` most likely renders through the
-//      same day-line template, just filtered to one row.
-// Whichever strategy matches, the extracted title text is matched
-// against public/lessons.json by week-number pattern ("week 12",
-// "lesson 12", …) or literal title containment.
+// Verified DOM contract for `?current_only=Y` (confirmed against a
+// real saved response — this is a DIFFERENT page/template than the
+// general church calendar the sibling Awana-Check-in-Display repo
+// scrapes, which uses `.dayline` divs; this one is a per-club "current
+// book track" table):
+//
+//   <table class="table-striped">
+//     <thead><tr><td>Club</td><td>Book Track</td><td>Section</td><td>Special</td></tr></thead>
+//     <tbody>
+//       <tr class="book-track-mtg">
+//         <td>Journey</td>
+//         <td>Journey: Advocates</td>
+//         <td><b>Faith Foundations #7</b></td>
+//         <td></td>
+//       </tr>
+//       … one row per club …
+//     </tbody>
+//   </table>
+//
+// The row is matched by "Book Track" containing "advocates" (not by
+// club name, in case that's ever renamed). "Faith Foundations #7" is
+// TwoTimTwo's own generic section-counter label — it does NOT match
+// the Advocates page's own "Unit N, Lesson M" numbering by name, but
+// verified against a real sample, the trailing "#N" is a flat 1..32
+// count through the course in the same order as lessons.json's `week`
+// field (Unit 1 Lesson 1..4 = weeks 1-4, Unit 2 = weeks 5-8, …), so
+// "#7" = week 7 = Unit 2, Lesson 3. Spot-check this mapping against
+// the real page if TwoTimTwo's book-track setup ever changes.
 //
 // Safety rail, same as fetch-calendar.mjs: refuse (exit 1) rather than
 // overwrite a good file with an unconfident parse — a bad night here
@@ -62,57 +75,29 @@ async function fetchWithRetry(url, attempts = 3) {
   throw lastError;
 }
 
-/** Try to read a lesson identifier out of a parsed JSON body. Returns
- * a raw text string to match against lessons.json, or null. */
-function extractFromJson(data) {
-  if (!data || typeof data !== 'object') return null;
-  const item = Array.isArray(data) ? data[0] : (Array.isArray(data.events) ? data.events[0] : data);
-  if (!item || typeof item !== 'object') return null;
-  const candidates = [item.title, item.lesson, item.week, item.name, item.subject, item.description];
-  const text = candidates.find((v) => typeof v === 'string' && v.trim());
-  return text ? text.trim() : null;
-}
-
-/** Same DOM contract as the sibling repo's calendarParse.js. Returns
- * the visible title text of the (expected single) matching day, or
- * null if nothing recognizable is there. */
-function extractFromHtml(html) {
+/** Find the Advocates row in the "current book track" table and
+ * return its Section text (e.g. "Faith Foundations #7"), or null if
+ * the table/row isn't there in the shape we expect. */
+function extractSectionText(html) {
   const doc = new JSDOM(html).window.document;
-  for (const dayline of doc.querySelectorAll('div.dayline')) {
-    const skipped = dayline.querySelector('.msg.skipped');
-    if (skipped) continue; // no club this week — nothing to resolve
-    for (const span of dayline.querySelectorAll('.msg .desc')) {
-      const style = span.getAttribute('style') || '';
-      if (/display\s*:\s*none/i.test(style)) continue;
-      const text = span.textContent?.trim();
-      if (text) return text;
-    }
-    const note = dayline.querySelector('.day-note');
-    const text = note?.textContent?.trim();
-    if (text) return text;
+  for (const row of doc.querySelectorAll('tr.book-track-mtg')) {
+    const cells = row.querySelectorAll('td');
+    if (cells.length < 3) continue;
+    const bookTrack = cells[1].textContent?.trim() || '';
+    if (!/advocates/i.test(bookTrack)) continue;
+    const section = cells[2].querySelector('b')?.textContent?.trim() || cells[2].textContent?.trim();
+    if (section) return section;
   }
   return null;
 }
 
-/** Match extracted text against the lessons list by week number
- * ("week 12", "lesson 12", "session 12") or literal title containment
- * (checked in both directions so either source can be more specific). */
+/** "Faith Foundations #7" (or any "<label> #N") -> week N. */
 function matchLesson(text, lessons) {
   if (!text || !Array.isArray(lessons) || lessons.length === 0) return null;
-  const weekMatch = text.match(/\b(?:week|lesson|session)\s*#?\s*(\d{1,2})\b/i);
-  if (weekMatch) {
-    const week = Number(weekMatch[1]);
-    const byWeek = lessons.find((l) => l.week === week);
-    if (byWeek) return byWeek;
-  }
-  const normalized = text.toLowerCase();
-  return (
-    lessons.find(
-      (l) =>
-        typeof l.title === 'string' &&
-        (normalized.includes(l.title.toLowerCase()) || l.title.toLowerCase().includes(normalized))
-    ) || null
-  );
+  const m = text.match(/#\s*(\d{1,2})\s*$/);
+  if (!m) return null;
+  const week = Number(m[1]);
+  return lessons.find((l) => l.week === week) || null;
 }
 
 const url = arg('--url') || DEFAULT_URL;
@@ -133,30 +118,22 @@ if (lessons.length === 0) {
   process.exit(1);
 }
 
-const body = fromFile ? readFileSync(fromFile, 'utf8') : await fetchWithRetry(url);
+const html = fromFile ? readFileSync(fromFile, 'utf8') : await fetchWithRetry(url);
+const sectionText = extractSectionText(html);
 
-let text = null;
-try {
-  text = extractFromJson(JSON.parse(body));
-} catch {
-  // not JSON — fall through to HTML
-}
-if (!text) text = extractFromHtml(body);
-
-if (!text) {
+if (!sectionText) {
   console.error(
-    'Could not find a recognizable lesson identifier in the response — refusing to overwrite ' +
-    `${out}. The page layout may differ from what this script expects (see the comment at the ` +
-    'top of this file); it needs tuning against a real sample.'
+    'Could not find the Journey: Advocates row in the "current book track" table — refusing to ' +
+    `overwrite ${out}. The page layout may have changed (see the comment at the top of this file).`
   );
   process.exit(1);
 }
 
-const lesson = matchLesson(text, lessons);
+const lesson = matchLesson(sectionText, lessons);
 if (!lesson) {
   console.error(
-    `Extracted "${text}" but it didn't match any entry in ${lessonsPath} — refusing to overwrite ` +
-    `${out}.`
+    `Extracted "${sectionText}" but couldn't resolve a week number from it, or it doesn't match ` +
+    `any entry in ${lessonsPath} — refusing to overwrite ${out}.`
   );
   process.exit(1);
 }
@@ -183,9 +160,11 @@ const feed = {
   version: 1,
   week: lesson.week,
   title: lesson.title,
-  vimeoId: lesson.vimeoId,
   downloadUrl: lesson.downloadUrl,
   resolvedAt: new Date().toISOString(),
 };
 writeFileSync(out, `${JSON.stringify(feed, null, 2)}\n`);
-console.log(`Wrote ${out}: week ${lesson.week} — "${lesson.title}"${unchanged ? ' (heartbeat refresh)' : ''}.`);
+console.log(
+  `Wrote ${out}: week ${lesson.week} — "${lesson.title}" (from "${sectionText}")` +
+  `${unchanged ? ' (heartbeat refresh)' : ''}.`
+);

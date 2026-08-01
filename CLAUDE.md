@@ -55,8 +55,11 @@ Concretely, after editing any file:
 ## The Journey page itself
 
 `#journey-view` plays the current week's "Journey: Advocates" lesson
-video (a 32-week apologetics course, `https://clubs.awana.org/ym-course/advocates/`,
-hosted on Vimeo with a download button per lesson). If
+video (a 32-week apologetics course, `https://clubs.awana.org/ym-course/advocates/`).
+Each lesson is a direct `.mp4` file hosted on Awana's own CDN (not
+Vimeo — confirmed by fetching the real page; each lesson ships both a
+"Leader Video" and a "Student Video", and this repo always uses the
+Student Video, since that's the one meant to play to the kids). If
 `public/current-lesson.json` hasn't resolved a lesson yet, it falls
 back to the plain placeholder (dark background + "Journey" text) —
 never a broken `<video>` — same "missing data renders nothing"
@@ -68,22 +71,24 @@ Everything here is scoped to **internal, on-device playback only** —
 caching a video locally for this kiosk to play is within that license;
 nothing here should ever re-serve, re-share, or publicly rehost the
 video files themselves. `public/lessons.json`'s `downloadUrl`s point at
-Awana's own Vimeo hosting; this repo only ever fetches them into the
-browser's own cache for this device, never onto a public URL.
+Awana's own CDN; this repo only ever fetches them into the browser's
+own cache for this device, never onto a public URL.
 
 ### `public/lessons.json` — the fixed lesson map
 
 Hand-maintained, not scraped nightly (the course itself doesn't change
-week to week): `{ version, lessons: [{ week, title, vimeoId,
-downloadUrl }, …] }`. Build/refresh this from the real Advocates page
-whenever Awana revises the course. **Currently ships with an empty
-`lessons` array** — populate it with the real ~32 entries before the
-current-lesson lookup below can do anything.
+week to week): `{ version, sourceUrl, lessons: [{ week, unit, lesson,
+title, downloadUrl }, …] }`. `week` is a flat 1-32 count in course
+order (`unit`/`lesson` are the Advocates page's own "Unit N, Lesson M"
+numbering — 8 units × 4 lessons). Built by fetching and parsing the
+real Advocates page (all 32 `.m-lesson-resources-block` tiles, each
+with a "Unit N, Lesson M" heading and Student/Leader video download
+links) — rebuild it the same way if Awana revises the course.
 
 ### Current lesson lookup
 
 `.github/workflows/update-lesson.yml` runs nightly (mirroring the
-sibling repo's `update-calendar.yml` pattern exactly): it calls
+sibling repo's `update-calendar.yml` pattern): it calls
 `scripts/fetch-current-lesson.mjs`, which resolves "what's the current
 lesson" from the church's own TwoTimTwo calendar
 (`https://kvbchurch.twotimtwo.com/calendar/index?current_only=Y`),
@@ -95,16 +100,19 @@ If it can't confidently resolve a lesson, it exits non-zero and leaves
 the last-good file alone — a bad parse must never overwrite a good
 lesson with a wrong one.
 
-**This script's HTML/JSON parsing was written defensively but is
-unverified against a real response** — the environment it was
-authored in could not reach either `awana.org` or `twotimtwo.com` to
-see the real page shape. It reuses the exact DOM contract
-`Awana-Check-in-Display/src/lib/calendarParse.js` already validated
-against this same TwoTimTwo account's general calendar page
-(`.dayline` / `.msg .desc` / `.fields[calendar_date]`), on the
-assumption `?current_only=Y` renders through the same template. Treat
-the first real run's output with suspicion and tune the script against
-an actual saved response if it's wrong.
+**Verified DOM contract** (confirmed against a real saved response —
+see the comment at the top of `fetch-current-lesson.mjs`): this
+`?current_only=Y` endpoint is a *different* page/template than the
+general church calendar the sibling repo scrapes (`.dayline` divs) —
+it's a per-club "current book track" table (`tr.book-track-mtg`), one
+row per club, with a `Book Track` column ("Journey: Advocates") and a
+`Section` column carrying TwoTimTwo's own generic counter label (e.g.
+"Faith Foundations #7"). The label text before the `#` is *not* the
+Advocates page's own naming — only the trailing `#N` matters, read as
+a flat 1-32 position matching `lessons.json`'s `week` field (verified:
+"#7" resolved to "Unit 2, Lesson 3: Pantheism"). If TwoTimTwo's
+book-track setup for the Journey club is ever reconfigured, spot-check
+that this offset still lines up.
 
 ### Video playback and offline resilience (`public/src/schedule.js`)
 
@@ -121,8 +129,8 @@ actually needs:
 - The previous week's cached video is evicted only once the new one is
   safely stored, so a mid-download failure can't leave the cache empty.
 - Playback resolves from the cache (via `URL.createObjectURL`) when
-  available, falling back to the live Vimeo download URL otherwise
-  (e.g. the very first run before anything's cached yet).
+  available, falling back to the live download URL otherwise (e.g. the
+  very first run before anything's cached yet).
 - Video starts muted (autoplay policy) with a subtle unmute button
   (same visual language as the corner toggle button); finishing the
   video falls back to the Check-in Display immediately rather than

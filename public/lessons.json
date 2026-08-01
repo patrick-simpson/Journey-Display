@@ -1,4 +1,230 @@
 {
   "version": 1,
-  "lessons": []
+  "sourceUrl": "https://clubs.awana.org/ym-course/advocates/",
+  "lessons": [
+    {
+      "week": 1,
+      "unit": 1,
+      "lesson": 1,
+      "title": "Unit 1, Lesson 1: Apologetics",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-1/journey-advocates-1-1-teaching-video-apologetics.mp4"
+    },
+    {
+      "week": 2,
+      "unit": 1,
+      "lesson": 2,
+      "title": "Unit 1, Lesson 2: Faith",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-1/journey-advocates-1-2-teaching-video-faith.mp4"
+    },
+    {
+      "week": 3,
+      "unit": 1,
+      "lesson": 3,
+      "title": "Unit 1, Lesson 3: Truth",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-1/journey-advocates-1-3-teaching-video-truth.mp4"
+    },
+    {
+      "week": 4,
+      "unit": 1,
+      "lesson": 4,
+      "title": "Unit 1, Lesson 4: Logic",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-1/journey-advocates-1-4-teaching-video-logic.mp4"
+    },
+    {
+      "week": 5,
+      "unit": 2,
+      "lesson": 1,
+      "title": "Unit 2, Lesson 1: Worldview",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-2/journey-advocates-2-1-teaching-video-worldview.mp4"
+    },
+    {
+      "week": 6,
+      "unit": 2,
+      "lesson": 2,
+      "title": "Unit 2, Lesson 2: Monotheism",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-2/journey-advocates-2-2-teaching-video-monotheism.mp4"
+    },
+    {
+      "week": 7,
+      "unit": 2,
+      "lesson": 3,
+      "title": "Unit 2, Lesson 3: Pantheism",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-2/journey-advocates-2-3-teaching-video-pantheism.mp4"
+    },
+    {
+      "week": 8,
+      "unit": 2,
+      "lesson": 4,
+      "title": "Unit 2, Lesson 4: Naturalism",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-2/journey-advocates-2-4-teaching-video-naturalism.mp4"
+    },
+    {
+      "week": 9,
+      "unit": 3,
+      "lesson": 1,
+      "title": "Unit 3, Lesson 1: Science",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-3/journey-advocates-3-1-teaching-video-science.mp4"
+    },
+    {
+      "week": 10,
+      "unit": 3,
+      "lesson": 2,
+      "title": "Unit 3, Lesson 2: Universe",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-3/journey-advocates-3-2-teaching-video-universe.mp4"
+    },
+    {
+      "week": 11,
+      "unit": 3,
+      "lesson": 3,
+      "title": "Unit 3, Lesson 3: DNA",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-3/journey-advocates-3-3-teaching-video-dna.mp4"
+    },
+    {
+      "week": 12,
+      "unit": 3,
+      "lesson": 4,
+      "title": "Unit 3, Lesson 4: Designer",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-3/journey-advocates-3-4-teaching-video-designer.mp4"
+    },
+    {
+      "week": 13,
+      "unit": 4,
+      "lesson": 1,
+      "title": "Unit 4, Lesson 1: Morality",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-4/journey-advocates-4-1-teaching-video-morality.mp4"
+    },
+    {
+      "week": 14,
+      "unit": 4,
+      "lesson": 2,
+      "title": "Unit 4, Lesson 2: Beauty",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-4/journey-advocates-4-2-teaching-video-beauty.mp4"
+    },
+    {
+      "week": 15,
+      "unit": 4,
+      "lesson": 3,
+      "title": "Unit 4, Lesson 3: Agency",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-4/journey-advocates-4-3-teaching-video-agency.mp4"
+    },
+    {
+      "week": 16,
+      "unit": 4,
+      "lesson": 4,
+      "title": "Unit 4, Lesson 4: Story",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-4/journey-advocates-4-4-teaching-video-story.mp4"
+    },
+    {
+      "week": 17,
+      "unit": 5,
+      "lesson": 1,
+      "title": "Unit 5, Lesson 1: Miracles",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-5/journey-advocates-5-1-teaching-video-miracles.mp4"
+    },
+    {
+      "week": 18,
+      "unit": 5,
+      "lesson": 2,
+      "title": "Unit 5, Lesson 2: Resurrection",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-5/journey-advocates-5-2-teaching-video-resurrection.mp4"
+    },
+    {
+      "week": 19,
+      "unit": 5,
+      "lesson": 3,
+      "title": "Unit 5, Lesson 3: Diety",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-5/journey-advocates-5-3-teaching-video-diety.mp4"
+    },
+    {
+      "week": 20,
+      "unit": 5,
+      "lesson": 4,
+      "title": "Unit 5, Lesson 4: Apostles",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-5/journey-advocates-5-4-teaching-video-apostles.mp4"
+    },
+    {
+      "week": 21,
+      "unit": 6,
+      "lesson": 1,
+      "title": "Unit 6, Lesson 1: Text",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-6/journey-advocates-6-1-teaching-video-text.mp4"
+    },
+    {
+      "week": 22,
+      "unit": 6,
+      "lesson": 2,
+      "title": "Unit 6, Lesson 2: Archaeology",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-6/journey-advocates-6-2-teaching-video-archaeology.mp4"
+    },
+    {
+      "week": 23,
+      "unit": 6,
+      "lesson": 3,
+      "title": "Unit 6, Lesson 3: Prophecy",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-6/journey-advocates-6-3-teaching-video-prophecy.mp4"
+    },
+    {
+      "week": 24,
+      "unit": 6,
+      "lesson": 4,
+      "title": "Unit 6, Lesson 4: Authority",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-6/journey-advocates-6-4-teaching-video-authority.mp4"
+    },
+    {
+      "week": 25,
+      "unit": 7,
+      "lesson": 1,
+      "title": "Unit 7, Lesson 1: Evil",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-7/journey-advocates-7-1-teaching-video-evil.mp4"
+    },
+    {
+      "week": 26,
+      "unit": 7,
+      "lesson": 2,
+      "title": "Unit 7, Lesson 2: Falsehood",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-7/journey-advocates-7-2-teaching-video-falsehood.mp4"
+    },
+    {
+      "week": 27,
+      "unit": 7,
+      "lesson": 3,
+      "title": "Unit 7, Lesson 3: Suffering",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-7/journey-advocates-7-3-teaching-video-suffering.mp4"
+    },
+    {
+      "week": 28,
+      "unit": 7,
+      "lesson": 4,
+      "title": "Unit 7, Lesson 4: Hell",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-7/journey-advocates-7-4-teaching-video-hell.mp4"
+    },
+    {
+      "week": 29,
+      "unit": 8,
+      "lesson": 1,
+      "title": "Unit 8, Lesson 1: Love",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-8/journey-advocates-8-1-teaching-video-love.mp4"
+    },
+    {
+      "week": 30,
+      "unit": 8,
+      "lesson": 2,
+      "title": "Unit 8, Lesson 2: Questions",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-8/journey-advocates-8-2-teaching-video-questions.mp4"
+    },
+    {
+      "week": 31,
+      "unit": 8,
+      "lesson": 3,
+      "title": "Unit 8, Lesson 3: Doubt",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-8/journey-advocates-8-3-teaching-video-doupt.mp4"
+    },
+    {
+      "week": 32,
+      "unit": 8,
+      "lesson": 4,
+      "title": "Unit 8, Lesson 4: Challenges",
+      "downloadUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-8/journey-advocates-8-4-teaching-video-challenges.mp4"
+    }
+  ]
 }
