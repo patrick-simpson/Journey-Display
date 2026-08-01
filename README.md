@@ -2,10 +2,12 @@
 
 The default kiosk website for the church's Raspberry Pi Zero signage
 display. It shows the [Awana Check-in Display](https://patrick-simpson.github.io/Awana-Check-in-Display/)
-full-screen all evening, then automatically switches to a "Journey"
-page from **6:30 PM to 7:15 PM** every day, before switching back. A
-small, subtle button in the bottom-right corner lets a volunteer
-manually toggle between the two views at any time.
+full-screen all evening, then automatically switches to the current
+week's "Journey: Advocates" lesson video from **6:30 PM to 7:15 PM**
+every day, before switching back (or as soon as the video ends,
+whichever comes first). A small, subtle button in the bottom-right
+corner lets a volunteer manually toggle between the two views at any
+time; a second small button appears over the video to unmute it.
 
 Live site: `https://patrick-simpson.github.io/Journey-Display/`
 (GitHub Pages, redeployed automatically on every push to `main`).
@@ -20,10 +22,16 @@ Live site: `https://patrick-simpson.github.io/Journey-Display/`
   to retime the window.
 - `public/src/style.css` — full-bleed layout and the subtle button
   styling.
+- `public/lessons.json` — the fixed week→video map for the Advocates
+  course (hand-maintained; see `CLAUDE.md`).
+- `public/current-lesson.json` — which week is "current" right now,
+  refreshed nightly by `.github/workflows/update-lesson.yml` from the
+  church's own calendar system. Falls back to a plain placeholder if
+  this hasn't resolved a lesson yet.
 
-The Journey page itself doesn't exist yet — `#journey-view` is
-currently a plain placeholder. When the real page is built, it
-replaces that placeholder without touching the scheduling logic.
+See `CLAUDE.md` for the full design of the lesson lookup and the
+client-side video caching (so a flaky evening connection can't
+interrupt playback).
 
 Deliberately plain HTML/CSS/JS with no build step or framework: the
 target hardware is a 2017 Raspberry Pi Zero (single-core ARMv6,
@@ -44,9 +52,14 @@ the live GitHub Pages URL above. A typical setup:
 
    ```sh
    chromium-browser --kiosk --noerrdialogs --disable-infobars \
-     --incognito https://patrick-simpson.github.io/Journey-Display/
+     https://patrick-simpson.github.io/Journey-Display/
    ```
 
+   Deliberately **not** `--incognito`: the page caches the current
+   lesson's video ahead of time using the browser's own storage, so it
+   can still play if the network drops at 6:30. Incognito storage is
+   wiped whenever the browser process restarts, which would silently
+   throw away that cached video.
 3. Disable screen blanking/DPMS (`xset s off`, `xset -dpms`,
    `xset s noblank`) so the kiosk doesn't sleep mid-evening.
 4. Point Chromium at the URL above and leave it running — the page's

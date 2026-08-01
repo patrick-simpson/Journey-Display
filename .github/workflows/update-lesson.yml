@@ -1,0 +1,60 @@
+name: Update current lesson
+
+# Nightly: resolve which Journey: Advocates lesson is "current" from the
+# church's TwoTimTwo calendar and write public/current-lesson.json, so
+# the kiosk reads it same-origin instead of hitting a third-party site
+# at 6:30 PM. Only rewrites when the lesson changes (or weekly, as a
+# heartbeat for staleness), so most nights commit nothing.
+
+on:
+  schedule:
+    - cron: '23 8 * * *' # ~4:23 AM Eastern, off-peak minute
+  workflow_dispatch:
+
+permissions:
+  contents: write # commit the refreshed feed
+  actions: write  # dispatch deploy.yml (GITHUB_TOKEN pushes don't self-trigger it)
+
+concurrency:
+  group: update-lesson
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve the current lesson
+        # Exits 1 (failing the run, which emails the repo owner) if the
+        # page stops parsing, or if public/lessons.json isn't populated
+        # yet — the last good committed lesson keeps serving either way.
+        run: npm run fetch-lesson
+
+      - name: Commit and redeploy if the lesson changed
+        # Pushes made with the default GITHUB_TOKEN deliberately do NOT
+        # trigger `on: push` workflows, so the deploy is dispatched
+        # explicitly.
+        run: |
+          if [ -n "$(git status --porcelain public/current-lesson.json)" ]; then
+            git config user.name 'lesson-bot'
+            git config user.email 'github-actions[bot]@users.noreply.github.com'
+            git add public/current-lesson.json
+            git commit -m 'chore: refresh current lesson'
+            git push
+            gh workflow run deploy.yml --ref main
+          else
+            echo 'Lesson unchanged — nothing to deploy.'
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -30,6 +30,11 @@ Concretely, after editing any file:
   (`#checkin-view`) needs to stay connected in the background so its
   live check-in data doesn't have to reconnect when Journey isn't
   showing.
+- The repo root also has a small **Node/`jsdom` tool script**
+  (`scripts/fetch-current-lesson.mjs`, run only by GitHub Actions —
+  see "Current lesson lookup" below). This does not make the *site*
+  a Node app: `public/` stays plain HTML/CSS/JS with no build step,
+  same as ever. `node_modules/` is gitignored.
 
 ## Daily schedule
 
@@ -49,12 +54,79 @@ Concretely, after editing any file:
 
 ## The Journey page itself
 
-`#journey-view` in `public/index.html` is currently a plain
-placeholder (dark background + "Journey" text). **This is the one
-piece meant to be replaced** once the real Journey content is built —
-swap the placeholder markup (or point it at an iframe, same pattern as
-`#checkin-view`) without touching the scheduling logic in
-`schedule.js`.
+`#journey-view` plays the current week's "Journey: Advocates" lesson
+video (a 32-week apologetics course, `https://clubs.awana.org/ym-course/advocates/`,
+hosted on Vimeo with a download button per lesson). If
+`public/current-lesson.json` hasn't resolved a lesson yet, it falls
+back to the plain placeholder (dark background + "Journey" text) —
+never a broken `<video>` — same "missing data renders nothing"
+principle as the sibling Awana-Check-in-Display repo.
+
+**Licensing boundary — do not relax:** the church has an active Awana
+Ministry Membership covering this curriculum for its own program.
+Everything here is scoped to **internal, on-device playback only** —
+caching a video locally for this kiosk to play is within that license;
+nothing here should ever re-serve, re-share, or publicly rehost the
+video files themselves. `public/lessons.json`'s `downloadUrl`s point at
+Awana's own Vimeo hosting; this repo only ever fetches them into the
+browser's own cache for this device, never onto a public URL.
+
+### `public/lessons.json` — the fixed lesson map
+
+Hand-maintained, not scraped nightly (the course itself doesn't change
+week to week): `{ version, lessons: [{ week, title, vimeoId,
+downloadUrl }, …] }`. Build/refresh this from the real Advocates page
+whenever Awana revises the course. **Currently ships with an empty
+`lessons` array** — populate it with the real ~32 entries before the
+current-lesson lookup below can do anything.
+
+### Current lesson lookup
+
+`.github/workflows/update-lesson.yml` runs nightly (mirroring the
+sibling repo's `update-calendar.yml` pattern exactly): it calls
+`scripts/fetch-current-lesson.mjs`, which resolves "what's the current
+lesson" from the church's own TwoTimTwo calendar
+(`https://kvbchurch.twotimtwo.com/calendar/index?current_only=Y`),
+matches it against `public/lessons.json`, and writes
+`public/current-lesson.json` — same-origin, so the kiosk never depends
+on a third-party fetch succeeding at 6:30 PM. Only commits when the
+resolved week actually changes (or weekly, as a staleness heartbeat).
+If it can't confidently resolve a lesson, it exits non-zero and leaves
+the last-good file alone — a bad parse must never overwrite a good
+lesson with a wrong one.
+
+**This script's HTML/JSON parsing was written defensively but is
+unverified against a real response** — the environment it was
+authored in could not reach either `awana.org` or `twotimtwo.com` to
+see the real page shape. It reuses the exact DOM contract
+`Awana-Check-in-Display/src/lib/calendarParse.js` already validated
+against this same TwoTimTwo account's general calendar page
+(`.dayline` / `.msg .desc` / `.fields[calendar_date]`), on the
+assumption `?current_only=Y` renders through the same template. Treat
+the first real run's output with suspicion and tune the script against
+an actual saved response if it's wrong.
+
+### Video playback and offline resilience (`public/src/schedule.js`)
+
+No service worker — the browser's Cache API is used directly from
+`schedule.js`, which is simpler and is all "cache one video file"
+actually needs:
+
+- On load, and hourly afterward, it fetches `current-lesson.json` and
+  — regardless of what's currently on screen — pre-fetches that
+  lesson's video into a dedicated `journey-videos-v1` cache bucket if
+  it isn't already there. This runs well ahead of 6:30 PM, so playback
+  doesn't depend on the network being up at showtime (the church's Pi
+  connection is known to be flaky in the evenings).
+- The previous week's cached video is evicted only once the new one is
+  safely stored, so a mid-download failure can't leave the cache empty.
+- Playback resolves from the cache (via `URL.createObjectURL`) when
+  available, falling back to the live Vimeo download URL otherwise
+  (e.g. the very first run before anything's cached yet).
+- Video starts muted (autoplay policy) with a subtle unmute button
+  (same visual language as the corner toggle button); finishing the
+  video falls back to the Check-in Display immediately rather than
+  waiting for 7:15.
 
 ## Embedding note
 
