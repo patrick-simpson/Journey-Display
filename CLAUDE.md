@@ -106,13 +106,28 @@ see the comment at the top of `fetch-current-lesson.mjs`): this
 general church calendar the sibling repo scrapes (`.dayline` divs) —
 it's a per-club "current book track" table (`tr.book-track-mtg`), one
 row per club, with a `Book Track` column ("Journey: Advocates") and a
-`Section` column carrying TwoTimTwo's own generic counter label (e.g.
-"Faith Foundations #7"). The label text before the `#` is *not* the
-Advocates page's own naming — only the trailing `#N` matters, read as
-a flat 1-32 position matching `lessons.json`'s `week` field (verified:
-"#7" resolved to "Unit 2, Lesson 3: Pantheism"). If TwoTimTwo's
-book-track setup for the Journey club is ever reconfigured, spot-check
-that this offset still lines up.
+`Section` column carrying TwoTimTwo's own counter label (e.g. "Faith
+Foundations #7").
+
+**"Faith Foundations" is the entrance gate, not the book.** Every club
+runs through this generic onboarding sequence before starting whatever
+book they're actually assigned — "Faith Foundations #7" means "7 weeks
+into the entrance gate," **not** "week 7 of Advocates," even though it
+shows up under the "Journey: Advocates" Book Track. While a club is
+still there, the script positively writes a "no lesson" feed
+(`week: null`) rather than guessing — confirmed correct, not just
+refused, since we know for certain there's no book lesson yet.
+
+Once a club finishes the entrance gate, the Section text is expected
+to actually reflect the book — but **the real shape of that text
+hasn't been observed yet** (this church's Journey club was still in
+the entrance gate as of writing). The current matching logic (trailing
+`#N` read as a flat 1-32 position against `lessons.json`'s `week`
+field) is a best guess for that later stage, carried over from before
+this distinction was known. **Do not trust its first real "in the
+book" output blindly** — verify it against what the Advocates page and
+TwoTimTwo actually agree on once the club gets there, and update
+`matchLesson()` in `fetch-current-lesson.mjs` if the real shape differs.
 
 ### Video playback and offline resilience (`public/src/schedule.js`)
 

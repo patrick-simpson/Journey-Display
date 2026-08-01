@@ -33,18 +33,34 @@
 //   </table>
 //
 // The row is matched by "Book Track" containing "advocates" (not by
-// club name, in case that's ever renamed). "Faith Foundations #7" is
-// TwoTimTwo's own generic section-counter label — it does NOT match
-// the Advocates page's own "Unit N, Lesson M" numbering by name, but
-// verified against a real sample, the trailing "#N" is a flat 1..32
-// count through the course in the same order as lessons.json's `week`
-// field (Unit 1 Lesson 1..4 = weeks 1-4, Unit 2 = weeks 5-8, …), so
-// "#7" = week 7 = Unit 2, Lesson 3. Spot-check this mapping against
-// the real page if TwoTimTwo's book-track setup ever changes.
+// club name, in case that's ever renamed).
+//
+// IMPORTANT — "Faith Foundations" is TwoTimTwo/Awana's generic
+// "entrance gate" onboarding sequence every club runs through BEFORE
+// starting their assigned book — it is NOT the Advocates book itself,
+// despite appearing under the "Journey: Advocates" Book Track. So
+// "Faith Foundations #7" means "7 weeks into the entrance gate," not
+// "week 7 of Advocates." While a club is still in the entrance gate,
+// there is no Advocates lesson to resolve yet — this writes an
+// explicit "no lesson" feed (not a refusal) so the display correctly
+// falls back to the placeholder instead of showing an unrelated video
+// or going stale.
+//
+// Once a club finishes the entrance gate, the Section text is expected
+// to actually reflect the book itself — but the real shape of that
+// text has NOT been observed yet (this church's Journey club was still
+// in the entrance gate as of writing). The matching logic below
+// (trailing "#N" -> a flat 1..32 count through lessons.json's `week`
+// field) is a best guess for that later stage and MUST be verified
+// against a real sample once the club actually reaches the book —
+// don't trust its first real output blindly.
 //
 // Safety rail, same as fetch-calendar.mjs: refuse (exit 1) rather than
 // overwrite a good file with an unconfident parse — a bad night here
-// means the display keeps yesterday's lesson, not a wrong one.
+// means the display keeps yesterday's lesson, not a wrong one. The
+// entrance-gate case is different: that IS a confident read (we know
+// for certain there's no book lesson yet), so it positively writes
+// "no lesson" rather than refusing.
 // ─────────────────────────────────────────────────────────────
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -54,6 +70,7 @@ const DEFAULT_URL = 'https://kvbchurch.twotimtwo.com/calendar/index?current_only
 const DEFAULT_LESSONS = 'public/lessons.json';
 const DEFAULT_OUT = 'public/current-lesson.json';
 const HEARTBEAT_DAYS = 7;
+const ENTRANCE_GATE_LABEL = 'Faith Foundations';
 
 function arg(flag) {
   const i = process.argv.indexOf(flag);
@@ -91,13 +108,32 @@ function extractSectionText(html) {
   return null;
 }
 
-/** "Faith Foundations #7" (or any "<label> #N") -> week N. */
+/** "Faith Foundations #7" (or any "<label> #N") -> week N. Only call
+ * this once the entrance gate has been ruled out. */
 function matchLesson(text, lessons) {
   if (!text || !Array.isArray(lessons) || lessons.length === 0) return null;
   const m = text.match(/#\s*(\d{1,2})\s*$/);
   if (!m) return null;
   const week = Number(m[1]);
   return lessons.find((l) => l.week === week) || null;
+}
+
+function writeFeed(out, feed) {
+  writeFileSync(out, `${JSON.stringify(feed, null, 2)}\n`);
+}
+
+function readExisting(out) {
+  if (!existsSync(out)) return null;
+  try {
+    return JSON.parse(readFileSync(out, 'utf8'));
+  } catch {
+    return null; // corrupt feed → always rewrite
+  }
+}
+
+function heartbeatDue(existing) {
+  const ageMs = existing?.resolvedAt ? Date.now() - Date.parse(existing.resolvedAt) : Infinity;
+  return !(ageMs < HEARTBEAT_DAYS * 24 * 60 * 60 * 1000);
 }
 
 const url = arg('--url') || DEFAULT_URL;
@@ -129,6 +165,19 @@ if (!sectionText) {
   process.exit(1);
 }
 
+if (sectionText.startsWith(ENTRANCE_GATE_LABEL)) {
+  const existing = readExisting(out);
+  if (existing && existing.week === null && !heartbeatDue(existing)) {
+    console.log(`Still in the entrance gate ("${sectionText}") — ${out} untouched.`);
+    process.exit(0);
+  }
+  writeFeed(out, { version: 1, week: null, title: null, downloadUrl: null, resolvedAt: new Date().toISOString() });
+  console.log(
+    `Still in the entrance gate ("${sectionText}") — no Advocates lesson yet. Wrote "no lesson" to ${out}.`
+  );
+  process.exit(0);
+}
+
 const lesson = matchLesson(sectionText, lessons);
 if (!lesson) {
   console.error(
@@ -138,32 +187,20 @@ if (!lesson) {
   process.exit(1);
 }
 
-let existing = null;
-if (existsSync(out)) {
-  try {
-    existing = JSON.parse(readFileSync(out, 'utf8'));
-  } catch {
-    existing = null; // corrupt feed → always rewrite
-  }
-}
-
-const ageMs = existing?.resolvedAt ? Date.now() - Date.parse(existing.resolvedAt) : Infinity;
-const heartbeatDue = !(ageMs < HEARTBEAT_DAYS * 24 * 60 * 60 * 1000);
+const existing = readExisting(out);
 const unchanged = existing && existing.week === lesson.week;
-
-if (unchanged && !heartbeatDue) {
+if (unchanged && !heartbeatDue(existing)) {
   console.log(`No change (still week ${lesson.week}) — ${out} untouched.`);
   process.exit(0);
 }
 
-const feed = {
+writeFeed(out, {
   version: 1,
   week: lesson.week,
   title: lesson.title,
   downloadUrl: lesson.downloadUrl,
   resolvedAt: new Date().toISOString(),
-};
-writeFileSync(out, `${JSON.stringify(feed, null, 2)}\n`);
+});
 console.log(
   `Wrote ${out}: week ${lesson.week} — "${lesson.title}" (from "${sectionText}")` +
   `${unchanged ? ' (heartbeat refresh)' : ''}.`
