@@ -314,3 +314,10 @@ The Awana Check-in Display (`https://patrick-simpson.github.io/Awana-Check-in-Di
 has no `X-Frame-Options`/CSP restriction, so it embeds fine in
 `#checkin-view`'s iframe. If that ever changes, this page would need a
 different integration approach (e.g. redirecting instead of embedding).
+
+The iframe `src` carries `?lowPower=1` — that sibling app's own signage
+runs on other, far more powerful devices too, so its confetti/motion
+defaults stay full-strength; this flag scopes reduced animations to
+*this* embed's Raspberry Pi Zero specifically, without touching what
+any other device defaults to. See that repo's `src/lib/urlFlags.js` and
+`CLAUDE.md` before changing or removing it.
