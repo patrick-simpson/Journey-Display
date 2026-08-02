@@ -11,6 +11,10 @@ const VIDEO_CACHE_NAME = 'journey-videos-v1';
 const checkinView = document.getElementById('checkin-view');
 const journeyView = document.getElementById('journey-view');
 const journeyPlaceholder = document.getElementById('journey-placeholder');
+const journeySplash = document.getElementById('journey-splash');
+const journeySplashWeek = document.getElementById('journey-splash-week');
+const journeySplashTitle = document.getElementById('journey-splash-title');
+const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
 const journeyVideo = document.getElementById('journey-video');
 const unmuteBtn = document.getElementById('unmute-btn');
 const toggleBtn = document.getElementById('toggle-btn');
@@ -27,9 +31,10 @@ const settingsVariantBackBtn = document.getElementById('settings-variant-back');
 
 let currentLesson = null;
 let currentObjectUrl = null;
-// Bumped on every showJourneyContent()/startPreview() call so a slow,
-// in-flight call (e.g. still awaiting a cache read) can detect it's stale
-// once it resolves and avoid clobbering state a newer call already set.
+// Bumped on every showJourneyContent()/playCurrentLesson()/startPreview()
+// call so a slow, in-flight call (e.g. still awaiting a cache read) can
+// detect it's stale once it resolves and avoid clobbering state a newer
+// call already set.
 let journeyRequestToken = 0;
 // Browsers only allow *unmuted* autoplay after a genuine user gesture has
 // occurred on the page. This page's clickable elements are its corner
@@ -120,8 +125,15 @@ async function resolveVideoSrc(lesson) {
   return lesson.downloadUrl;
 }
 
+// Entering the journey window no longer autoplays anything: it shows a
+// branded "Large Group Time" splash naming this week's lesson, and waits
+// for the operator to actually start the video (Space / → / the on-screen
+// button — see playCurrentLesson() and the keydown listener below). The
+// video itself is still pre-fetched into the Cache API well ahead of time
+// by refreshLesson()/cacheLessonVideo() regardless of what's on screen, so
+// it's already "queued" and ready the moment playback is requested.
 async function showJourneyContent() {
-  const token = ++journeyRequestToken;
+  ++journeyRequestToken; // invalidate any in-flight playCurrentLesson() call
   if (!currentLesson) {
     // No lesson resolved yet (or the nightly feed came back empty) —
     // show the plain placeholder rather than a broken video.
@@ -129,10 +141,27 @@ async function showJourneyContent() {
     journeyVideo.removeAttribute('src');
     journeyVideo.classList.add('hidden');
     unmuteBtn.classList.add('hidden');
+    journeySplash.classList.add('hidden');
     journeyPlaceholder.classList.remove('hidden');
     return;
   }
+  // Don't rip control away from a playback that's already started (or
+  // in-flight) — e.g. the hourly lesson refresh firing while the video is
+  // already playing mid-window.
+  if (!journeyVideo.classList.contains('hidden')) return;
   journeyPlaceholder.classList.add('hidden');
+  journeySplashWeek.textContent = `Week ${currentLesson.week}`;
+  journeySplashTitle.textContent = currentLesson.title;
+  journeySplash.classList.remove('hidden');
+}
+
+// Actually starts the queued lesson playing — called only from a genuine
+// user action (keypress or the on-screen button), which is also what makes
+// unmuted autoplay reliable (see audioUnlocked below).
+async function playCurrentLesson() {
+  const token = ++journeyRequestToken;
+  if (!currentLesson) return;
+  journeySplash.classList.add('hidden');
   journeyVideo.classList.remove('hidden');
   unmuteBtn.classList.remove('hidden');
   journeyVideo.loop = false; // plays once; falls back to Check-in Display on 'ended' below
@@ -151,6 +180,16 @@ async function showJourneyContent() {
   });
 }
 
+// True only while the splash is up and waiting for the operator to start
+// the queued lesson — Space/→/the on-screen button all no-op outside this.
+function isAwaitingPlay() {
+  return (
+    !journeyView.classList.contains('hidden') &&
+    !journeySplash.classList.contains('hidden') &&
+    !previewMode
+  );
+}
+
 function setMuted(muted) {
   journeyVideo.muted = muted;
   unmuteBtn.textContent = muted ? '🔇' : '🔊';
@@ -165,6 +204,9 @@ function stopJourneyContent() {
   // It costs one cheap Cache API read to reconstruct at the next 6:30 PM.
   journeyVideo.removeAttribute('src');
   journeyVideo.load();
+  journeyVideo.classList.add('hidden');
+  unmuteBtn.classList.add('hidden');
+  journeySplash.classList.add('hidden');
   if (currentObjectUrl) {
     URL.revokeObjectURL(currentObjectUrl);
     currentObjectUrl = null;
@@ -225,6 +267,23 @@ toggleBtn.addEventListener('click', () => {
 unmuteBtn.addEventListener('click', () => {
   audioUnlocked = true;
   setMuted(!journeyVideo.muted);
+});
+
+// Starts the queued lesson playing — only while the splash is actually up
+// (isAwaitingPlay()), so a stray keypress at any other time (e.g. during
+// the Check-in Display, or once the video's already playing) does nothing.
+journeySplashPlayBtn.addEventListener('click', () => {
+  if (!isAwaitingPlay()) return;
+  audioUnlocked = true;
+  playCurrentLesson();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.code !== 'Space' && e.code !== 'ArrowRight') return;
+  if (!isAwaitingPlay()) return;
+  e.preventDefault(); // stop Space from also "clicking" a focused button below
+  audioUnlocked = true;
+  playCurrentLesson();
 });
 
 /* ── Keep the kiosk screen awake ─────────────────────────────────────

@@ -237,6 +237,26 @@ No service worker — the browser's Cache API is used directly from
 `schedule.js`, which is simpler and is all "cache one video file"
 actually needs:
 
+- **The video no longer autoplays at 6:30.** Crossing into the
+  scheduled window shows a branded "Large Group Time" splash
+  (`#journey-splash`) instead — a "Journey / Advocates" wordmark, the
+  "Large Group Time" banner, and this week's lesson prominently named
+  (`Week N` + `lessons.json`'s `title`, both filled in from
+  `currentLesson` by `showJourneyContent()`). The lesson video itself
+  is still queued up in the background exactly as before (see the
+  pre-fetch bullet right below) — only the on-screen *playback* waits.
+  An operator starts it with **Space**, **→**, or the on-screen "Begin
+  Video" button; all three are gated by `isAwaitingPlay()` (splash
+  visible, Journey view showing, not `previewMode`) and funnel into
+  `playCurrentLesson()`, which is the only thing that ever sets
+  `journeyVideo.src` for the scheduled show. This also conveniently
+  doubles as the audio-unlock gesture (see `audioUnlocked` below) —
+  pressing Space/→/the button to begin is itself a genuine user
+  action, so playback can start unmuted immediately rather than
+  needing a separate tap. **The manual preview flow (Settings panel)
+  is unchanged** — `startPreview()` still plays immediately, bypassing
+  the splash entirely; the splash-and-wait behavior only applies to
+  the scheduled 6:30 show.
 - On load, and hourly afterward, it fetches `current-lesson.json` and
   — regardless of what's currently on screen — pre-fetches that
   lesson's video into a dedicated `journey-videos-v1` cache bucket if
@@ -288,17 +308,21 @@ actually needs:
   the element's default).
 - **Autoplay-with-sound after the first click:** browsers only allow
   *unmuted* autoplay once a genuine user gesture has occurred on the
-  page. This page's only clickable elements are its two corner buttons
-  (a click inside the Check-in Display iframe is a different origin
-  and never bubbles up to this document), so a click on either one sets
-  an in-memory `audioUnlocked` flag; every subsequent lesson show
-  starts unmuted directly from then on, no separate unmute tap needed.
+  page. This page's only clickable elements are its two corner buttons,
+  the splash's "Begin Video" button, and the Space/→ keys that start
+  the scheduled lesson (a click inside the Check-in Display iframe is a
+  different origin and never bubbles up to this document); any of them
+  sets an in-memory `audioUnlocked` flag before `playCurrentLesson()`
+  reads it, so the scheduled lesson now starts unmuted from its very
+  first play — the splash's whole reason for existing is that playback
+  never begins without one of these gestures having just happened.
   Deliberately **not** persisted to `localStorage` — the browser's own
   gesture-based permission is itself scoped to the page's lifetime (it
   doesn't survive a reload/reboot either), so persisting "still
-  unlocked" past that point would just be wrong. The very first play of
-  a fresh page load (before any click) still starts muted, since the
-  browser has no gesture yet to permit sound.
+  unlocked" past that point would just be wrong. The one path that can
+  still start muted is a manual preview (Settings panel) opened before
+  any gesture on the page at all — rare, since opening Settings is
+  itself a click.
 - **`lastPhase` invariant — do not break this again:** `lastPhase`
   tracks only the *scheduled* phase (for detecting a genuine 18:30/
   19:15 boundary crossing); the manual toggle button and the video's
