@@ -67,18 +67,26 @@
 // for certain the club hasn't started the book), so it positively
 // writes the week-1 default rather than refusing.
 //
-// CORS note — why this script (not the browser) resolves the video URL:
-// clubs.awana.org's download links 302-redirect to a CloudFront-backed
-// CDN host. The redirect response itself carries no
-// Access-Control-Allow-Origin header, so a browser `fetch()` of the
-// awana.org URL in CORS mode (which public/src/schedule.js needs, to
-// read the response into a cacheable Blob) fails outright — confirmed
-// against the live site. The CloudFront target *does* send
-// `access-control-allow-origin: *`, so this script follows the
-// redirect once, server-side (where CORS doesn't apply), and writes
-// the resolved CDN URL into current-lesson.json instead of the
-// awana.org one — the one place with a real, unrestricted HTTP client
-// is also the only place that needs to do this resolution.
+// CORS note — why `sourceUrl` is a CDN URL, not the `clubs.awana.org` one
+// lessons.json lists: clubs.awana.org's download links 302-redirect to a
+// CloudFront-backed CDN host, and that redirect response itself carries no
+// Access-Control-Allow-Origin header. The CloudFront target *does* send
+// `access-control-allow-origin: *`, so this script follows the redirect
+// once, server-side (where CORS doesn't apply), and records the resolved
+// CDN URL — this matters both as the URL `transcode-lesson-video.mjs`
+// downloads from, and as the fallback `downloadUrl` a browser can still
+// fetch/cache directly if transcoding hasn't produced a video yet.
+//
+// `downloadUrl` vs `sourceUrl` — this script writes BOTH: `sourceUrl` is
+// always the original (large, ~90-220MB) lesson file, used as this script's
+// own "did the lesson actually change" identity and as the input to the
+// transcode step. `downloadUrl` is what the kiosk actually fetches — it
+// starts out equal to `sourceUrl` (so playback still works before
+// transcoding catches up) and gets overwritten to a small same-origin path
+// by `scripts/transcode-lesson-video.mjs` once that succeeds. A
+// heartbeat-only rewrite (the lesson itself hasn't changed) preserves
+// whatever `downloadUrl`/`transcodedAt` the transcode step already set,
+// rather than resetting it back to the untranscoded source every week.
 // ─────────────────────────────────────────────────────────────
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -185,18 +193,39 @@ function readExisting(out) {
   }
 }
 
-/** A resolved lesson is "unchanged" only if week, title, and downloadUrl
- * all match — so correcting a title/downloadUrl typo in lessons.json for
- * the currently-showing week still reaches the feed on the next run,
- * instead of being skipped as "no change" until the week number itself
- * happens to move. */
+/** A resolved lesson is "unchanged" only if week, title, and sourceUrl all
+ * match — so correcting a title/URL typo in lessons.json for the
+ * currently-showing week still reaches the feed on the next run, instead of
+ * being skipped as "no change" until the week number itself happens to
+ * move. Deliberately compares `sourceUrl`, not `downloadUrl`: the latter
+ * gets overwritten by the transcode step once it succeeds, and comparing
+ * against that would make every run think the lesson "changed" back to
+ * untranscoded the moment it wasn't. */
 function sameLesson(existing, candidate) {
   return (
     !!existing &&
     existing.week === candidate.week &&
     existing.title === candidate.title &&
-    existing.downloadUrl === candidate.downloadUrl
+    existing.sourceUrl === candidate.sourceUrl
   );
+}
+
+/** Builds the feed object to write: a genuinely new/changed lesson resets
+ * downloadUrl/transcodedAt back to the untranscoded source (a new lesson
+ * necessarily hasn't been transcoded yet); an unchanged lesson (e.g. a
+ * heartbeat-only refresh) preserves whatever the transcode step already
+ * produced, so it isn't discarded and redone for no reason every week. */
+function buildFeed(existing, candidate, resolvedAtISO) {
+  const unchanged = sameLesson(existing, candidate);
+  return {
+    version: 2,
+    week: candidate.week,
+    title: candidate.title,
+    sourceUrl: candidate.sourceUrl,
+    downloadUrl: unchanged && existing?.downloadUrl ? existing.downloadUrl : candidate.sourceUrl,
+    transcodedAt: unchanged ? existing?.transcodedAt ?? null : null,
+    resolvedAt: resolvedAtISO,
+  };
 }
 
 function heartbeatDue(existing) {
@@ -258,13 +287,13 @@ if (normalizeLabel(sectionText).startsWith(ENTRANCE_GATE_LABEL)) {
     process.exit(1);
   }
   const existing = readExisting(out);
-  const downloadUrl = await resolveCorsFriendlyVideoUrl(firstLesson.downloadUrl);
-  const candidate = { week: firstLesson.week, title: firstLesson.title, downloadUrl };
+  const sourceUrl = await resolveCorsFriendlyVideoUrl(firstLesson.downloadUrl);
+  const candidate = { week: firstLesson.week, title: firstLesson.title, sourceUrl };
   if (sameLesson(existing, candidate) && !heartbeatDue(existing)) {
     console.log(`Still in the entrance gate ("${sectionText}") — ${out} untouched (week 1 default).`);
     process.exit(0);
   }
-  writeFeed(out, { version: 1, ...candidate, resolvedAt: new Date().toISOString() });
+  writeFeed(out, buildFeed(existing, candidate, new Date().toISOString()));
   console.log(
     `Still in the entrance gate ("${sectionText}") — defaulted to week 1: "${firstLesson.title}".`
   );
@@ -281,14 +310,14 @@ if (!lesson) {
 }
 
 const existing = readExisting(out);
-const downloadUrl = await resolveCorsFriendlyVideoUrl(lesson.downloadUrl);
-const candidate = { week: lesson.week, title: lesson.title, downloadUrl };
+const sourceUrl = await resolveCorsFriendlyVideoUrl(lesson.downloadUrl);
+const candidate = { week: lesson.week, title: lesson.title, sourceUrl };
 if (sameLesson(existing, candidate) && !heartbeatDue(existing)) {
   console.log(`No change (still week ${lesson.week}) — ${out} untouched.`);
   process.exit(0);
 }
 
-writeFeed(out, { version: 1, ...candidate, resolvedAt: new Date().toISOString() });
+writeFeed(out, buildFeed(existing, candidate, new Date().toISOString()));
 console.log(
   `Wrote ${out}: week ${lesson.week} — "${lesson.title}" (from "${sectionText}")` +
   `${sameLesson(existing, candidate) ? ' (heartbeat refresh)' : ''}.`

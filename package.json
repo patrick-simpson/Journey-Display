@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Kiosk display: Awana Check-in Display by day, the Journey: Advocates video lesson each evening.",
   "scripts": {
-    "fetch-lesson": "node scripts/fetch-current-lesson.mjs"
+    "fetch-lesson": "node scripts/fetch-current-lesson.mjs",
+    "transcode-lesson": "node scripts/transcode-lesson-video.mjs"
   },
   "devDependencies": {
     "jsdom": "^29.1.1"

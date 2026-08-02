@@ -225,6 +225,15 @@ schedule for real:
   video, that's normal and expected — it means this week's lesson
   hasn't been resolved yet, or the video couldn't load, and the display
   is deliberately showing a plain placeholder instead of a broken video
+- The video plays at a somewhat lower picture quality than Awana's
+  original — that's intentional, not a bug: the Pi Zero isn't powerful
+  enough to smoothly play the full-quality version, so each lesson is
+  automatically shrunk down to something it can handle before it ever
+  reaches the kiosk. Sound stays muted for the very first play after
+  the Pi boots (browsers require a tap before allowing autoplay with
+  sound) — tap either corner button once and every lesson after that
+  plays with sound automatically. The video also always plays through
+  once and stops; it never loops.
 
 ### I want to change the schedule but editing the file on the Pi didn't work
 

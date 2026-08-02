@@ -5,6 +5,13 @@ name: Update current lesson
 # the kiosk reads it same-origin instead of hitting a third-party site
 # at 6:30 PM. Only rewrites when the lesson changes (or weekly, as a
 # heartbeat for staleness), so most nights commit nothing.
+#
+# Also transcodes that lesson's video down to something the kiosk's weak
+# Raspberry Pi Zero can actually decode smoothly (public/current-lesson-
+# video.mp4, ~5x smaller than Awana's original) — see the top of
+# scripts/transcode-lesson-video.mjs for the full rationale, including the
+# deliberate, informed exception this makes to this project's normal
+# "never re-host the original video files" rule (CLAUDE.md).
 
 on:
   schedule:
@@ -35,25 +42,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Resolve the current lesson
         # Exits 1 (failing the run, which emails the repo owner) if the
         # page stops parsing, or if public/lessons.json isn't populated
         # yet — the last good committed lesson keeps serving either way.
         run: npm run fetch-lesson
 
-      - name: Commit the refreshed lesson, if it changed
+      - name: Transcode the lesson video
+        # Never fails the job on its own (see the script's own comments) —
+        # a transcode failure just leaves current-lesson.json's downloadUrl
+        # pointing at the original, full-size, still-playable source.
+        run: npm run transcode-lesson
+
+      - name: Commit the refreshed lesson, if anything changed
         # Pushes made with the default GITHUB_TOKEN deliberately do NOT
         # trigger `on: push` workflows — see the dispatch step below.
         # Rebases and retries on push rejection: this repo's own
         # convention is "commit and push to main on every change", so a
-        # concurrent human push during the ~30-60s this job spends on
-        # `npm ci` + the TwoTimTwo fetch is routine, not exceptional, and
-        # should not cost a night's resolved lesson.
+        # concurrent human push during the time this job spends on
+        # `npm ci`, the TwoTimTwo fetch, and the video download+transcode
+        # is routine, not exceptional, and should not cost a night's work.
         run: |
-          if [ -n "$(git status --porcelain public/current-lesson.json)" ]; then
+          if [ -n "$(git status --porcelain public/current-lesson.json public/current-lesson-video.mp4)" ]; then
             git config user.name 'lesson-bot'
             git config user.email 'github-actions[bot]@users.noreply.github.com'
-            git add public/current-lesson.json
+            git add public/current-lesson.json public/current-lesson-video.mp4
             git commit -m 'chore: refresh current lesson'
             for i in 1 2 3 4; do
               if git push; then
