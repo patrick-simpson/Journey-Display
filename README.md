@@ -269,6 +269,21 @@ The Journey Display is a simple website (HTML/CSS/JavaScript) that:
 
 The video lessons come from the **Journey: Advocates** curriculum hosted by Awana. A nightly GitHub Action automatically detects the current week's lesson from your church's TwoTimTwo calendar and updates `current-lesson.json`.
 
+### Previewing Any Lesson (Settings Button)
+
+A small gear (⚙) button in the top-right corner opens a list of every
+lesson in the course. Tap a week to play it right now — this is just a
+one-time preview and never changes what plays automatically at 6:30 PM.
+
+- If you tap a lesson **outside 6:30–7:15 PM**, it asks whether you
+  want the **Student Video** (what the kids normally see) or the
+  **Leader Video** (has extra discussion notes, meant for the leader
+  reviewing ahead of time).
+- If you tap a lesson **during 6:30–7:15 PM**, it just plays the
+  Student Video right away, same as usual.
+- To stop a preview early, tap the switch-display (⇄) button — it
+  returns to whatever should normally be showing right now.
+
 ### How it's Built
 
 - `public/index.html` — the whole app. Two full-viewport layers (Check-in Display iframe, Journey video) are both always mounted; a small script toggles which one is visible.

@@ -97,12 +97,23 @@ make either way.
 
 Hand-maintained, not scraped nightly (the course itself doesn't change
 week to week): `{ version, sourceUrl, lessons: [{ week, unit, lesson,
-title, downloadUrl }, …] }`. `week` is a flat 1-32 count in course
-order (`unit`/`lesson` are the Advocates page's own "Unit N, Lesson M"
-numbering — 8 units × 4 lessons). Built by fetching and parsing the
-real Advocates page (all 32 `.m-lesson-resources-block` tiles, each
-with a "Unit N, Lesson M" heading and Student/Leader video download
-links) — rebuild it the same way if Awana revises the course.
+title, downloadUrl, leaderDownloadUrl }, …] }`. `week` is a flat 1-32
+count in course order (`unit`/`lesson` are the Advocates page's own
+"Unit N, Lesson M" numbering — 8 units × 4 lessons). `downloadUrl` is
+always the Student Video (the one the auto-scheduled 6:30 show plays);
+`leaderDownloadUrl` is that lesson's Leader Video, used only by the
+manual video-picker in Settings (see "Manual video preview" below) —
+**`null` for week 27** ("Unit 7, Lesson 3: Suffering"), which really
+has no Leader Video on Awana's own page, not a scraping gap. Built by
+fetching and parsing the real Advocates page (all 32
+`.m-lesson-resources-block` tiles, each with a "Unit N, Lesson M"
+heading and a `.m-small-video-resource-tile` per video labeled "Student
+Video" / "Leader Video" with its own download link) — rebuild it the
+same way if Awana revises the course. Don't guess the Leader Video's
+filename from the Student one: it's usually `…-leader.mp4` but three
+lessons (weeks 17-19) use `…-leaders.mp4` (plural) instead — a real
+inconsistency in Awana's own naming, confirmed against the live page,
+not a typo to "fix" here.
 
 ### Current lesson lookup
 
@@ -307,6 +318,46 @@ actually needs:
   kiosk asleep long before 6:30 PM with no local activity to prevent
   it. Not fatal if unsupported — disabling blanking at the OS level
   (see `PI_SETUP.md`) is the belt-and-braces fallback either way.
+
+### Manual video preview (Settings panel)
+
+A third corner button (`#settings-btn`, top-right, same subtle style as
+the other two) opens a panel listing every lesson in `lessons.json`, so
+an operator can play any week on demand — for testing, previewing an
+upcoming lesson, or catching up after a missed night.
+
+- **Always a one-off.** Picking a lesson plays it immediately and never
+  writes to `current-lesson.json` or touches `currentLesson` — the
+  6:30 auto-schedule is completely unaffected by what was manually
+  previewed, by design (confirmed: crossing the 6:30/7:15 boundary
+  mid-preview doesn't interrupt it, and ending a preview afterward
+  correctly resumes the real auto-resolved lesson, not the previewed
+  one).
+- **Plays the original URL directly**, bypassing the Cache API/
+  transcode pipeline entirely — this is an occasional manual action on
+  a lesson that isn't necessarily "current," so it doesn't warrant the
+  pre-caching machinery built for the nightly auto-played lesson. It
+  will load slower and may not play as smoothly on the Pi Zero as the
+  transcoded current lesson does; that's an accepted trade-off for a
+  rarely-used feature, not a bug to fix by extending transcoding to all
+  32 lessons (see the repo-size trade-off already noted under "Video
+  transcoding").
+- **Outside the 6:30-7:15 window, picking a lesson asks Leader or
+  Student Video first**; inside the window it plays the Student Video
+  directly, same as the automatic show would. Outside the window is
+  more likely someone reviewing content (the Leader Video carries extra
+  discussion notes not meant for the room) than showing it to kids, so
+  offering the choice there — but not interrupting the normal in-window
+  experience with an extra step — was a deliberate distinction.
+  Lessons with no Leader Video (`leaderDownloadUrl: null` — currently
+  only week 27) disable that choice rather than offering a dead link.
+- **`previewMode`** (in `schedule.js`) is the flag that makes this
+  safe: the 15s scheduler poll and the hourly lesson refresh both
+  no-op while it's set, so neither can interrupt an active preview or
+  silently swap its video out from under it. It's cleared, and control
+  handed back to `setView(scheduledPhase())`, when the preview's video
+  ends/errors or the operator taps the view-toggle button (deliberately
+  reused rather than adding a fourth button) — never anything else.
 
 ## Embedding note
 

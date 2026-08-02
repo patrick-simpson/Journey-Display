@@ -14,23 +14,34 @@ const journeyPlaceholder = document.getElementById('journey-placeholder');
 const journeyVideo = document.getElementById('journey-video');
 const unmuteBtn = document.getElementById('unmute-btn');
 const toggleBtn = document.getElementById('toggle-btn');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
+const settingsBackdrop = document.getElementById('settings-backdrop');
+const settingsCloseBtn = document.getElementById('settings-close-btn');
+const settingsLessonList = document.getElementById('settings-lesson-list');
+const settingsVariantPicker = document.getElementById('settings-variant-picker');
+const settingsVariantPrompt = document.getElementById('settings-variant-prompt');
+const settingsVariantStudentBtn = document.getElementById('settings-variant-student');
+const settingsVariantLeaderBtn = document.getElementById('settings-variant-leader');
+const settingsVariantBackBtn = document.getElementById('settings-variant-back');
 
 let currentLesson = null;
 let currentObjectUrl = null;
-// Bumped on every showJourneyContent() call so a slow, in-flight call (e.g.
-// still awaiting a cache read) can detect it's stale once it resolves and
-// avoid clobbering state a newer call already set.
+// Bumped on every showJourneyContent()/startPreview() call so a slow,
+// in-flight call (e.g. still awaiting a cache read) can detect it's stale
+// once it resolves and avoid clobbering state a newer call already set.
 let journeyRequestToken = 0;
 // Browsers only allow *unmuted* autoplay after a genuine user gesture has
-// occurred on the page. This page's only clickable elements are the two
-// corner buttons (a click inside the Check-in Display iframe is a different
-// origin and never bubbles up to this document), so a click on either one
-// counts as "the kiosk has been touched" and unlocks unmuted autoplay for
-// every subsequent lesson — no separate unmute tap needed after that first
-// click. This flag deliberately lives only in memory, not localStorage: the
-// browser's own gesture-based permission is itself scoped to this page's
-// lifetime (it doesn't survive a reload/reboot either), so persisting a
-// "still unlocked" flag past that point would just be wrong.
+// occurred on the page. This page's clickable elements are its corner
+// buttons (a click inside the Check-in Display iframe is a different
+// origin and never bubbles up to this document), so a click on any of
+// them counts as "the kiosk has been touched" and unlocks unmuted autoplay
+// for every subsequent lesson — no separate unmute tap needed after that
+// first click. This flag deliberately lives only in memory, not
+// localStorage: the browser's own gesture-based permission is itself
+// scoped to this page's lifetime (it doesn't survive a reload/reboot
+// either), so persisting a "still unlocked" flag past that point would
+// just be wrong.
 let audioUnlocked = false;
 
 function scheduledPhase() {
@@ -184,7 +195,16 @@ function setView(phase) {
 let lastPhase = scheduledPhase();
 setView(lastPhase);
 
+// True while a manually-picked video (from the Settings panel) is playing.
+// The poller and the hourly lesson refresh both skip their normal
+// view-changing work while this is set, so a preview can't be interrupted
+// mid-playback by the ordinary schedule machinery — it only ends via the
+// video finishing/erroring, or the operator explicitly leaving it (the
+// toggle button). See "Manual video preview" below.
+let previewMode = false;
+
 setInterval(() => {
+  if (previewMode) return;
   const phase = scheduledPhase();
   if (phase !== lastPhase) {
     lastPhase = phase;
@@ -194,6 +214,10 @@ setInterval(() => {
 
 toggleBtn.addEventListener('click', () => {
   audioUnlocked = true;
+  if (previewMode) {
+    endPreview();
+    return;
+  }
   const showingJourney = !journeyView.classList.contains('hidden');
   setView(showingJourney ? 'checkin' : 'journey');
 });
@@ -237,6 +261,10 @@ document.addEventListener('visibilitychange', () => {
 // lesson from frame zero, which is exactly the bug this comment is here to
 // prevent regressing.
 journeyVideo.addEventListener('ended', () => {
+  if (previewMode) {
+    endPreview();
+    return;
+  }
   setView('checkin');
 });
 
@@ -245,6 +273,10 @@ journeyVideo.addEventListener('ended', () => {
 // that's indistinguishable from a dead display.
 journeyVideo.addEventListener('error', () => {
   console.warn('Journey: video failed to load/play', journeyVideo.error);
+  if (previewMode) {
+    endPreview();
+    return;
+  }
   if (!journeyView.classList.contains('hidden')) {
     journeyVideo.classList.add('hidden');
     unmuteBtn.classList.add('hidden');
@@ -265,8 +297,142 @@ async function refreshLesson() {
   const changed = !sameLesson(currentLesson, lesson);
   currentLesson = lesson;
   cacheLessonVideo(lesson);
-  if (changed && lastPhase === 'journey') showJourneyContent();
+  if (changed && lastPhase === 'journey' && !previewMode) showJourneyContent();
 }
 
 refreshLesson();
 setInterval(refreshLesson, LESSON_REFRESH_MS);
+
+/* ── Manual video preview (Settings panel) ────────────────────────────
+   Lets an operator browse every lesson in public/lessons.json and play
+   any one of them right now — always a one-off: it never changes what
+   the schedule above will automatically show at the next 6:30 PM, and
+   never touches current-lesson.json. Deliberately plays the lesson's
+   original (untranscoded) URL directly rather than going through the
+   Cache API — this is an occasional manual action, not the nightly
+   auto-played lesson, so it doesn't need pre-caching machinery; it will
+   just take a little longer to start and may not play as smoothly on the
+   Pi Zero as the transcoded current lesson does. When it's not currently
+   the scheduled 6:30-7:15 window, picking a lesson asks Leader or Student
+   Video first — outside the window this is more likely someone reviewing
+   content than showing it to kids, so the Leader Video (which has extra
+   discussion notes not meant for the room) is worth offering directly. */
+
+let allLessons = null;
+let pendingPreviewLesson = null;
+
+async function loadAllLessons() {
+  if (allLessons) return allLessons;
+  try {
+    const res = await fetch('lessons.json', { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !Array.isArray(data.lessons)) return null;
+    allLessons = data.lessons;
+    return allLessons;
+  } catch {
+    return null;
+  }
+}
+
+function renderLessonList(lessons) {
+  settingsLessonList.textContent = '';
+  for (const lesson of lessons.slice().sort((a, b) => a.week - b.week)) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'settings-lesson-row';
+    row.setAttribute('role', 'option');
+    if (currentLesson && currentLesson.week === lesson.week) {
+      row.classList.add('settings-lesson-current');
+    }
+    const week = document.createElement('span');
+    week.className = 'settings-lesson-week';
+    week.textContent = `Week ${lesson.week}`;
+    const title = document.createElement('span');
+    title.textContent = lesson.title;
+    row.append(week, title);
+    row.addEventListener('click', () => onLessonPicked(lesson));
+    settingsLessonList.appendChild(row);
+  }
+}
+
+function onLessonPicked(lesson) {
+  if (scheduledPhase() === 'journey') {
+    // Inside the normal window, a preview is a quick look at the Student
+    // Video the same way the real 6:30 show always plays — no extra step.
+    startPreview(lesson.downloadUrl, lesson.title);
+    closeSettingsPanel();
+    return;
+  }
+  pendingPreviewLesson = lesson;
+  settingsVariantPrompt.textContent = `"${lesson.title}" — which video?`;
+  settingsVariantLeaderBtn.disabled = !lesson.leaderDownloadUrl;
+  settingsLessonList.classList.add('hidden');
+  settingsVariantPicker.classList.remove('hidden');
+}
+
+function resetSettingsPanelToList() {
+  pendingPreviewLesson = null;
+  settingsVariantPicker.classList.add('hidden');
+  settingsLessonList.classList.remove('hidden');
+}
+
+async function openSettingsPanel() {
+  audioUnlocked = true;
+  resetSettingsPanelToList();
+  const lessons = await loadAllLessons();
+  if (lessons) renderLessonList(lessons);
+  settingsPanel.classList.remove('hidden');
+}
+
+function closeSettingsPanel() {
+  settingsPanel.classList.add('hidden');
+}
+
+function startPreview(url, title) {
+  ++journeyRequestToken; // invalidate any in-flight showJourneyContent() call
+  previewMode = true;
+  journeyView.classList.remove('hidden');
+  checkinView.classList.add('hidden');
+  journeyPlaceholder.classList.add('hidden');
+  journeyVideo.classList.remove('hidden');
+  unmuteBtn.classList.remove('hidden');
+  journeyVideo.loop = false;
+  setMuted(!audioUnlocked);
+  journeyVideo.src = url;
+  journeyVideo.play().catch(() => {
+    if (!journeyVideo.muted) {
+      setMuted(true);
+      journeyVideo.play().catch(() => {});
+    }
+  });
+  console.log(`Journey: previewing "${title}"`);
+}
+
+function endPreview() {
+  if (!previewMode) return;
+  previewMode = false;
+  setView(scheduledPhase());
+}
+
+settingsBtn.addEventListener('click', () => {
+  audioUnlocked = true;
+  openSettingsPanel();
+});
+
+settingsCloseBtn.addEventListener('click', closeSettingsPanel);
+settingsBackdrop.addEventListener('click', closeSettingsPanel);
+
+settingsVariantBackBtn.addEventListener('click', resetSettingsPanelToList);
+
+settingsVariantStudentBtn.addEventListener('click', () => {
+  if (!pendingPreviewLesson) return;
+  startPreview(pendingPreviewLesson.downloadUrl, `${pendingPreviewLesson.title} (Student Video)`);
+  closeSettingsPanel();
+});
+
+settingsVariantLeaderBtn.addEventListener('click', () => {
+  if (!pendingPreviewLesson || !pendingPreviewLesson.leaderDownloadUrl) return;
+  startPreview(pendingPreviewLesson.leaderDownloadUrl, `${pendingPreviewLesson.title} (Leader Video)`);
+  closeSettingsPanel();
+});

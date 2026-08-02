@@ -24,6 +24,30 @@
   </div>
 
   <button id="toggle-btn" type="button" aria-label="Switch display">⇄</button>
+  <button id="settings-btn" type="button" aria-label="Video settings">⚙</button>
+
+  <div id="settings-panel" class="hidden" role="dialog" aria-label="Journey video settings" aria-modal="true">
+    <div id="settings-backdrop"></div>
+    <div id="settings-card">
+      <div id="settings-header">
+        <h2>Journey Videos</h2>
+        <button id="settings-close-btn" type="button" aria-label="Close">✕</button>
+      </div>
+      <p id="settings-preview-note">
+        Picking a video here plays it once, right now — it never changes what
+        automatically plays at 6:30&nbsp;PM.
+      </p>
+      <div id="settings-lesson-list" role="listbox" aria-label="Choose a lesson"></div>
+      <div id="settings-variant-picker" class="hidden">
+        <p id="settings-variant-prompt"></p>
+        <div id="settings-variant-buttons">
+          <button id="settings-variant-student" type="button">Student Video</button>
+          <button id="settings-variant-leader" type="button">Leader Video</button>
+        </div>
+        <button id="settings-variant-back" type="button">← Back to list</button>
+      </div>
+    </div>
+  </div>
 
   <script src="src/schedule.js"></script>
 </body>

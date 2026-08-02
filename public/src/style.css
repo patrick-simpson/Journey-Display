@@ -120,3 +120,181 @@ body {
 #toggle-btn:focus-visible {
   background: rgba(255, 255, 255, 0.75);
 }
+
+/* Third corner control — top-right, so it doesn't crowd the bottom row
+   (unmute bottom-left, view-toggle bottom-right). Same overscan-safe
+   inset and sizing as the other two. */
+#settings-btn {
+  position: fixed;
+  top: max(3vh, 24px);
+  right: max(3vw, 24px);
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.35);
+  color: #000000;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  transition: background-color 0.2s ease;
+}
+
+#settings-btn:hover,
+#settings-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+/* ── Video settings panel ────────────────────────────────────────── */
+
+#settings-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#settings-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+#settings-card {
+  position: relative;
+  width: min(720px, 90vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1a;
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  font-family: system-ui, sans-serif;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+#settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+#settings-header h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+#settings-close-btn {
+  min-width: 40px;
+  min-height: 40px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+#settings-close-btn:hover,
+#settings-close-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+#settings-preview-note {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin-bottom: 1rem;
+}
+
+#settings-lesson-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-lesson-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-lesson-row:hover,
+.settings-lesson-row:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.settings-lesson-row .settings-lesson-week {
+  flex: none;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-lesson-row.settings-lesson-current {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+#settings-variant-prompt {
+  margin-bottom: 1rem;
+  font-size: 1.05rem;
+}
+
+#settings-variant-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+#settings-variant-buttons button {
+  flex: 1;
+  padding: 0.9rem;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#settings-variant-buttons button:hover,
+#settings-variant-buttons button:focus-visible {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+#settings-variant-buttons button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+#settings-variant-back {
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+#settings-variant-back:hover,
+#settings-variant-back:focus-visible {
+  color: #ffffff;
+}
