@@ -33,7 +33,11 @@
 //   </table>
 //
 // The row is matched by "Book Track" containing "advocates" (not by
-// club name, in case that's ever renamed).
+// club name, in case that's ever renamed). If MORE than one row
+// matches, this refuses rather than guessing which one is really the
+// Journey club — the whole point of matching by Book Track instead of
+// club name was to survive a renamed club, not to silently pick
+// whichever matching row happens to come first in the DOM.
 //
 // IMPORTANT — "Faith Foundations" is TwoTimTwo/Awana's generic
 // "entrance gate" onboarding sequence every club runs through BEFORE
@@ -54,8 +58,7 @@
 // the very next meeting (2026-09-09) is "Unit 1 #1", continuing in
 // lockstep with the Advocates page's own numbering all the way to
 // "Unit 8 #4" (2027-05-19). So "Unit N #M" maps directly to
-// lessons.json's `unit`/`lesson` fields — no flat 1..32 counting
-// needed, unlike an earlier, wrong guess this script used to make.
+// lessons.json's `unit`/`lesson` fields.
 //
 // Safety rail, same as fetch-calendar.mjs: refuse (exit 1) rather than
 // overwrite a good file with an unconfident parse — a bad night here
@@ -63,6 +66,19 @@
 // entrance-gate case is different: that IS a confident read (we know
 // for certain the club hasn't started the book), so it positively
 // writes the week-1 default rather than refusing.
+//
+// CORS note — why this script (not the browser) resolves the video URL:
+// clubs.awana.org's download links 302-redirect to a CloudFront-backed
+// CDN host. The redirect response itself carries no
+// Access-Control-Allow-Origin header, so a browser `fetch()` of the
+// awana.org URL in CORS mode (which public/src/schedule.js needs, to
+// read the response into a cacheable Blob) fails outright — confirmed
+// against the live site. The CloudFront target *does* send
+// `access-control-allow-origin: *`, so this script follows the
+// redirect once, server-side (where CORS doesn't apply), and writes
+// the resolved CDN URL into current-lesson.json instead of the
+// awana.org one — the one place with a real, unrestricted HTTP client
+// is also the only place that needs to do this resolution.
 // ─────────────────────────────────────────────────────────────
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -72,7 +88,7 @@ const DEFAULT_URL = 'https://kvbchurch.twotimtwo.com/calendar/index?current_only
 const DEFAULT_LESSONS = 'public/lessons.json';
 const DEFAULT_OUT = 'public/current-lesson.json';
 const HEARTBEAT_DAYS = 7;
-const ENTRANCE_GATE_LABEL = 'Faith Foundations';
+const ENTRANCE_GATE_LABEL = 'faith foundations';
 
 function arg(flag) {
   const i = process.argv.indexOf(flag);
@@ -94,20 +110,47 @@ async function fetchWithRetry(url, attempts = 3) {
   throw lastError;
 }
 
-/** Find the Advocates row in the "current book track" table and
- * return its Section text (e.g. "Faith Foundations #7"), or null if
- * the table/row isn't there in the shape we expect. */
+/** Resolve lesson.downloadUrl's redirect to its final CDN URL, server-side,
+ * so the browser never has to follow a cross-origin redirect that lacks
+ * CORS headers of its own. Falls back to the original URL (still fine for
+ * direct <video> playback, just not for the Cache API pre-fetch) if the
+ * resolution fails or the final response turns out not to be CORS-enabled
+ * — a transient failure here must never block writing the rest of the feed.
+ */
+async function resolveCorsFriendlyVideoUrl(downloadUrl) {
+  try {
+    const res = await fetch(downloadUrl, {
+      method: 'HEAD',
+      redirect: 'follow',
+      signal: AbortSignal.timeout(30000),
+    });
+    if (res.ok && res.headers.get('access-control-allow-origin')) {
+      return res.url;
+    }
+  } catch {
+    // fall through
+  }
+  return downloadUrl;
+}
+
+/** Find the Advocates row(s) in the "current book track" table and return
+ * the Section text (e.g. "Faith Foundations #7"), or null if the
+ * table/row isn't there in the shape we expect, or if the row is
+ * ambiguous (zero or more than one match, or a blank cell). */
 function extractSectionText(html) {
   const doc = new JSDOM(html).window.document;
+  const matches = [];
   for (const row of doc.querySelectorAll('tr.book-track-mtg')) {
     const cells = row.querySelectorAll('td');
     if (cells.length < 3) continue;
     const bookTrack = cells[1].textContent?.trim() || '';
     if (!/advocates/i.test(bookTrack)) continue;
-    const section = cells[2].querySelector('b')?.textContent?.trim() || cells[2].textContent?.trim();
-    if (section) return section;
+    const section = cells[2].querySelector('b')?.textContent?.trim() || cells[2].textContent?.trim() || '';
+    matches.push(section);
   }
-  return null;
+  if (matches.length !== 1) return { sectionText: null, matchCount: matches.length };
+  if (!matches[0]) return { sectionText: null, matchCount: 1, blank: true };
+  return { sectionText: matches[0], matchCount: 1 };
 }
 
 /** "Unit N #M" -> the lessons.json entry with matching unit/lesson.
@@ -119,6 +162,14 @@ function matchLesson(text, lessons) {
   const unit = Number(m[1]);
   const lessonNum = Number(m[2]);
   return lessons.find((l) => l.unit === unit && l.lesson === lessonNum) || null;
+}
+
+/** Normalize whitespace (collapsing runs of whitespace, including
+ * non-breaking spaces, to a single space) and case, so a label check isn't
+ * brittle against markup/whitespace variance that the "Unit N #M" regex
+ * below already tolerates via \s+. */
+function normalizeLabel(text) {
+  return text.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 function writeFeed(out, feed) {
@@ -134,9 +185,29 @@ function readExisting(out) {
   }
 }
 
+/** A resolved lesson is "unchanged" only if week, title, and downloadUrl
+ * all match — so correcting a title/downloadUrl typo in lessons.json for
+ * the currently-showing week still reaches the feed on the next run,
+ * instead of being skipped as "no change" until the week number itself
+ * happens to move. */
+function sameLesson(existing, candidate) {
+  return (
+    !!existing &&
+    existing.week === candidate.week &&
+    existing.title === candidate.title &&
+    existing.downloadUrl === candidate.downloadUrl
+  );
+}
+
 function heartbeatDue(existing) {
-  const ageMs = existing?.resolvedAt ? Date.now() - Date.parse(existing.resolvedAt) : Infinity;
-  return !(ageMs < HEARTBEAT_DAYS * 24 * 60 * 60 * 1000);
+  const parsed = existing?.resolvedAt ? Date.parse(existing.resolvedAt) : NaN;
+  if (!Number.isFinite(parsed)) return true; // missing/unparseable -> due
+  const ageMs = Date.now() - parsed;
+  // A negative age (resolvedAt in the future — clock skew, a hand-edited
+  // file, a bad restore) must count as due, not as "freshly resolved
+  // moments ago" — otherwise the heartbeat that exists to prove the
+  // pipeline is alive can silently disable itself indefinitely.
+  return ageMs < 0 || ageMs >= HEARTBEAT_DAYS * 24 * 60 * 60 * 1000;
 }
 
 const url = arg('--url') || DEFAULT_URL;
@@ -158,35 +229,42 @@ if (lessons.length === 0) {
 }
 
 const html = fromFile ? readFileSync(fromFile, 'utf8') : await fetchWithRetry(url);
-const sectionText = extractSectionText(html);
+const { sectionText, matchCount, blank } = extractSectionText(html);
 
 if (!sectionText) {
-  console.error(
-    'Could not find the Journey: Advocates row in the "current book track" table — refusing to ' +
-    `overwrite ${out}. The page layout may have changed (see the comment at the top of this file).`
-  );
+  if (matchCount > 1) {
+    console.error(
+      `Found ${matchCount} "Journey: Advocates" rows in the "current book track" table — refusing to ` +
+      `guess which one is authoritative. Refusing to overwrite ${out}.`
+    );
+  } else if (blank) {
+    console.error(
+      'The Journey: Advocates row\'s Section cell is blank — refusing to overwrite ' +
+      `${out} rather than falling through to a different club's row.`
+    );
+  } else {
+    console.error(
+      'Could not find the Journey: Advocates row in the "current book track" table — refusing to ' +
+      `overwrite ${out}. The page layout may have changed (see the comment at the top of this file).`
+    );
+  }
   process.exit(1);
 }
 
-if (sectionText.startsWith(ENTRANCE_GATE_LABEL)) {
+if (normalizeLabel(sectionText).startsWith(ENTRANCE_GATE_LABEL)) {
   const firstLesson = lessons.find((l) => l.week === 1);
   if (!firstLesson) {
     console.error(`${lessonsPath} has no week 1 entry — can't apply the entrance-gate default.`);
     process.exit(1);
   }
   const existing = readExisting(out);
-  const unchanged = existing && existing.week === firstLesson.week;
-  if (unchanged && !heartbeatDue(existing)) {
+  const downloadUrl = await resolveCorsFriendlyVideoUrl(firstLesson.downloadUrl);
+  const candidate = { week: firstLesson.week, title: firstLesson.title, downloadUrl };
+  if (sameLesson(existing, candidate) && !heartbeatDue(existing)) {
     console.log(`Still in the entrance gate ("${sectionText}") — ${out} untouched (week 1 default).`);
     process.exit(0);
   }
-  writeFeed(out, {
-    version: 1,
-    week: firstLesson.week,
-    title: firstLesson.title,
-    downloadUrl: firstLesson.downloadUrl,
-    resolvedAt: new Date().toISOString(),
-  });
+  writeFeed(out, { version: 1, ...candidate, resolvedAt: new Date().toISOString() });
   console.log(
     `Still in the entrance gate ("${sectionText}") — defaulted to week 1: "${firstLesson.title}".`
   );
@@ -203,20 +281,15 @@ if (!lesson) {
 }
 
 const existing = readExisting(out);
-const unchanged = existing && existing.week === lesson.week;
-if (unchanged && !heartbeatDue(existing)) {
+const downloadUrl = await resolveCorsFriendlyVideoUrl(lesson.downloadUrl);
+const candidate = { week: lesson.week, title: lesson.title, downloadUrl };
+if (sameLesson(existing, candidate) && !heartbeatDue(existing)) {
   console.log(`No change (still week ${lesson.week}) — ${out} untouched.`);
   process.exit(0);
 }
 
-writeFeed(out, {
-  version: 1,
-  week: lesson.week,
-  title: lesson.title,
-  downloadUrl: lesson.downloadUrl,
-  resolvedAt: new Date().toISOString(),
-});
+writeFeed(out, { version: 1, ...candidate, resolvedAt: new Date().toISOString() });
 console.log(
   `Wrote ${out}: week ${lesson.week} — "${lesson.title}" (from "${sectionText}")` +
-  `${unchanged ? ' (heartbeat refresh)' : ''}.`
+  `${sameLesson(existing, candidate) ? ' (heartbeat refresh)' : ''}.`
 );

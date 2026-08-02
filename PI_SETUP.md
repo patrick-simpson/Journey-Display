@@ -80,7 +80,22 @@ We want the Pi to show the Journey Display every time it starts up.
 
 10. Close the terminal
 
-### 4c. Test It
+> If the display doesn't auto-start and you see an error mentioning
+> `chromium-browser`, open a terminal and run
+> `which chromium-browser || which chromium` to check which name your
+> Pi's version actually uses, then use that name in the `Exec=` line
+> above instead.
+
+### 4d. Disable Screen Blanking (don't skip this)
+
+Without this, the Pi can go to sleep after a few idle minutes and the
+kiosk will show a blank/dark screen even though it's working fine.
+
+1. Raspberry Pi menu → Preferences → Raspberry Pi Configuration → **Display** tab
+2. Find **"Screen Blanking"** and set it to **Disable**
+3. Click **OK**
+
+### 4e. Test It
 
 1. Reboot the Pi: Click Raspberry Pi menu → Shutdown → Reboot
 2. Wait 1-2 minutes
@@ -90,19 +105,26 @@ We want the Pi to show the Journey Display every time it starts up.
 
 The Journey Display shows the Awana Check-in Display most of the day, then switches to the Journey video from **6:30 PM to 7:15 PM**.
 
-If you want to change these times:
+**Important:** these times live in the **website's own code on GitHub**,
+not in a file on the Pi. The Pi always loads the live site at
+`https://patrick-simpson.github.io/Journey-Display/` — it does not read
+a local copy, so editing a file on the Pi itself (even if one happens
+to exist there) won't change what the kiosk shows. To change the times
+for real:
 
-1. Open a file manager on the Pi
-2. Navigate to: `/home/pi/Journey-Display` (if you cloned it locally)
-3. Open `public/src/schedule.js` with a text editor
-4. Find these two lines near the top:
+1. On any computer, go to
+   https://github.com/patrick-simpson/Journey-Display/blob/main/public/src/schedule.js
+2. Click the pencil (✏️) icon to edit it directly in the browser
+3. Find these two lines near the top:
    ```javascript
    const JOURNEY_START_MINUTES = 18 * 60 + 30; // 6:30 PM
    const JOURNEY_END_MINUTES = 19 * 60 + 15;   // 7:15 PM
    ```
-5. Change the times to what you want (in 24-hour format)
-6. Save the file
-7. Refresh the browser (press F5)
+4. Change the times to what you want (in 24-hour format)
+5. Click **"Commit changes..."** then **"Commit changes"** to save to `main`
+6. Wait about a minute for the site to redeploy (check the repository's
+   **Actions** tab for a green checkmark)
+7. On the Pi, refresh the browser (press F5)
 
 ## Troubleshooting
 
@@ -125,6 +147,14 @@ If you want to change these times:
 - Make sure the time is set correctly on the Pi (check the clock in the top right)
 - The video only appears between 6:30 PM and 7:15 PM
 - Check that you have an internet connection
+- Seeing the word "Journey" on a plain dark screen (not a black/blank
+  screen) is normal — it means the week's lesson hasn't resolved yet or
+  couldn't load, and the display intentionally shows a placeholder
+  instead of a broken video
+
+**I edited the schedule file on the Pi but nothing changed:**
+- The schedule lives in the website's code on GitHub, not on the Pi —
+  see Step 5 above for the real steps
 
 ## That's It!
 

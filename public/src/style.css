@@ -10,6 +10,11 @@ body {
   height: 100%;
   overflow: hidden;
   background: #000000;
+  /* Kiosk display: no pointer is ever meaningfully "at" a location between
+     taps, and a stray arrow parked over the projected video all evening
+     looks broken. The two controls below opt back into a visible pointer
+     via their own `cursor: pointer` rule, so they're still discoverable. */
+  cursor: none;
 }
 
 .view {
@@ -52,44 +57,66 @@ body {
   background: #000000;
 }
 
+/* Both floating controls sit at least one safe-area inset in from the true
+   edge — consumer TVs fed over HDMI commonly crop several percent of each
+   edge ("overscan"), and PI_SETUP.md/README.md instruct enabling "HDMI Safe
+   Mode", which crops further still. A control flush against the literal
+   edge can be cropped off-screen entirely. */
 #unmute-btn {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
-  padding: 8px 14px;
+  bottom: max(3vh, 24px);
+  left: max(3vw, 24px);
+  padding: 10px 18px;
   border: none;
   border-radius: 999px;
-  background: #ffffff;
-  opacity: 0.15;
+  background: rgba(255, 255, 255, 0.55);
   color: #000000;
   font-family: system-ui, sans-serif;
-  font-size: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
   cursor: pointer;
   z-index: 10;
-  transition: opacity 0.2s ease;
+  transition: background-color 0.2s ease;
+}
+
+#unmute-btn::after {
+  /* A text label survives a missing emoji font (not guaranteed present on
+     every Raspberry Pi OS image) where the glyph alone would render as a
+     blank "tofu" box. */
+  content: 'Sound off';
+}
+
+#unmute-btn[aria-pressed='true']::after {
+  content: 'Sound on';
 }
 
 #unmute-btn:hover,
 #unmute-btn:focus-visible {
-  opacity: 0.6;
+  background: rgba(255, 255, 255, 0.85);
 }
 
 #toggle-btn {
   position: fixed;
-  bottom: 12px;
-  right: 12px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  bottom: max(3vh, 24px);
+  right: max(3vw, 24px);
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 999px;
   border: none;
-  background: #ffffff;
-  opacity: 0.12;
+  background: rgba(255, 255, 255, 0.35);
+  color: #000000;
+  font-size: 1.4rem;
+  line-height: 1;
   cursor: pointer;
   z-index: 10;
-  transition: opacity 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 #toggle-btn:hover,
 #toggle-btn:focus-visible {
-  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.75);
 }

@@ -131,16 +131,12 @@ script guessed a flat 1-32 count instead, which happened to work for
 Unit 1 by coincidence but would have been wrong from Unit 2 onward;
 that guess has been replaced with this verified mapping.
 
-Once a club finishes the entrance gate, the Section text is expected
-to actually reflect the book — but **the real shape of that text
-hasn't been observed yet** (this church's Journey club was still in
-the entrance gate as of writing). The current matching logic (trailing
-`#N` read as a flat 1-32 position against `lessons.json`'s `week`
-field) is a best guess for that later stage, carried over from before
-this distinction was known. **Do not trust its first real "in the
-book" output blindly** — verify it against what the Advocates page and
-TwoTimTwo actually agree on once the club gets there, and update
-`matchLesson()` in `fetch-current-lesson.mjs` if the real shape differs.
+The entrance-gate label check is deliberately tolerant of whitespace
+(including a stray non-breaking space, which `String.trim()` alone
+does not strip from the middle of a string) and case, normalizing
+before comparison — the same tolerance `matchLesson()`'s `\s+` regex
+already had, so a template variance doesn't turn into a permanent
+nightly failure on one side but not the other.
 
 ### Video playback and offline resilience (`public/src/schedule.js`)
 
@@ -153,16 +149,63 @@ actually needs:
   lesson's video into a dedicated `journey-videos-v1` cache bucket if
   it isn't already there. This runs well ahead of 6:30 PM, so playback
   doesn't depend on the network being up at showtime (the church's Pi
-  connection is known to be flaky in the evenings).
+  connection is known to be flaky in the evenings). A failed fetch of
+  `current-lesson.json` (the flaky-network case this exists for) is
+  treated as "no news" and never clears an already-loaded lesson —
+  only a genuinely resolved lesson can replace `currentLesson`.
+- **Why `current-lesson.json`'s `downloadUrl` is a CDN URL, not the
+  `clubs.awana.org` one `lessons.json` lists:** `clubs.awana.org`
+  302-redirects lesson downloads to a CloudFront-backed host, and that
+  redirect response itself carries no `Access-Control-Allow-Origin`
+  header (confirmed against the live site). A browser `fetch()` in
+  CORS mode — which the Cache API path needs, to read the response
+  into a storable/playable `Blob` — fails outright on that redirect
+  hop, even though the CloudFront target it points to *does* send
+  `access-control-allow-origin: *`. Switching to `no-cors` mode is
+  **not** a fix: an opaque response's body is null by spec (that's the
+  whole point of the opacity), so `.blob()` on it always yields 0
+  bytes, cached or not. The real fix has to happen server-side, where
+  CORS doesn't apply — `fetch-current-lesson.mjs` resolves the
+  redirect itself (a plain HEAD request) and writes the already-CORS-
+  enabled final URL into `current-lesson.json`, falling back to the
+  original `clubs.awana.org` URL if that resolution ever fails (still
+  fine for direct `<video>` playback, which is never subject to CORS
+  unless the `crossorigin` attribute is set — deliberately not set
+  here).
 - The previous week's cached video is evicted only once the new one is
   safely stored, so a mid-download failure can't leave the cache empty.
 - Playback resolves from the cache (via `URL.createObjectURL`) when
   available, falling back to the live download URL otherwise (e.g. the
-  very first run before anything's cached yet).
-- Video starts muted (autoplay policy) with a subtle unmute button
-  (same visual language as the corner toggle button); finishing the
-  video falls back to the Check-in Display immediately rather than
-  waiting for 7:15.
+  very first run before anything's cached yet). The object URL is only
+  ever revoked once its replacement is already in hand, and only
+  released for good (along with detaching the `<video>` element) once
+  the Journey window closes — a ~100-200MB decoded blob has no reason
+  to stay resident for the other 23 hours of the day on a 512MB Pi Zero.
+- Video starts muted (autoplay policy) with a visible unmute button
+  (a text label, not just an emoji glyph, since Raspberry Pi OS doesn't
+  always ship a color-emoji font); finishing the video falls back to
+  the Check-in Display immediately rather than waiting for 7:15. A
+  failed/stalled video load falls back to the placeholder too, rather
+  than a silent black frame indistinguishable from a dead display.
+- **`lastPhase` invariant — do not break this again:** `lastPhase`
+  tracks only the *scheduled* phase (for detecting a genuine 18:30/
+  19:15 boundary crossing); the manual toggle button and the video's
+  `ended` handler both call `setView()` directly to change what's on
+  screen *without* touching `lastPhase`. That's what lets either of
+  them hold a view that disagrees with `scheduledPhase()` (checkin
+  shown early, or shown again after the lesson finished early) without
+  the next 15s poll tick fighting them. An earlier version of the
+  `ended` handler set `lastPhase = 'checkin'` directly, which made the
+  *very next* poll tick see a manufactured "flip" back to `'journey'`
+  and restart the lesson from frame zero — confirmed live before the
+  fix. If you touch the poller or either handler, re-verify this
+  property doesn't regress.
+- A screen [Wake Lock](https://developer.mozilla.org/en-US/docs/Web/API/Screen_Wake_Lock_API)
+  is requested on load and re-acquired on `visibilitychange`, since
+  Raspberry Pi OS's default screen-blanking would otherwise leave the
+  kiosk asleep long before 6:30 PM with no local activity to prevent
+  it. Not fatal if unsupported — disabling blanking at the OS level
+  (see `PI_SETUP.md`) is the belt-and-braces fallback either way.
 
 ## Embedding note
 

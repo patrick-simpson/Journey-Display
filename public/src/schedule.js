@@ -17,6 +17,10 @@ const toggleBtn = document.getElementById('toggle-btn');
 
 let currentLesson = null;
 let currentObjectUrl = null;
+// Bumped on every showJourneyContent() call so a slow, in-flight call (e.g.
+// still awaiting a cache read) can detect it's stale once it resolves and
+// avoid clobbering state a newer call already set.
+let journeyRequestToken = 0;
 
 function scheduledPhase() {
   const now = new Date();
@@ -29,7 +33,9 @@ function scheduledPhase() {
 /* ── Lesson video: fetched once while online, played from the Cache
       API afterward so a flaky evening connection can't interrupt
       playback. See CLAUDE.md for the nightly feed that produces
-      current-lesson.json. ────────────────────────────────────────── */
+      current-lesson.json (including why its downloadUrl is a CORS-enabled
+      CDN URL rather than the awana.org one lessons.json itself
+      lists). ────────────────────────────────────────────────────────── */
 
 async function loadCurrentLesson() {
   try {
@@ -45,6 +51,10 @@ async function loadCurrentLesson() {
   }
 }
 
+function sameLesson(a, b) {
+  return !!a && !!b && a.week === b.week && a.downloadUrl === b.downloadUrl;
+}
+
 async function cacheLessonVideo(lesson) {
   if (!('caches' in window)) return;
   try {
@@ -58,24 +68,28 @@ async function cacheLessonVideo(lesson) {
     await Promise.all(
       keys.filter((req) => req.url !== lesson.downloadUrl).map((req) => cache.delete(req))
     );
-  } catch {
+  } catch (err) {
     // Offline, or Awana's site unreachable right now — keep whatever's
-    // already cached and try again on the next poll.
+    // already cached and try again on the next poll. Logged (not just
+    // swallowed) so a permanently-failing cache attempt is discoverable
+    // in devtools rather than invisible until the network is down at showtime.
+    console.warn('Journey: could not cache lesson video —', err);
   }
 }
 
 async function resolveVideoSrc(lesson) {
-  if (currentObjectUrl) {
-    URL.revokeObjectURL(currentObjectUrl);
-    currentObjectUrl = null;
-  }
   if ('caches' in window) {
     try {
       const cache = await caches.open(VIDEO_CACHE_NAME);
       const cached = await cache.match(lesson.downloadUrl);
       if (cached) {
-        currentObjectUrl = URL.createObjectURL(await cached.blob());
-        return currentObjectUrl;
+        const blobUrl = URL.createObjectURL(await cached.blob());
+        // Only revoke the previous object URL once its replacement is in
+        // hand — never before — so a slower, still-in-flight resolve can
+        // never be left pointing at an already-revoked URL.
+        if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = blobUrl;
+        return blobUrl;
       }
     } catch {
       // fall through to the live URL
@@ -85,6 +99,7 @@ async function resolveVideoSrc(lesson) {
 }
 
 async function showJourneyContent() {
+  const token = ++journeyRequestToken;
   if (!currentLesson) {
     // No lesson resolved yet (or the nightly feed came back empty) —
     // show the plain placeholder rather than a broken video.
@@ -100,12 +115,25 @@ async function showJourneyContent() {
   unmuteBtn.classList.remove('hidden');
   journeyVideo.muted = true;
   unmuteBtn.textContent = '🔇';
-  journeyVideo.src = await resolveVideoSrc(currentLesson);
+  unmuteBtn.setAttribute('aria-pressed', 'false');
+  const src = await resolveVideoSrc(currentLesson);
+  if (token !== journeyRequestToken) return; // a newer call has since taken over
+  journeyVideo.src = src;
   journeyVideo.play().catch(() => {});
 }
 
 function stopJourneyContent() {
   journeyVideo.pause();
+  // Release the cached video's blob URL and detach the element while the
+  // Journey view isn't showing — on a 512MB Pi Zero, a ~100-200MB decoded
+  // blob has no business staying resident for the other 23 hours of the day.
+  // It costs one cheap Cache API read to reconstruct at the next 6:30 PM.
+  journeyVideo.removeAttribute('src');
+  journeyVideo.load();
+  if (currentObjectUrl) {
+    URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = null;
+  }
 }
 
 /* ── View switching ──────────────────────────────────────────────── */
@@ -121,6 +149,14 @@ function setView(phase) {
   }
 }
 
+// `lastPhase` tracks only the *scheduled* phase (for detecting a genuine
+// 18:30/19:15 boundary crossing) — it is deliberately never written to from
+// the manual toggle or the video's 'ended' handler below, both of which call
+// setView() directly to change what's on screen right now without touching
+// this. That's what lets either of them hold a view that disagrees with
+// scheduledPhase() (e.g. checkin display shown early, or shown again after
+// the lesson finished early) without the next 15s poll tick fighting them —
+// the poll only acts when scheduledPhase() itself has actually changed.
 let lastPhase = scheduledPhase();
 setView(lastPhase);
 
@@ -140,14 +176,56 @@ toggleBtn.addEventListener('click', () => {
 unmuteBtn.addEventListener('click', () => {
   journeyVideo.muted = !journeyVideo.muted;
   unmuteBtn.textContent = journeyVideo.muted ? '🔇' : '🔊';
+  unmuteBtn.setAttribute('aria-pressed', String(!journeyVideo.muted));
 });
 
-// Once the lesson finishes, there's nothing left to show for the rest
-// of the window — fall back to the Check-in Display right away rather
-// than holding on a blank/frozen frame until 7:15.
+/* ── Keep the kiosk screen awake ─────────────────────────────────────
+   Raspberry Pi OS ships with screen blanking enabled by default; with no
+   keyboard/mouse activity for hours, the display can go to sleep long
+   before 6:30 PM arrives. The Wake Lock API only prevents the screen from
+   blanking — it doesn't dismiss a blank that already happened — so this
+   also re-acquires on visibilitychange (e.g. after the tab/monitor was
+   backgrounded and the lock was released) rather than only once on load.
+   Requires HTTPS, which GitHub Pages provides. Not fatal if unsupported
+   (older Chromium builds) — disabling blanking at the OS level (see
+   PI_SETUP.md) is the belt-and-braces fallback either way. */
+let wakeLock = null;
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+  } catch {
+    // e.g. the tab isn't visible yet — visibilitychange below retries.
+  }
+}
+requestWakeLock();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && (!wakeLock || wakeLock.released)) {
+    requestWakeLock();
+  }
+});
+
+// Once the lesson finishes, there's nothing left to show for the rest of
+// the window — fall back to the Check-in Display right away rather than
+// holding on a blank/frozen frame until 7:15. Deliberately does NOT touch
+// lastPhase (see the comment above it) — doing so would make the very next
+// poll tick see a manufactured "flip" back to 'journey' and restart the
+// lesson from frame zero, which is exactly the bug this comment is here to
+// prevent regressing.
 journeyVideo.addEventListener('ended', () => {
-  lastPhase = 'checkin';
   setView('checkin');
+});
+
+// A failed/unsupported video load, or a stall that never recovers, should
+// fall back to the placeholder rather than leaving a silent black frame
+// that's indistinguishable from a dead display.
+journeyVideo.addEventListener('error', () => {
+  console.warn('Journey: video failed to load/play', journeyVideo.error);
+  if (!journeyView.classList.contains('hidden')) {
+    journeyVideo.classList.add('hidden');
+    unmuteBtn.classList.add('hidden');
+    journeyPlaceholder.classList.remove('hidden');
+  }
 });
 
 /* ── Lesson refresh: pulled well ahead of the evening window so the
@@ -156,9 +234,13 @@ journeyVideo.addEventListener('ended', () => {
 
 async function refreshLesson() {
   const lesson = await loadCurrentLesson();
-  const changed = !currentLesson || !lesson || lesson.week !== currentLesson.week;
+  // A failed fetch (the exact flaky-network case this refresh exists to be
+  // resilient against) must never blank out a lesson we already have —
+  // only a genuinely resolved lesson can update or clear currentLesson.
+  if (!lesson) return;
+  const changed = !sameLesson(currentLesson, lesson);
   currentLesson = lesson;
-  if (lesson) cacheLessonVideo(lesson);
+  cacheLessonVideo(lesson);
   if (changed && lastPhase === 'journey') showJourneyContent();
 }
 

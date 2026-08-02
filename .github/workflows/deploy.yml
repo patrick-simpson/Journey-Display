@@ -12,7 +12,13 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # Deliberately false, matching GitHub's own Pages starter workflow: a
+  # queued run should wait for an in-flight deploy to finish, not cancel it
+  # mid-publish. This repo's own convention (commit-and-push to `main` on
+  # every change) makes back-to-back pushes routine, so cancelling here
+  # risked leaving the `github-pages` environment mid-deploy and the live
+  # kiosk site stuck on a stale build.
+  cancel-in-progress: false
 
 jobs:
   deploy:

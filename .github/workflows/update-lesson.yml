@@ -41,20 +41,45 @@ jobs:
         # yet — the last good committed lesson keeps serving either way.
         run: npm run fetch-lesson
 
-      - name: Commit and redeploy if the lesson changed
+      - name: Commit the refreshed lesson, if it changed
         # Pushes made with the default GITHUB_TOKEN deliberately do NOT
-        # trigger `on: push` workflows, so the deploy is dispatched
-        # explicitly.
+        # trigger `on: push` workflows — see the dispatch step below.
+        # Rebases and retries on push rejection: this repo's own
+        # convention is "commit and push to main on every change", so a
+        # concurrent human push during the ~30-60s this job spends on
+        # `npm ci` + the TwoTimTwo fetch is routine, not exceptional, and
+        # should not cost a night's resolved lesson.
         run: |
           if [ -n "$(git status --porcelain public/current-lesson.json)" ]; then
             git config user.name 'lesson-bot'
             git config user.email 'github-actions[bot]@users.noreply.github.com'
             git add public/current-lesson.json
             git commit -m 'chore: refresh current lesson'
-            git push
-            gh workflow run deploy.yml --ref main
+            for i in 1 2 3 4; do
+              if git push; then
+                break
+              elif [ "$i" = 4 ]; then
+                echo '::error::git push failed after retries' >&2
+                exit 1
+              else
+                git fetch origin main
+                git rebase origin/main
+                sleep $((i * 3))
+              fi
+            done
           else
-            echo 'Lesson unchanged — nothing to deploy.'
+            echo 'Lesson unchanged — nothing to commit.'
           fi
+
+      - name: Redeploy
+        # Dispatched on every run, not only when the lesson changed: the
+        # previous version only dispatched inside the "lesson changed"
+        # branch, with nothing verifying the dispatched deploy actually
+        # succeeded — if that one deploy run failed or was cancelled, the
+        # unchanged-lesson nights that followed took the other branch
+        # forever, and main's new lesson never reached the live site with
+        # no visible failure anywhere. A no-op Pages deploy is cheap, so
+        # reconciling unconditionally is worth it for that guarantee.
+        run: gh workflow run deploy.yml --ref main
         env:
           GH_TOKEN: ${{ github.token }}

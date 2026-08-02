@@ -132,6 +132,18 @@ Paste it into the editor (right-click → Paste, or Ctrl+Shift+V).
 3. Press **Enter** (to keep the filename)
 4. Close the terminal
 
+#### Also Disable Screen Blanking (important — don't skip this)
+
+Raspberry Pi OS puts the screen to sleep after a few minutes with no
+keyboard/mouse activity, which the kiosk mostly prevents on its own
+while a video is playing — but not during the many hours of the day
+it's just quietly showing the Check-in Display. Turn it off:
+
+1. Click the Raspberry Pi menu → Preferences → Raspberry Pi Configuration
+2. Click the **"Display"** tab
+3. Find **"Screen Blanking"** and set it to **Disable**
+4. Click **"OK"** and reboot if asked
+
 #### Reboot to Test
 
 1. Click the Raspberry Pi menu (top left)
@@ -142,31 +154,43 @@ Paste it into the editor (right-click → Paste, or Ctrl+Shift+V).
 
 **Success!** Your Pi now shows the Journey Display every time it boots.
 
+> **Note:** if the display doesn't auto-start and you see an error about
+> `chromium-browser` not being found, open a terminal and type
+> `which chromium-browser || which chromium` to see which name your
+> Raspberry Pi OS version actually uses, then use that name instead in
+> the `Exec=` line above.
+
 ---
 
 ## Part 3: Adjust the Schedule (Optional)
 
-By default, the Journey Display appears from **6:30 PM to 7:15 PM**. If you need different times:
+By default, the Journey Display appears from **6:30 PM to 7:15 PM**.
+These times live in a file that's part of the **live website** — the
+same one your Pi loads from `https://patrick-simpson.github.io/Journey-Display/` —
+not a file that lives on the Pi itself. **Editing a local copy on the
+Pi won't change anything the kiosk actually shows**, since the kiosk
+always loads the deployed site, not a local file. To change the
+schedule for real:
 
-1. Open a terminal on the Pi
-2. Type:
-   ```bash
-   nano /home/pi/Journey-Display/public/src/schedule.js
-   ```
-   (Or, if the folder isn't there, open the file using the file manager and a text editor)
-
+1. On any computer (doesn't need to be the Pi), go to
+   https://github.com/patrick-simpson/Journey-Display/blob/main/public/src/schedule.js
+2. Click the pencil (✏️) icon in the top right to edit the file
+   directly in your browser — no need to clone the repository
 3. Find these lines near the top:
    ```javascript
    const JOURNEY_START_MINUTES = 18 * 60 + 30; // 6:30 PM
    const JOURNEY_END_MINUTES = 19 * 60 + 15;   // 7:15 PM
    ```
-
 4. Change the numbers:
    - **6:30 PM** = `18 * 60 + 30`
    - **7:15 PM** = `19 * 60 + 15`
    - Use 24-hour time (e.g., **5:30 PM** = `17 * 60 + 30`)
-
-5. Save (Ctrl + X, Y, Enter) and refresh the browser (F5)
+5. Scroll down and click **"Commit changes..."**, then **"Commit
+   changes"** again to confirm — this saves directly to `main`
+6. Wait about a minute for the site to redeploy (you can watch its
+   progress under the repository's **"Actions"** tab — look for a
+   green checkmark next to "Deploy to GitHub Pages")
+7. On the Pi, refresh the browser (F5) to pick up the new schedule
 
 ---
 
@@ -197,6 +221,16 @@ By default, the Journey Display appears from **6:30 PM to 7:15 PM**. If you need
 - The video only appears between 6:30 PM and 7:15 PM
 - Make sure you have an internet connection
 - Wait a minute and refresh the browser (F5)
+- If you see the word "Journey" on a plain dark screen instead of a
+  video, that's normal and expected — it means this week's lesson
+  hasn't been resolved yet, or the video couldn't load, and the display
+  is deliberately showing a plain placeholder instead of a broken video
+
+### I want to change the schedule but editing the file on the Pi didn't work
+
+- The schedule lives in the **live website's** code, not on the Pi —
+  see **Part 3** above for the real steps (edit on GitHub, wait for the
+  site to redeploy, then refresh the Pi's browser)
 
 ### I want to control the Pi remotely (SSH)
 
