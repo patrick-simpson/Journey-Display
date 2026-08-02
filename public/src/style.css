@@ -57,6 +57,130 @@ body {
   background: #000000;
 }
 
+/* ── "Large Group Time" splash — shown on entering the 6:30-7:15 window
+   instead of autoplaying; playback only starts once an operator presses
+   the button, Space, or → (see schedule.js's isAwaitingPlay()). Flat
+   colors, no blur/gradients/shadows beyond the button's, and the only
+   animation is a cheap opacity pulse — this still has to render smoothly
+   on a Raspberry Pi Zero. */
+#journey-splash {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vh;
+  color: #ffffff;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+  padding: 4vh 4vw;
+}
+
+#journey-splash-wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+#journey-splash-journey {
+  font-size: 5rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+#journey-splash-advocates {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #f2b705;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+#journey-splash-banner {
+  padding: 0.5em 1.4em;
+  border-radius: 999px;
+  background: #c8102e;
+  color: #ffffff;
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#journey-splash-lesson {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3em;
+  margin-top: 1vh;
+}
+
+#journey-splash-week {
+  font-size: 1.3rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+#journey-splash-title {
+  font-size: 3rem;
+  font-weight: 700;
+  max-width: 80vw;
+}
+
+#journey-splash-play-btn {
+  margin-top: 3vh;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  border: none;
+  border-radius: 999px;
+  padding: 1em 2.4em;
+  background: #c8102e;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1.6rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#journey-splash-play-btn:hover,
+#journey-splash-play-btn:focus-visible {
+  background: #e8123a;
+}
+
+#journey-splash-play-icon {
+  font-size: 1.2rem;
+}
+
+#journey-splash-prompt {
+  margin-top: 1vh;
+  font-size: 1.1rem;
+  opacity: 0.6;
+  animation: journey-splash-pulse 2.4s ease-in-out infinite;
+}
+
+#journey-splash-prompt kbd {
+  display: inline-block;
+  padding: 0.15em 0.5em;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  font-family: inherit;
+  font-size: 0.95em;
+}
+
+@keyframes journey-splash-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
 /* Both floating controls sit at least one safe-area inset in from the true
    edge — consumer TVs fed over HDMI commonly crop several percent of each
    edge ("overscan"), and PI_SETUP.md/README.md instruct enabling "HDMI Safe
