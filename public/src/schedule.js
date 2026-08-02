@@ -21,6 +21,17 @@ let currentObjectUrl = null;
 // still awaiting a cache read) can detect it's stale once it resolves and
 // avoid clobbering state a newer call already set.
 let journeyRequestToken = 0;
+// Browsers only allow *unmuted* autoplay after a genuine user gesture has
+// occurred on the page. This page's only clickable elements are the two
+// corner buttons (a click inside the Check-in Display iframe is a different
+// origin and never bubbles up to this document), so a click on either one
+// counts as "the kiosk has been touched" and unlocks unmuted autoplay for
+// every subsequent lesson — no separate unmute tap needed after that first
+// click. This flag deliberately lives only in memory, not localStorage: the
+// browser's own gesture-based permission is itself scoped to this page's
+// lifetime (it doesn't survive a reload/reboot either), so persisting a
+// "still unlocked" flag past that point would just be wrong.
+let audioUnlocked = false;
 
 function scheduledPhase() {
   const now = new Date();
@@ -113,13 +124,26 @@ async function showJourneyContent() {
   journeyPlaceholder.classList.add('hidden');
   journeyVideo.classList.remove('hidden');
   unmuteBtn.classList.remove('hidden');
-  journeyVideo.muted = true;
-  unmuteBtn.textContent = '🔇';
-  unmuteBtn.setAttribute('aria-pressed', 'false');
+  journeyVideo.loop = false; // plays once; falls back to Check-in Display on 'ended' below
+  setMuted(!audioUnlocked);
   const src = await resolveVideoSrc(currentLesson);
   if (token !== journeyRequestToken) return; // a newer call has since taken over
   journeyVideo.src = src;
-  journeyVideo.play().catch(() => {});
+  journeyVideo.play().catch(() => {
+    // Autoplay-with-sound can still be rejected in edge cases (e.g. the
+    // browser's engagement heuristics disagree with our own tracking) —
+    // fall back to muted so playback isn't left stuck on a paused frame.
+    if (!journeyVideo.muted) {
+      setMuted(true);
+      journeyVideo.play().catch(() => {});
+    }
+  });
+}
+
+function setMuted(muted) {
+  journeyVideo.muted = muted;
+  unmuteBtn.textContent = muted ? '🔇' : '🔊';
+  unmuteBtn.setAttribute('aria-pressed', String(!muted));
 }
 
 function stopJourneyContent() {
@@ -169,14 +193,14 @@ setInterval(() => {
 }, POLL_INTERVAL_MS);
 
 toggleBtn.addEventListener('click', () => {
+  audioUnlocked = true;
   const showingJourney = !journeyView.classList.contains('hidden');
   setView(showingJourney ? 'checkin' : 'journey');
 });
 
 unmuteBtn.addEventListener('click', () => {
-  journeyVideo.muted = !journeyVideo.muted;
-  unmuteBtn.textContent = journeyVideo.muted ? '🔇' : '🔊';
-  unmuteBtn.setAttribute('aria-pressed', String(!journeyVideo.muted));
+  audioUnlocked = true;
+  setMuted(!journeyVideo.muted);
 });
 
 /* ── Keep the kiosk screen awake ─────────────────────────────────────
