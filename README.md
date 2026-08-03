@@ -2,7 +2,7 @@
 
 A simple kiosk website that displays the **Journey: Advocates** video lesson on a screen during Awana meetings, with automatic fallback to the Awana Check-in Display the rest of the day.
 
-- **6:30 PM – 7:00 PM:** Shows the current week's Journey lesson video
+- **6:30 PM – 7:15 PM:** Shows the current week's Journey lesson video
 - **All other times:** Shows the Awana Check-in Display
 - **Runs on:** Raspberry Pi (any model, including Pi Zero)
 - **No setup complexity:** Plain HTML/CSS/JavaScript—no build step, no databases
@@ -164,7 +164,7 @@ it's just quietly showing the Check-in Display. Turn it off:
 
 ## Part 3: Adjust the Schedule (Optional)
 
-By default, the Journey Display appears from **6:30 PM to 7:00 PM**.
+By default, the Journey Display appears from **6:30 PM to 7:15 PM**.
 These times live in a file that's part of the **live website** — the
 same one your Pi loads from `https://patrick-simpson.github.io/Journey-Display/` —
 not a file that lives on the Pi itself. **Editing a local copy on the
@@ -179,11 +179,11 @@ schedule for real:
 3. Find these lines near the top:
    ```javascript
    const JOURNEY_START_MINUTES = 18 * 60 + 30; // 6:30 PM
-   const JOURNEY_END_MINUTES = 19 * 60;        // 7:00 PM
+   const JOURNEY_END_MINUTES = 19 * 60 + 15;   // 7:15 PM
    ```
 4. Change the numbers:
    - **6:30 PM** = `18 * 60 + 30`
-   - **7:00 PM** = `19 * 60`
+   - **7:15 PM** = `19 * 60 + 15`
    - Use 24-hour time (e.g., **5:30 PM** = `17 * 60 + 30`)
 5. Scroll down and click **"Commit changes..."**, then **"Commit
    changes"** again to confirm — this saves directly to `main`
@@ -218,7 +218,7 @@ schedule for real:
 ### The Journey video doesn't appear
 
 - Check the time on the Pi (look in the top right corner of the screen)
-- The video only appears between 6:30 PM and 7:00 PM
+- The video only appears between 6:30 PM and 7:15 PM
 - Make sure you have an internet connection
 - Wait a minute and refresh the browser (F5)
 - If you see the word "Journey" on a plain dark screen instead of a
@@ -263,7 +263,7 @@ The Journey Display is a simple website (HTML/CSS/JavaScript) that:
 
 1. **Checks the current time** on the Pi
 2. **Shows the Awana Check-in Display** most of the day (embedded in an iframe)
-3. **Switches to the Journey video** from 6:30 PM – 7:00 PM
+3. **Switches to the Journey video** from 6:30 PM – 7:15 PM
 4. **Caches the video locally** so it plays even if the internet is flaky
 5. **Lets you manually toggle** between the two displays with a button in the corner
 
@@ -275,11 +275,11 @@ A small gear (⚙) button in the top-right corner opens a list of every
 lesson in the course. Tap a week to play it right now — this is just a
 one-time preview and never changes what plays automatically at 6:30 PM.
 
-- If you tap a lesson **outside 6:30–7:00 PM**, it asks whether you
+- If you tap a lesson **outside 6:30–7:15 PM**, it asks whether you
   want the **Student Video** (what the kids normally see) or the
   **Leader Video** (has extra discussion notes, meant for the leader
   reviewing ahead of time).
-- If you tap a lesson **during 6:30–7:00 PM**, it just plays the
+- If you tap a lesson **during 6:30–7:15 PM**, it just plays the
   Student Video right away, same as usual.
 - To stop a preview early, tap the switch-display (⇄) button — it
   returns to whatever should normally be showing right now.
@@ -287,7 +287,7 @@ one-time preview and never changes what plays automatically at 6:30 PM.
 ### How it's Built
 
 - `public/index.html` — the whole app. Two full-viewport layers (Check-in Display iframe, Journey video) are both always mounted; a small script toggles which one is visible.
-- `public/src/schedule.js` — the 6:30/7:00 schedule and the manual toggle button's behavior.
+- `public/src/schedule.js` — the 6:30/7:15 schedule and the manual toggle button's behavior.
 - `public/src/style.css` — full-bleed layout and button styling.
 - `public/lessons.json` — the fixed week→video map for the 32-week Advocates course.
 - `public/current-lesson.json` — which week is "current" right now, refreshed nightly by GitHub Actions.

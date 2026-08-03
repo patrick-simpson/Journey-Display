@@ -42,10 +42,10 @@ Concretely, after editing any file:
 
 `public/src/schedule.js` holds the switching logic:
 
-- `JOURNEY_START_MINUTES` (18:30) / `JOURNEY_END_MINUTES` (19:00) are
+- `JOURNEY_START_MINUTES` (18:30) / `JOURNEY_END_MINUTES` (19:15) are
   the schedule window in minutes-since-midnight, using the Pi's local
   system clock. Change these two constants to retime the switch.
-- **The 19:00 swap yields to a lesson that's still playing.** If the
+- **The 19:15 swap yields to a lesson that's still playing.** If the
   boundary arrives mid-playback the poller performs no swap *and
   leaves `lastPhase` alone*, so the flip stays pending and every later
   tick re-tests it — the swap happens as soon as playback stops. This
@@ -337,10 +337,10 @@ actually needs:
   `false` (it was never looping by accident, but this makes the intent
   explicit rather than relying on the element's default).
 - **Where a finished lesson lands depends on the clock.** Still inside
-  the window (before 19:00) the `ended` handler calls
+  the window (before 19:15) the `ended` handler calls
   `returnToSplash()` and the title card goes back up — the room keeps
   a branded screen and the lesson can simply be replayed with
-  Space/→/the button. At or after 19:00 (i.e. the lesson ran past the
+  Space/→/the button. At or after 19:15 (i.e. the lesson ran past the
   swap and the poller deferred to it) the Journey slot is over, so it
   hands off to the Check-in Display. Neither branch touches
   `lastPhase` — see the invariant below. `returnToSplash()` goes
@@ -372,7 +372,7 @@ actually needs:
   itself a click.
 - **`lastPhase` invariant — do not break this again:** `lastPhase`
   tracks only the *scheduled* phase (for detecting a genuine 18:30/
-  19:00 boundary crossing); the manual toggle button and the video's
+  19:15 boundary crossing); the manual toggle button and the video's
   `ended` handler both call `setView()` directly to change what's on
   screen *without* touching `lastPhase`. That's what lets either of
   them hold a view that disagrees with `scheduledPhase()` (checkin
@@ -400,7 +400,7 @@ upcoming lesson, or catching up after a missed night.
 - **Always a one-off.** Picking a lesson plays it immediately and never
   writes to `current-lesson.json` or touches `currentLesson` — the
   6:30 auto-schedule is completely unaffected by what was manually
-  previewed, by design (confirmed: crossing the 6:30/7:00 boundary
+  previewed, by design (confirmed: crossing the 6:30/7:15 boundary
   mid-preview doesn't interrupt it, and ending a preview afterward
   correctly resumes the real auto-resolved lesson, not the previewed
   one).
@@ -413,7 +413,7 @@ upcoming lesson, or catching up after a missed night.
   rarely-used feature, not a bug to fix by extending transcoding to all
   32 lessons (see the repo-size trade-off already noted under "Video
   transcoding").
-- **Outside the 6:30-7:00 window, picking a lesson asks Leader or
+- **Outside the 6:30-7:15 window, picking a lesson asks Leader or
   Student Video first**; inside the window it plays the Student Video
   directly, same as the automatic show would. Outside the window is
   more likely someone reviewing content (the Leader Video carries extra

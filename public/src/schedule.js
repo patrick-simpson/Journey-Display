@@ -3,7 +3,7 @@
 // shows. See CLAUDE.md for the conventions around changing these
 // constants, and for how the video content itself gets here.
 const JOURNEY_START_MINUTES = 18 * 60 + 30; // 6:30 PM
-const JOURNEY_END_MINUTES = 19 * 60; // 7:00 PM
+const JOURNEY_END_MINUTES = 19 * 60 + 15; // 7:15 PM
 const POLL_INTERVAL_MS = 15000;
 const LESSON_REFRESH_MS = 60 * 60 * 1000; // current-lesson.json only changes nightly
 const VIDEO_CACHE_NAME = 'journey-videos-v1';
@@ -206,7 +206,7 @@ function isAwaitingPlay() {
 }
 
 // True while a lesson is genuinely mid-playback — used by the poller to hold
-// off the 7:00 swap rather than cutting the room off mid-sentence. Checks
+// off the 7:15 swap rather than cutting the room off mid-sentence. Checks
 // paused/ended rather than just "the element is visible", so a stalled or
 // finished video doesn't keep the swap deferred forever.
 function isVideoPlaying() {
@@ -266,7 +266,7 @@ function setView(phase) {
 }
 
 // `lastPhase` tracks only the *scheduled* phase (for detecting a genuine
-// 18:30/19:00 boundary crossing) — it is deliberately never written to from
+// 18:30/19:15 boundary crossing) — it is deliberately never written to from
 // the manual toggle or the video's 'ended' handler below, both of which call
 // setView() directly to change what's on screen right now without touching
 // this. That's what lets either of them hold a view that disagrees with
@@ -288,7 +288,7 @@ setInterval(() => {
   if (previewMode) return;
   const phase = scheduledPhase();
   if (phase === lastPhase) return;
-  // 7:00 arrived mid-lesson: let it finish rather than cutting the room off
+  // 7:15 arrived mid-lesson: let it finish rather than cutting the room off
   // part-way through. Deliberately leaves `lastPhase` alone as well as the
   // view, so this stays a *pending* flip — every subsequent tick re-tests it
   // and performs the swap as soon as playback stops. Recording the flip here
@@ -359,9 +359,9 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Where the lesson finishing lands depends on whether the Journey window is
-// still open. Inside it (before 7:00) the title card goes back up, so the
+// still open. Inside it (before 7:15) the title card goes back up, so the
 // room keeps a branded screen and the lesson can be replayed; at or after
-// 7:00 — i.e. the lesson ran past the swap and the poller deferred to it —
+// 7:15 — i.e. the lesson ran past the swap and the poller deferred to it —
 // the Journey slot is over, so hand the screen to the Check-in Display.
 // Deliberately does NOT touch lastPhase in either branch (see the comment
 // above it) — doing so would make the very next poll tick see a manufactured
@@ -430,7 +430,7 @@ setInterval(refreshLesson, LESSON_REFRESH_MS);
    auto-played lesson, so it doesn't need pre-caching machinery; it will
    just take a little longer to start and may not play as smoothly on the
    Pi Zero as the transcoded current lesson does. When it's not currently
-   the scheduled 6:30-7:00 window, picking a lesson asks Leader or Student
+   the scheduled 6:30-7:15 window, picking a lesson asks Leader or Student
    Video first — outside the window this is more likely someone reviewing
    content than showing it to kids, so the Leader Video (which has extra
    discussion notes not meant for the room) is worth offering directly. */
