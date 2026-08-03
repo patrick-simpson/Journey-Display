@@ -12,8 +12,9 @@ const checkinView = document.getElementById('checkin-view');
 const journeyView = document.getElementById('journey-view');
 const journeyPlaceholder = document.getElementById('journey-placeholder');
 const journeySplash = document.getElementById('journey-splash');
+const journeySplashTopic = document.getElementById('journey-splash-topic');
 const journeySplashWeek = document.getElementById('journey-splash-week');
-const journeySplashTitle = document.getElementById('journey-splash-title');
+const journeySplashRef = document.getElementById('journey-splash-ref');
 const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
 const journeyVideo = document.getElementById('journey-video');
 const unmuteBtn = document.getElementById('unmute-btn');
@@ -150,9 +151,23 @@ async function showJourneyContent() {
   // already playing mid-window.
   if (!journeyVideo.classList.contains('hidden')) return;
   journeyPlaceholder.classList.add('hidden');
+  const { topic, reference } = splitLessonTitle(currentLesson.title);
+  journeySplashTopic.textContent = topic;
   journeySplashWeek.textContent = `Week ${currentLesson.week}`;
-  journeySplashTitle.textContent = currentLesson.title;
+  journeySplashRef.textContent = reference;
   journeySplash.classList.remove('hidden');
+}
+
+/** lessons.json titles carry the course's own numbering in front of the
+ * topic ("Unit 1, Lesson 1: Apologetics"). The Advocates videos' own title
+ * cards show only the topic word, so the splash leads with that and demotes
+ * the numbering to metadata. No colon (a title shape we haven't seen) falls
+ * back to showing the whole title as the topic rather than guessing — the
+ * #journey-splash-ref:empty rule then drops the separator with it. */
+function splitLessonTitle(title) {
+  const i = String(title ?? '').indexOf(':');
+  if (i === -1) return { topic: String(title ?? ''), reference: '' };
+  return { topic: title.slice(i + 1).trim(), reference: title.slice(0, i).trim() };
 }
 
 // Actually starts the queued lesson playing — called only from a genuine

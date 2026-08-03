@@ -239,12 +239,36 @@ actually needs:
 
 - **The video no longer autoplays at 6:30.** Crossing into the
   scheduled window shows a branded "Large Group Time" splash
-  (`#journey-splash`) instead — a "Journey / Advocates" wordmark, the
-  "Large Group Time" banner, and this week's lesson prominently named
-  (`Week N` + `lessons.json`'s `title`, both filled in from
-  `currentLesson` by `showJourneyContent()`). The lesson video itself
-  is still queued up in the background exactly as before (see the
-  pre-fetch bullet right below) — only the on-screen *playback* waits.
+  (`#journey-splash`) instead, with this week's lesson **topic** as the
+  hero, filled in from `currentLesson` by `showJourneyContent()`. The
+  lesson video itself is still queued up in the background exactly as
+  before (see the pre-fetch bullet right below) — only the on-screen
+  *playback* waits.
+- **The splash's design is derived from the real Advocates title
+  cards, not invented — don't "brand" it back to guesswork.** The
+  lesson thumbnails on `clubs.awana.org/ym-course/advocates/` are the
+  videos' own opening cards, and they establish the language: warm,
+  slightly-off-white hand-lettered type over warm natural photography,
+  showing the lesson's **topic word alone** ("apologetics",
+  "PANTHEISM") — no badges, no subtitles, no chrome. So the splash
+  leads with the topic at display size, demotes `Week N · Unit N,
+  Lesson M` to quiet metadata, keeps the course lockup small in the
+  top-left, and uses a warm near-black (`#15120f`) / bone
+  (`#f6f1e8`) / warm amber (`#c8a06a`) palette pulled from those
+  cards. An earlier pass used a centered stack with an invented
+  red/gold pill badge and a big filled CTA — those colors appear
+  nowhere in Awana's material. We can't ship the hand-lettered face
+  (no build step, and the Pi only has Raspberry Pi OS's own fonts), so
+  the echo is compositional rather than typographic.
+- **`splitLessonTitle()`** is what makes that possible: `lessons.json`
+  titles are `"Unit N, Lesson M: Topic"`, and it splits on the first
+  colon so the topic can lead. All 32 topics are a single word (longest
+  is "Resurrection"), which is what lets the hero be sized as big as it
+  is — re-check that sizing if a multi-word topic ever appears. Topics
+  render **as authored, never force-lowercased**: week 21's topic is
+  the acronym `DNA`, which "dna" would mangle. A title with no colon
+  falls back to using the whole string as the topic, and the
+  `#journey-splash-ref:empty` rule drops the dangling separator.
   An operator starts it with **Space**, **→**, or the on-screen "Begin
   Video" button; all three are gated by `isAwaitingPlay()` (splash
   visible, Journey view showing, not `previewMode`) and funnel into

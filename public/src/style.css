@@ -57,127 +57,185 @@ body {
   background: #000000;
 }
 
-/* ── "Large Group Time" splash — shown on entering the 6:30-7:15 window
-   instead of autoplaying; playback only starts once an operator presses
-   the button, Space, or → (see schedule.js's isAwaitingPlay()). Flat
-   colors, no blur/gradients/shadows beyond the button's, and the only
-   animation is a cheap opacity pulse — this still has to render smoothly
-   on a Raspberry Pi Zero. */
+/* ── "Large Group Time" splash ───────────────────────────────────────
+   Shown on entering the 6:30-7:15 window instead of autoplaying; playback
+   only starts once an operator presses the button, Space, or → (see
+   schedule.js's isAwaitingPlay()).
+
+   Composition and palette are taken from the Advocates lessons' own title
+   cards (the thumbnails on clubs.awana.org/ym-course/advocates/): warm,
+   slightly-off-white hand-lettered type over warm natural photography,
+   with the lesson's TOPIC WORD standing alone as the hero — no badges, no
+   subtitles, no chrome. We can't ship the hand-lettered face (no build
+   step, and the Pi has whatever fonts Raspberry Pi OS provides), so the
+   echo here is compositional rather than typographic: one dominant word,
+   everything else demoted to quiet metadata, asymmetric and left-anchored
+   rather than a centered stack.
+
+   Pi Zero budget: flat fills only — no blur, no gradients, no shadows —
+   and the sole animation is a one-shot opacity/transform entrance that
+   ends. Nothing loops. */
+
 #journey-splash {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2vh;
-  color: #ffffff;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: start;
+  background: #15120f;
+  color: #f6f1e8;
   font-family: system-ui, sans-serif;
-  text-align: center;
-  padding: 4vh 4vw;
+  text-align: left;
+  /* Generous inset: consumer TVs crop several percent of each edge to
+     overscan, and PI_SETUP.md has the Pi in HDMI Safe Mode on top of that.
+     The corner controls use max(3vh/3vw, 24px); an edge-anchored text
+     composition needs more room than a button does. */
+  padding: max(6vh, 44px) max(7vw, 56px);
 }
 
-#journey-splash-wordmark {
+/* Property lockup, quiet in the top-left — the content is the hero, the
+   course mark just sits in the corner the way a broadcast bug does.
+   Top-left specifically: #settings-btn already owns the top-right. */
+#journey-splash-mark {
+  /* flex, not inline: a flex container drops the whitespace-only text nodes
+     between the spans, which inline layout would otherwise render as a stray
+     word-space on top of the separator's own margins. Same reason on
+     #journey-splash-meta below. */
   display: flex;
   align-items: baseline;
-  gap: 0.5em;
-}
-
-#journey-splash-journey {
-  font-size: 5rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-}
-
-#journey-splash-advocates {
-  font-size: 1.8rem;
+  font-size: clamp(0.7rem, 1.05vw, 0.95rem);
   font-weight: 600;
-  color: #f2b705;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.3em;
+  color: rgba(246, 241, 232, 0.5);
 }
 
-#journey-splash-banner {
-  padding: 0.5em 1.4em;
-  border-radius: 999px;
-  background: #c8102e;
-  color: #ffffff;
-  font-size: 1.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+#journey-splash-course {
+  color: #c8a06a;
 }
 
-#journey-splash-lesson {
+#journey-splash-course::before {
+  content: '·';
+  margin: 0 0.7em 0 0.4em;
+  color: rgba(246, 241, 232, 0.3);
+}
+
+#journey-splash-body {
+  align-self: center;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  /* One-shot entrance; opacity+transform only, so it stays on the
+     compositor and costs the Pi essentially nothing. Deliberately not a
+     loop — a permanently-pulsing splash is both a needless repaint every
+     frame for 45 minutes and visually restless on a wall-sized screen. */
+  animation: journey-splash-in 520ms ease-out both;
+}
+
+/* Short hairline above the eyebrow — an editorial rule, not a filled
+   badge. This is what the old pill-shaped banner became. */
+#journey-splash-eyebrow {
+  display: flex;
   align-items: center;
-  gap: 0.3em;
-  margin-top: 1vh;
-}
-
-#journey-splash-week {
-  font-size: 1.3rem;
-  opacity: 0.7;
+  gap: 1em;
+  font-size: clamp(0.75rem, 1.15vw, 1.05rem);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.28em;
+  color: #c8a06a;
+  margin-bottom: clamp(0.9rem, 2.2vh, 1.6rem);
 }
 
-#journey-splash-title {
-  font-size: 3rem;
+#journey-splash-eyebrow::before {
+  content: '';
+  width: clamp(28px, 3.5vw, 64px);
+  height: 1px;
+  background: #c8a06a;
+  flex: none;
+}
+
+/* The hero. Every Advocates topic is a single word (longest is
+   "Resurrection", 12 chars), so this is sized to set that at full width
+   without wrapping — check the longest one if lessons.json ever gains a
+   multi-word topic. Rendered as-authored rather than force-lowercased:
+   week 21's topic is the acronym "DNA", which "dna" would mangle. */
+#journey-splash-topic {
+  font-size: clamp(3.25rem, 10.5vw, 10.5rem);
   font-weight: 700;
-  max-width: 80vw;
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  color: #f6f1e8;
+}
+
+#journey-splash-meta {
+  display: flex;
+  align-items: baseline;
+  margin-top: clamp(1rem, 2.6vh, 1.9rem);
+  font-size: clamp(0.95rem, 1.5vw, 1.35rem);
+  letter-spacing: 0.02em;
+  color: rgba(246, 241, 232, 0.45);
+}
+
+/* :empty keeps the separator from rendering on its own if a title ever
+   arrives without the "Unit N, Lesson M:" prefix splitLessonTitle() peels
+   off (it falls back to an empty reference rather than guessing). */
+#journey-splash-ref:empty {
+  display: none;
+}
+
+#journey-splash-ref::before {
+  content: '·';
+  margin: 0 0.65em;
+  color: rgba(246, 241, 232, 0.3);
+}
+
+/* Sits with the content rather than pinned to the frame's bottom edge —
+   at 1080p a bottom-pinned action left a ~350px void between it and the
+   lesson it belongs to, reading as an unrelated piece of chrome. Restrained
+   on purpose: a hairline-outlined text button, not a filled CTA — the
+   keyboard is the real control here and this is its visible affordance. */
+#journey-splash-action {
+  display: flex;
+  align-items: center;
+  gap: clamp(1rem, 2vw, 1.75rem);
+  margin-top: clamp(2.25rem, 5.5vh, 4.5rem);
 }
 
 #journey-splash-play-btn {
-  margin-top: 3vh;
-  display: flex;
-  align-items: center;
-  gap: 0.6em;
-  border: none;
-  border-radius: 999px;
-  padding: 1em 2.4em;
-  background: #c8102e;
-  color: #ffffff;
+  padding: 0.85em 2em;
+  border: 1px solid rgba(246, 241, 232, 0.35);
+  border-radius: 2px;
+  background: transparent;
+  color: #f6f1e8;
   font-family: inherit;
-  font-size: 1.6rem;
-  font-weight: 700;
+  font-size: clamp(0.8rem, 1.15vw, 1.05rem);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 #journey-splash-play-btn:hover,
 #journey-splash-play-btn:focus-visible {
-  background: #e8123a;
+  border-color: #c8a06a;
+  background: rgba(200, 160, 106, 0.12);
 }
 
-#journey-splash-play-icon {
-  font-size: 1.2rem;
+#journey-splash-hint {
+  font-size: clamp(0.8rem, 1.15vw, 1.05rem);
+  letter-spacing: 0.08em;
+  color: rgba(246, 241, 232, 0.35);
 }
 
-#journey-splash-prompt {
-  margin-top: 1vh;
-  font-size: 1.1rem;
-  opacity: 0.6;
-  animation: journey-splash-pulse 2.4s ease-in-out infinite;
-}
-
-#journey-splash-prompt kbd {
-  display: inline-block;
-  padding: 0.15em 0.5em;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.15);
-  font-family: inherit;
-  font-size: 0.95em;
-}
-
-@keyframes journey-splash-pulse {
-  0%,
-  100% {
-    opacity: 0.45;
+@keyframes journey-splash-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
   }
-  50% {
-    opacity: 0.9;
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
