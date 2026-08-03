@@ -103,7 +103,7 @@ kiosk will show a blank/dark screen even though it's working fine.
 
 ## Step 5: Adjust the Schedule (Optional)
 
-The Journey Display shows the Awana Check-in Display most of the day, then switches to the Journey video from **6:30 PM to 7:15 PM**.
+The Journey Display shows the Awana Check-in Display most of the day, then switches to the Journey video from **6:30 PM to 7:00 PM**.
 
 **Important:** these times live in the **website's own code on GitHub**,
 not in a file on the Pi. The Pi always loads the live site at
@@ -118,7 +118,7 @@ for real:
 3. Find these two lines near the top:
    ```javascript
    const JOURNEY_START_MINUTES = 18 * 60 + 30; // 6:30 PM
-   const JOURNEY_END_MINUTES = 19 * 60 + 15;   // 7:15 PM
+   const JOURNEY_END_MINUTES = 19 * 60;        // 7:00 PM
    ```
 4. Change the times to what you want (in 24-hour format)
 5. Click **"Commit changes..."** then **"Commit changes"** to save to `main`
@@ -145,7 +145,7 @@ for real:
 
 **The Journey video doesn't show:**
 - Make sure the time is set correctly on the Pi (check the clock in the top right)
-- The video only appears between 6:30 PM and 7:15 PM
+- The video only appears between 6:30 PM and 7:00 PM
 - Check that you have an internet connection
 - Seeing the word "Journey" on a plain dark screen (not a black/blank
   screen) is normal — it means the week's lesson hasn't resolved yet or

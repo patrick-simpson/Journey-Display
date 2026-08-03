@@ -42,9 +42,17 @@ Concretely, after editing any file:
 
 `public/src/schedule.js` holds the switching logic:
 
-- `JOURNEY_START_MINUTES` (18:30) / `JOURNEY_END_MINUTES` (19:15) are
+- `JOURNEY_START_MINUTES` (18:30) / `JOURNEY_END_MINUTES` (19:00) are
   the schedule window in minutes-since-midnight, using the Pi's local
   system clock. Change these two constants to retime the switch.
+- **The 19:00 swap yields to a lesson that's still playing.** If the
+  boundary arrives mid-playback the poller performs no swap *and
+  leaves `lastPhase` alone*, so the flip stays pending and every later
+  tick re-tests it — the swap happens as soon as playback stops. This
+  is deliberately not "record the flip now and let the `ended` handler
+  do it": if `ended` never arrived (a stall, a decode error after
+  playback had already begun) that would strand the kiosk on a frozen
+  final frame all night. See `isVideoPlaying()`.
 - The Awana Check-in Display shows outside that window; the Journey
   placeholder shows inside it. This repeats every day — there's no
   date logic, only time-of-day.
@@ -323,13 +331,28 @@ actually needs:
   to stay resident for the other 23 hours of the day on a 512MB Pi Zero.
 - Video starts muted (autoplay policy) with a visible unmute button
   (a text label, not just an emoji glyph, since Raspberry Pi OS doesn't
-  always ship a color-emoji font); finishing the video falls back to
-  the Check-in Display immediately rather than waiting for 7:15. A
-  failed/stalled video load falls back to the placeholder too, rather
-  than a silent black frame indistinguishable from a dead display.
-  `video.loop` is explicitly set `false` (it was never looping by
-  accident, but this makes the intent explicit rather than relying on
-  the element's default).
+  always ship a color-emoji font). A failed/stalled video load falls
+  back to the placeholder, rather than a silent black frame
+  indistinguishable from a dead display. `video.loop` is explicitly set
+  `false` (it was never looping by accident, but this makes the intent
+  explicit rather than relying on the element's default).
+- **Where a finished lesson lands depends on the clock.** Still inside
+  the window (before 19:00) the `ended` handler calls
+  `returnToSplash()` and the title card goes back up — the room keeps
+  a branded screen and the lesson can simply be replayed with
+  Space/→/the button. At or after 19:00 (i.e. the lesson ran past the
+  swap and the poller deferred to it) the Journey slot is over, so it
+  hands off to the Check-in Display. Neither branch touches
+  `lastPhase` — see the invariant below. `returnToSplash()` goes
+  through `stopJourneyContent()` first, both because
+  `showJourneyContent()`'s "already playing" guard checks that the
+  `<video>` is hidden, and to release the decoded blob rather than
+  keep it resident on the off chance of a replay.
+- **Detaching the `<video>` can itself fire an `error` event**, so the
+  error handler ignores any error raised while the element has no
+  `src`. Without that guard, `returnToSplash()` — which detaches while
+  the Journey view is still on screen — would race its own teardown
+  and replace the title card it just restored with the placeholder.
 - **Autoplay-with-sound after the first click:** browsers only allow
   *unmuted* autoplay once a genuine user gesture has occurred on the
   page. This page's only clickable elements are its two corner buttons,
@@ -349,7 +372,7 @@ actually needs:
   itself a click.
 - **`lastPhase` invariant — do not break this again:** `lastPhase`
   tracks only the *scheduled* phase (for detecting a genuine 18:30/
-  19:15 boundary crossing); the manual toggle button and the video's
+  19:00 boundary crossing); the manual toggle button and the video's
   `ended` handler both call `setView()` directly to change what's on
   screen *without* touching `lastPhase`. That's what lets either of
   them hold a view that disagrees with `scheduledPhase()` (checkin
@@ -377,7 +400,7 @@ upcoming lesson, or catching up after a missed night.
 - **Always a one-off.** Picking a lesson plays it immediately and never
   writes to `current-lesson.json` or touches `currentLesson` — the
   6:30 auto-schedule is completely unaffected by what was manually
-  previewed, by design (confirmed: crossing the 6:30/7:15 boundary
+  previewed, by design (confirmed: crossing the 6:30/7:00 boundary
   mid-preview doesn't interrupt it, and ending a preview afterward
   correctly resumes the real auto-resolved lesson, not the previewed
   one).
@@ -390,7 +413,7 @@ upcoming lesson, or catching up after a missed night.
   rarely-used feature, not a bug to fix by extending transcoding to all
   32 lessons (see the repo-size trade-off already noted under "Video
   transcoding").
-- **Outside the 6:30-7:15 window, picking a lesson asks Leader or
+- **Outside the 6:30-7:00 window, picking a lesson asks Leader or
   Student Video first**; inside the window it plays the Student Video
   directly, same as the automatic show would. Outside the window is
   more likely someone reviewing content (the Leader Video carries extra

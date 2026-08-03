@@ -3,7 +3,7 @@
 // shows. See CLAUDE.md for the conventions around changing these
 // constants, and for how the video content itself gets here.
 const JOURNEY_START_MINUTES = 18 * 60 + 30; // 6:30 PM
-const JOURNEY_END_MINUTES = 19 * 60 + 15; // 7:15 PM
+const JOURNEY_END_MINUTES = 19 * 60; // 7:00 PM
 const POLL_INTERVAL_MS = 15000;
 const LESSON_REFRESH_MS = 60 * 60 * 1000; // current-lesson.json only changes nightly
 const VIDEO_CACHE_NAME = 'journey-videos-v1';
@@ -205,6 +205,30 @@ function isAwaitingPlay() {
   );
 }
 
+// True while a lesson is genuinely mid-playback — used by the poller to hold
+// off the 7:00 swap rather than cutting the room off mid-sentence. Checks
+// paused/ended rather than just "the element is visible", so a stalled or
+// finished video doesn't keep the swap deferred forever.
+function isVideoPlaying() {
+  return (
+    !journeyVideo.classList.contains('hidden') &&
+    !journeyVideo.paused &&
+    !journeyVideo.ended
+  );
+}
+
+// The lesson finished (or was torn down) but we're still inside the Journey
+// window — put the title card back up rather than dropping to the Check-in
+// Display, so the room keeps a branded screen and the lesson can be replayed.
+// Goes through stopJourneyContent() first: that hides the <video> (which
+// showJourneyContent()'s "already playing" guard checks) and releases the
+// decoded blob, which has no business staying resident on a 512MB Pi Zero
+// just in case someone replays. Re-resolving it is one cheap Cache API read.
+function returnToSplash() {
+  stopJourneyContent();
+  showJourneyContent();
+}
+
 function setMuted(muted) {
   journeyVideo.muted = muted;
   unmuteBtn.textContent = muted ? '🔇' : '🔊';
@@ -242,7 +266,7 @@ function setView(phase) {
 }
 
 // `lastPhase` tracks only the *scheduled* phase (for detecting a genuine
-// 18:30/19:15 boundary crossing) — it is deliberately never written to from
+// 18:30/19:00 boundary crossing) — it is deliberately never written to from
 // the manual toggle or the video's 'ended' handler below, both of which call
 // setView() directly to change what's on screen right now without touching
 // this. That's what lets either of them hold a view that disagrees with
@@ -263,10 +287,17 @@ let previewMode = false;
 setInterval(() => {
   if (previewMode) return;
   const phase = scheduledPhase();
-  if (phase !== lastPhase) {
-    lastPhase = phase;
-    setView(phase);
-  }
+  if (phase === lastPhase) return;
+  // 7:00 arrived mid-lesson: let it finish rather than cutting the room off
+  // part-way through. Deliberately leaves `lastPhase` alone as well as the
+  // view, so this stays a *pending* flip — every subsequent tick re-tests it
+  // and performs the swap as soon as playback stops. Recording the flip here
+  // and relying on the 'ended' handler alone would strand the display on a
+  // frozen final frame if 'ended' never arrived (a stall, a decode error
+  // after the element was already playing).
+  if (phase === 'checkin' && isVideoPlaying()) return;
+  lastPhase = phase;
+  setView(phase);
 }, POLL_INTERVAL_MS);
 
 toggleBtn.addEventListener('click', () => {
@@ -327,16 +358,22 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// Once the lesson finishes, there's nothing left to show for the rest of
-// the window — fall back to the Check-in Display right away rather than
-// holding on a blank/frozen frame until 7:15. Deliberately does NOT touch
-// lastPhase (see the comment above it) — doing so would make the very next
-// poll tick see a manufactured "flip" back to 'journey' and restart the
-// lesson from frame zero, which is exactly the bug this comment is here to
-// prevent regressing.
+// Where the lesson finishing lands depends on whether the Journey window is
+// still open. Inside it (before 7:00) the title card goes back up, so the
+// room keeps a branded screen and the lesson can be replayed; at or after
+// 7:00 — i.e. the lesson ran past the swap and the poller deferred to it —
+// the Journey slot is over, so hand the screen to the Check-in Display.
+// Deliberately does NOT touch lastPhase in either branch (see the comment
+// above it) — doing so would make the very next poll tick see a manufactured
+// "flip" back to 'journey' and restart the lesson from frame zero, which is
+// exactly the bug this comment is here to prevent regressing.
 journeyVideo.addEventListener('ended', () => {
   if (previewMode) {
     endPreview();
+    return;
+  }
+  if (scheduledPhase() === 'journey') {
+    returnToSplash();
     return;
   }
   setView('checkin');
@@ -346,6 +383,12 @@ journeyVideo.addEventListener('ended', () => {
 // fall back to the placeholder rather than leaving a silent black frame
 // that's indistinguishable from a dead display.
 journeyVideo.addEventListener('error', () => {
+  // Detaching the element (removeAttribute('src') + load(), in
+  // stopJourneyContent()) can surface as an error event of its own. That's
+  // teardown, not a playback failure, and returnToSplash() detaches while
+  // the Journey view is still on screen — without this guard that stray
+  // event would swap the title card we just put back for the placeholder.
+  if (!journeyVideo.getAttribute('src')) return;
   console.warn('Journey: video failed to load/play', journeyVideo.error);
   if (previewMode) {
     endPreview();
@@ -387,7 +430,7 @@ setInterval(refreshLesson, LESSON_REFRESH_MS);
    auto-played lesson, so it doesn't need pre-caching machinery; it will
    just take a little longer to start and may not play as smoothly on the
    Pi Zero as the transcoded current lesson does. When it's not currently
-   the scheduled 6:30-7:15 window, picking a lesson asks Leader or Student
+   the scheduled 6:30-7:00 window, picking a lesson asks Leader or Student
    Video first — outside the window this is more likely someone reviewing
    content than showing it to kids, so the Leader Video (which has extra
    discussion notes not meant for the room) is worth offering directly. */
