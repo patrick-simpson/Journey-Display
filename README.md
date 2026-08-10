@@ -1,6 +1,8 @@
 # Journey Display
 
-A simple kiosk website that displays the **Journey: Advocates** video lesson on a screen during Awana meetings, with automatic fallback to the Awana Check-in Display the rest of the day.
+A simple kiosk website that displays the **Journey: Advocates** video lesson on a screen during Awana® meetings, with automatic fallback to the Awana Check-in Display the rest of the day.
+
+> This project is an independent, church-built tool. It is **not affiliated with, endorsed by, or approved by Awana Clubs International** — it simply plays curriculum video the church already licenses through its own Awana Ministry Membership, for internal, on-device use only.
 
 - **6:30 PM – 7:15 PM:** Shows the current week's Journey lesson video
 - **All other times:** Shows the Awana Check-in Display
@@ -309,6 +311,8 @@ For technical details, see [CLAUDE.md](CLAUDE.md).
 ## License
 
 This project respects Awana's licensing terms. The church has an active Awana Ministry Membership. Videos are cached locally for internal display only and are never re-shared or publicly rehosted.
+
+**Not affiliated with, endorsed by, or approved by Awana Clubs International.** "Awana," "Awana Clubs," and program names such as "Journey: Advocates" are trademarks of Awana Clubs International, used here only to describe which licensed curriculum this kiosk plays.
 
 Website code: MIT License
 
