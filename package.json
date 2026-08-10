@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Kiosk display: Awana Check-in Display by day, the Journey: Advocates video lesson each evening.",
+  "description": "Kiosk display (not affiliated with or endorsed by Awana Clubs International): Awana® Check-in Display by day, the Journey: Advocates video lesson each evening.",
   "scripts": {
     "fetch-lesson": "node scripts/fetch-current-lesson.mjs",
     "transcode-lesson": "node scripts/transcode-lesson-video.mjs"
