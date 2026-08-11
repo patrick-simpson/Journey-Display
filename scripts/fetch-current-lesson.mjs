@@ -39,6 +39,22 @@
 // club name was to survive a renamed club, not to silently pick
 // whichever matching row happens to come first in the DOM.
 //
+// UPDATE (verified live 2026-08-11): outside the regular meeting season
+// (confirmed during the summer gap before the fall program year starts),
+// `?current_only=Y` stops isolating a single "current" row and instead
+// returns the SAME one-row-per-scheduled-meeting-date shape documented
+// below for `?current_only=N` — for every club, not just Journey. Each
+// meeting date's <tr> carries a sibling
+// `<span class="fields" calendar_date="YYYY-MM-DD" …>`, which multi-match
+// disambiguation below uses to pick the one actual "current" row: the
+// most recent date that isn't in the future, or — before the season's
+// first meeting has happened yet — the soonest upcoming one (which is
+// normally that first meeting's "Faith Foundations #N" row, so it flows
+// into the existing entrance-gate default below exactly like a mid-season
+// entrance-gate week would). This is additive: when the endpoint DOES
+// isolate a single row (the normal in-season case), there's only one
+// match and this whole date-based path is never exercised.
+//
 // IMPORTANT — "Faith Foundations" is TwoTimTwo/Awana's generic
 // "entrance gate" onboarding sequence every club runs through BEFORE
 // starting their assigned book — it is NOT the Advocates book itself,
@@ -141,10 +157,26 @@ async function resolveCorsFriendlyVideoUrl(downloadUrl) {
   return downloadUrl;
 }
 
+/** Reads a book-track-mtg row's own scheduled date, if present — the
+ * `calendar_date="YYYY-MM-DD"` attribute lives on a `span.fields` sibling
+ * elsewhere inside the same meeting-date `<tr>`, not on the row itself, so
+ * this walks up to that ancestor `<tr>` and reads it from there. Returns
+ * null if it's missing (e.g. an older/different page shape), which callers
+ * treat as "can't safely disambiguate by date." */
+function rowCalendarDate(row) {
+  for (let el = row.parentElement; el; el = el.parentElement) {
+    if (el.tagName !== 'TR') continue;
+    const span = el.querySelector('span.fields[calendar_date]');
+    if (span) return span.getAttribute('calendar_date') || null;
+  }
+  return null;
+}
+
 /** Find the Advocates row(s) in the "current book track" table and return
  * the Section text (e.g. "Faith Foundations #7"), or null if the
  * table/row isn't there in the shape we expect, or if the row is
- * ambiguous (zero or more than one match, or a blank cell). */
+ * ambiguous (zero matches, a blank cell, or more than one match that
+ * can't be resolved by date — see rowCalendarDate()). */
 function extractSectionText(html) {
   const doc = new JSDOM(html).window.document;
   const matches = [];
@@ -154,11 +186,33 @@ function extractSectionText(html) {
     const bookTrack = cells[1].textContent?.trim() || '';
     if (!/advocates/i.test(bookTrack)) continue;
     const section = cells[2].querySelector('b')?.textContent?.trim() || cells[2].textContent?.trim() || '';
-    matches.push(section);
+    matches.push({ section, dateStr: rowCalendarDate(row) });
   }
-  if (matches.length !== 1) return { sectionText: null, matchCount: matches.length };
-  if (!matches[0]) return { sectionText: null, matchCount: 1, blank: true };
-  return { sectionText: matches[0], matchCount: 1 };
+
+  if (matches.length === 0) return { sectionText: null, matchCount: 0 };
+
+  if (matches.length > 1) {
+    // Outside the regular meeting season, current_only=Y returns one row
+    // per scheduled meeting for the whole year instead of isolating
+    // "today's" — pick the one that's actually current by date instead of
+    // refusing outright, but only if every match parses to a real date;
+    // a single unparseable one means the page shape isn't what's assumed,
+    // and guessing among the rest would be worse than refusing.
+    const dated = matches.map((m) => ({ ...m, date: m.dateStr ? Date.parse(`${m.dateStr}T00:00:00Z`) : NaN }));
+    if (dated.some((m) => !Number.isFinite(m.date))) {
+      return { sectionText: null, matchCount: matches.length };
+    }
+    const today = Date.now();
+    const past = dated.filter((m) => m.date <= today);
+    const chosen = past.length > 0
+      ? past.reduce((latest, m) => (m.date > latest.date ? m : latest))
+      : dated.reduce((soonest, m) => (m.date < soonest.date ? m : soonest));
+    if (!chosen.section) return { sectionText: null, matchCount: matches.length, blank: true };
+    return { sectionText: chosen.section, matchCount: matches.length };
+  }
+
+  if (!matches[0].section) return { sectionText: null, matchCount: 1, blank: true };
+  return { sectionText: matches[0].section, matchCount: 1 };
 }
 
 /** "Unit N #M" -> the lessons.json entry with matching unit/lesson.
