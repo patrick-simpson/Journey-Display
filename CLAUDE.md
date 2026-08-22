@@ -375,6 +375,26 @@ actually needs:
   and restart the lesson from frame zero — confirmed live before the
   fix. If you touch the poller or either handler, re-verify this
   property doesn't regress.
+- A **loading overlay** (`#journey-loading`) covers the gap between
+  asking a video to play and frames actually rendering — shown by
+  `playCurrentLesson()`/`startPreview()`, re-shown by the video's
+  `waiting` event on mid-play buffering stalls, hidden by `playing` and
+  on every teardown/error path. It exists mostly for manual previews,
+  which stream Awana's full-size originals and can take long enough to
+  start that the screen otherwise reads as dead. Cheap opacity pulse
+  only, same animation budget as the splash.
+- The **mouse cursor auto-hides after 5s idle** and reappears on any
+  mouse movement (`cursor-hidden` class on `<html>`, toggled in
+  `schedule.js`). An earlier version set `cursor: none`
+  unconditionally, which made the Journey view impossible to navigate
+  with a mouse — reported broken from the live kiosk, don't regress it.
+  Note the parent page never sees mousemove while the pointer is over
+  the Check-in Display iframe (cross-origin) — the embedded app governs
+  its own cursor there, and that's fine.
+- The **Settings panel is sized as a 10-foot UI** (rows ~1.5rem in a
+  ~1100px card) — it renders on a TV read from across a room, not a
+  desktop monitor; "too small to read" was likewise reported from the
+  live kiosk.
 - A screen [Wake Lock](https://developer.mozilla.org/en-US/docs/Web/API/Screen_Wake_Lock_API)
   is requested on load and re-acquired on `visibilitychange`, since
   Raspberry Pi OS's default screen-blanking would otherwise leave the

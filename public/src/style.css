@@ -10,11 +10,18 @@ body {
   height: 100%;
   overflow: hidden;
   background: #000000;
-  /* Kiosk display: no pointer is ever meaningfully "at" a location between
-     taps, and a stray arrow parked over the projected video all evening
-     looks broken. The two controls below opt back into a visible pointer
-     via their own `cursor: pointer` rule, so they're still discoverable. */
-  cursor: none;
+}
+
+/* Kiosk cursor: hidden while idle (a stray arrow parked over the projected
+   video all evening looks broken), but visible the moment the mouse moves —
+   an operator has to be able to see the pointer to navigate at all. The
+   .cursor-hidden class is toggled by schedule.js on mouse movement/idle;
+   !important beats the controls' own `cursor: pointer` while idle. An
+   earlier version set `cursor: none` unconditionally, which made the
+   Journey view impossible to navigate with a mouse — don't regress that. */
+html.cursor-hidden,
+html.cursor-hidden * {
+  cursor: none !important;
 }
 
 .view {
@@ -181,6 +188,40 @@ body {
   }
 }
 
+/* Loading indicator — shown while a lesson video is fetching/buffering, so a
+   slow start (especially a manual preview streaming a full-size original)
+   reads as "working on it" rather than a dead black screen. Same cheap
+   opacity-pulse-only animation budget as the splash — no spinners with
+   transforms, this renders on a Pi Zero. */
+#journey-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2vh;
+  color: #ffffff;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+  padding: 4vh 4vw;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 5;
+  pointer-events: none;
+}
+
+#journey-loading-text {
+  font-size: 2.4rem;
+  font-weight: 700;
+  animation: journey-splash-pulse 2.4s ease-in-out infinite;
+}
+
+#journey-loading-note {
+  font-size: 1.2rem;
+  opacity: 0.6;
+  max-width: 70vw;
+}
+
 /* Both floating controls sit at least one safe-area inset in from the true
    edge — consumer TVs fed over HDMI commonly crop several percent of each
    edge ("overscan"), and PI_SETUP.md/README.md instruct enabling "HDMI Safe
@@ -271,7 +312,10 @@ body {
   background: rgba(255, 255, 255, 0.75);
 }
 
-/* ── Video settings panel ────────────────────────────────────────── */
+/* ── Video settings panel ──────────────────────────────────────────
+   Sized as a "10-foot UI": this renders on a TV read from across a room,
+   not a desktop monitor at arm's length, so everything here runs much
+   larger than typical web defaults. */
 
 #settings-panel {
   position: fixed;
@@ -290,14 +334,14 @@ body {
 
 #settings-card {
   position: relative;
-  width: min(720px, 90vw);
-  max-height: 80vh;
+  width: min(1100px, 94vw);
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
   background: #1a1a1a;
   color: #ffffff;
-  border-radius: 16px;
-  padding: 1.5rem;
+  border-radius: 20px;
+  padding: 2rem;
   font-family: system-ui, sans-serif;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
@@ -306,22 +350,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 #settings-header h2 {
-  font-size: 1.4rem;
+  font-size: 2.2rem;
   font-weight: 700;
 }
 
 #settings-close-btn {
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 60px;
+  min-height: 60px;
   border: none;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
-  font-size: 1.1rem;
+  font-size: 1.6rem;
   cursor: pointer;
 }
 
@@ -331,16 +375,16 @@ body {
 }
 
 #settings-preview-note {
-  font-size: 0.9rem;
+  font-size: 1.25rem;
   opacity: 0.7;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 #settings-lesson-list {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .settings-lesson-row {
@@ -348,13 +392,13 @@ body {
   align-items: baseline;
   gap: 0.6em;
   width: 100%;
-  padding: 0.6rem 0.8rem;
+  padding: 0.9rem 1.2rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.06);
   color: #ffffff;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 1.5rem;
   text-align: left;
   cursor: pointer;
 }
@@ -375,25 +419,25 @@ body {
 }
 
 #settings-variant-prompt {
-  margin-bottom: 1rem;
-  font-size: 1.05rem;
+  margin-bottom: 1.25rem;
+  font-size: 1.6rem;
 }
 
 #settings-variant-buttons {
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 #settings-variant-buttons button {
   flex: 1;
-  padding: 0.9rem;
+  padding: 1.4rem;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 1.5rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -413,9 +457,10 @@ body {
   background: none;
   color: rgba(255, 255, 255, 0.7);
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 1.3rem;
   cursor: pointer;
   align-self: flex-start;
+  padding: 0.5rem 0;
 }
 
 #settings-variant-back:hover,

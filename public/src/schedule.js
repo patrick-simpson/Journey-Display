@@ -16,6 +16,7 @@ const journeySplashWeek = document.getElementById('journey-splash-week');
 const journeySplashTitle = document.getElementById('journey-splash-title');
 const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
 const journeyVideo = document.getElementById('journey-video');
+const journeyLoading = document.getElementById('journey-loading');
 const unmuteBtn = document.getElementById('unmute-btn');
 const toggleBtn = document.getElementById('toggle-btn');
 const settingsBtn = document.getElementById('settings-btn');
@@ -48,6 +49,24 @@ let journeyRequestToken = 0;
 // either), so persisting a "still unlocked" flag past that point would
 // just be wrong.
 let audioUnlocked = false;
+
+/* ── Idle cursor ──────────────────────────────────────────────────────
+   The cursor starts hidden (kiosk mode: nothing should look "parked" on
+   the projected video) but reappears on any mouse movement and hides
+   again after a few idle seconds — an operator has to be able to see the
+   pointer to use the corner buttons and the settings panel at all. This
+   only governs this document; the Check-in Display iframe is a different
+   origin and manages its own cursor. */
+const CURSOR_IDLE_MS = 5000;
+let cursorIdleTimer = null;
+document.documentElement.classList.add('cursor-hidden');
+document.addEventListener('mousemove', () => {
+  document.documentElement.classList.remove('cursor-hidden');
+  clearTimeout(cursorIdleTimer);
+  cursorIdleTimer = setTimeout(() => {
+    document.documentElement.classList.add('cursor-hidden');
+  }, CURSOR_IDLE_MS);
+});
 
 function scheduledPhase() {
   const now = new Date();
@@ -140,6 +159,7 @@ async function showJourneyContent() {
     journeyVideo.pause();
     journeyVideo.removeAttribute('src');
     journeyVideo.classList.add('hidden');
+    hideVideoLoading();
     unmuteBtn.classList.add('hidden');
     journeySplash.classList.add('hidden');
     journeyPlaceholder.classList.remove('hidden');
@@ -164,6 +184,7 @@ async function playCurrentLesson() {
   journeySplash.classList.add('hidden');
   journeyVideo.classList.remove('hidden');
   unmuteBtn.classList.remove('hidden');
+  showVideoLoading();
   journeyVideo.loop = false; // plays once; falls back to Check-in Display on 'ended' below
   setMuted(!audioUnlocked);
   const src = await resolveVideoSrc(currentLesson);
@@ -190,6 +211,24 @@ function isAwaitingPlay() {
   );
 }
 
+/* Loading indicator: covers the gap between asking a video to play and
+   frames actually rendering — which for a manual preview (streaming a
+   full-size original over church WiFi) can be long enough to look like a
+   dead screen. Also re-shown by the video's 'waiting' event for mid-play
+   buffering stalls, and hidden again by 'playing'. */
+function showVideoLoading() {
+  journeyLoading.classList.remove('hidden');
+}
+
+function hideVideoLoading() {
+  journeyLoading.classList.add('hidden');
+}
+
+journeyVideo.addEventListener('playing', hideVideoLoading);
+journeyVideo.addEventListener('waiting', () => {
+  if (!journeyVideo.classList.contains('hidden')) showVideoLoading();
+});
+
 function setMuted(muted) {
   journeyVideo.muted = muted;
   unmuteBtn.textContent = muted ? '🔇' : '🔊';
@@ -205,6 +244,7 @@ function stopJourneyContent() {
   journeyVideo.removeAttribute('src');
   journeyVideo.load();
   journeyVideo.classList.add('hidden');
+  hideVideoLoading();
   unmuteBtn.classList.add('hidden');
   journeySplash.classList.add('hidden');
   if (currentObjectUrl) {
@@ -332,6 +372,7 @@ journeyVideo.addEventListener('ended', () => {
 // that's indistinguishable from a dead display.
 journeyVideo.addEventListener('error', () => {
   console.warn('Journey: video failed to load/play', journeyVideo.error);
+  hideVideoLoading();
   if (previewMode) {
     endPreview();
     return;
@@ -456,6 +497,7 @@ function startPreview(url, title) {
   journeyPlaceholder.classList.add('hidden');
   journeyVideo.classList.remove('hidden');
   unmuteBtn.classList.remove('hidden');
+  showVideoLoading();
   journeyVideo.loop = false;
   setMuted(!audioUnlocked);
   journeyVideo.src = url;
