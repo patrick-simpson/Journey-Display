@@ -15,6 +15,23 @@ Concretely, after editing any file:
 2. `git commit` with a clear message.
 3. `git push -u origin main` (no PR, no other branch).
 
+## GitHub Pages source must stay "GitHub Actions"
+
+The repo's Pages setting (Settings → Pages → Build and deployment →
+Source) must be **"GitHub Actions"**, never "Deploy from a branch".
+With the branch source set, every push to `main` triggers GitHub's
+built-in "pages build and deployment" workflow, which publishes the
+repo *root* (no `index.html` there — only `public/` has one) and races
+`deploy.yml`'s correct artifact; whichever finishes last wins. That
+race 404'd the live kiosk for a full day on 2026-08-20 before the next
+morning's scheduled deploy papered over it. `deploy.yml` has a
+best-effort step that tries to force the setting via the REST API, but
+the Actions `GITHUB_TOKEN` isn't allowed to change Pages settings
+("Resource not accessible by integration"), so only a repo admin can
+actually fix it in the UI. Symptom to recognize: a `dynamic/pages/
+pages-build-deployment` run appearing alongside a push means the
+setting has regressed.
+
 ## Tech stack snapshot
 
 - Plain static HTML/CSS/JS — **deliberately no framework or build
