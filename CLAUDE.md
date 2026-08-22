@@ -22,10 +22,32 @@ Source) must be **"GitHub Actions"**, never "Deploy from a branch".
 With the branch source set, every push to `main` triggers GitHub's
 built-in "pages build and deployment" workflow, which publishes the
 repo *root* (no `index.html` there — only `public/` has one) and races
-`deploy.yml`'s correct artifact; whichever finishes last wins. That
-race 404'd the live kiosk for a full day on 2026-08-20 before the next
-morning's scheduled deploy papered over it. `deploy.yml` has a
-best-effort step that tries to force the setting via the REST API, but
+`deploy.yml`'s correct artifact; whichever finishes last wins, so the
+live site flip-flops between two entirely different layouts.
+
+That flip-flop is what made the 2026-08-22 kiosk outage so confusing to
+diagnose, and it's worth understanding the interaction, because the two
+layouts have **disjoint** valid URLs:
+
+| Pages source | `/` | `/public/index.html` |
+| --- | --- | --- |
+| GitHub Actions (correct) | 200 | 404 |
+| Deploy from a branch | 404 | 200 |
+
+The Pi had been misconfigured to load `…/Journey-Display/public/index.html`
+— a URL that is only valid under the *wrong* Pages source. So every time
+the built-in branch build won the race, the kiosk came back to life and
+the misconfiguration stayed hidden; every time `deploy.yml` won, the
+kiosk 404'd. Fixing the Pages source made the kiosk's 404 permanent
+rather than intermittent, which is why the Pi's URL had to be corrected
+to the canonical root (`https://patrick-simpson.github.io/Journey-Display/`)
+at the same time. **The lesson: a kiosk that recovers on its own is not
+evidence the kiosk is configured right** — check the URL the browser is
+actually on (`ps -eo args | grep -i '[c]hromi'`) before believing the
+server is at fault.
+
+`deploy.yml` has a best-effort step that tries to force the setting via
+the REST API, but
 the Actions `GITHUB_TOKEN` isn't allowed to change Pages settings
 ("Resource not accessible by integration"), so only a repo admin can
 actually fix it in the UI. Symptom to recognize: a `dynamic/pages/

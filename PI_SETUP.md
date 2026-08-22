@@ -156,6 +156,42 @@ for real:
 - The schedule lives in the website's code on GitHub, not on the Pi —
   see Step 5 above for the real steps
 
+**The screen shows a GitHub "404 / File not found" page:**
+
+The Pi is loading the wrong URL. The **only** correct address is the
+bare root:
+
+```
+https://patrick-simpson.github.io/Journey-Display/
+```
+
+Do **not** append `/public/index.html` or `/pages/index.html`. Only the
+contents of `public/` are deployed, and they're served *at the root* —
+so `public/` is not part of the live URL even though it is part of the
+repo. Capitalization matters too: `Journey-Display`, not
+`journey-display`.
+
+To find and fix it over SSH, check **both** places the URL can hide —
+having two autostart entries with two different wrong URLs is exactly
+how this last went wrong:
+
+```bash
+# What is the browser actually on right now?
+ps -eo args | grep -i '[c]hromi' | tr ' ' '\n' | grep -i '^http'
+
+# Every autostart file that could launch it
+grep -rniI 'chromi' ~/.config/autostart/ ~/.config/labwc/ \
+  ~/.config/lxsession/ ~/.config/wayfire.ini /etc/xdg/lxsession/ 2>/dev/null
+```
+
+Recent Pi OS (Bookworm) uses `~/.config/labwc/autostart`; older LXDE
+setups use `~/.config/autostart/*.desktop`. Correct the URL in each one
+you find, then `sudo reboot`.
+
+Note that a kiosk which fixes *itself* after a while is still broken —
+see the Pages-source section in `CLAUDE.md` for why a wrong Pi URL can
+appear to work intermittently.
+
 ## That's It!
 
 Your Journey Display is now set up. The Pi will automatically start and show the display whenever you power it on.
