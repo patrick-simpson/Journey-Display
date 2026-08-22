@@ -15,6 +15,18 @@ Concretely, after editing any file:
 2. `git commit` with a clear message.
 3. `git push -u origin main` (no PR, no other branch).
 
+**A deployed fix is NOT immediately live on the kiosk.** GitHub Pages
+serves every asset with `Cache-Control: max-age=600`, and Chromium's
+normal reload does not revalidate subresources that are still fresh —
+so for up to ~10 minutes after a deploy, an F5 on the Pi reloads
+`index.html` but keeps running the *previous* `schedule.js`/CSS from
+disk cache (this survives a reboot too). This has already caused one
+"the fix didn't work" false alarm during live testing. When verifying a
+fix on the kiosk: wait 10 minutes and then refresh, or hard-refresh
+(Ctrl+Shift+R) to bypass the cache immediately. When a live symptom
+contradicts code you know is deployed, suspect this cache before
+suspecting the code.
+
 ## GitHub Pages source must stay "GitHub Actions"
 
 The repo's Pages setting (Settings → Pages → Build and deployment →

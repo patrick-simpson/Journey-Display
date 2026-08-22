@@ -152,6 +152,12 @@ for real:
   couldn't load, and the display intentionally shows a placeholder
   instead of a broken video
 
+**A change was made on GitHub but the Pi still acts the old way:**
+- The Pi's browser caches the site's files for up to 10 minutes, and a
+  normal refresh (or even a reboot) can keep using the cached copy
+  during that window. Wait 10 minutes and refresh again, or press
+  **Ctrl + Shift + R** for a hard refresh that skips the cache.
+
 **I edited the schedule file on the Pi but nothing changed:**
 - The schedule lives in the website's code on GitHub, not on the Pi —
   see Step 5 above for the real steps
