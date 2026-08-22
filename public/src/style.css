@@ -515,18 +515,21 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   outline: 2px solid rgba(255, 255, 255, 0.5);
 }
 
-#settings-variant-prompt {
+#settings-variant-prompt,
+#settings-leader-prompt {
   margin-bottom: 1.25rem;
   font-size: 1.6rem;
 }
 
-#settings-variant-buttons {
+#settings-variant-buttons,
+#settings-leader-buttons {
   display: flex;
   gap: 1rem;
   margin-bottom: 1.25rem;
 }
 
-#settings-variant-buttons button {
+#settings-variant-buttons button,
+#settings-leader-buttons button {
   flex: 1;
   padding: 1.4rem;
   border: none;
@@ -540,7 +543,9 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #settings-variant-buttons button:hover,
-#settings-variant-buttons button:focus-visible {
+#settings-variant-buttons button:focus-visible,
+#settings-leader-buttons button:hover,
+#settings-leader-buttons button:focus-visible {
   background: rgba(255, 255, 255, 0.3);
 }
 
@@ -549,7 +554,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   cursor: not-allowed;
 }
 
-#settings-variant-back {
+#settings-variant-back,
+#settings-leader-back {
   border: none;
   background: none;
   color: rgba(255, 255, 255, 0.7);
@@ -561,6 +567,63 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #settings-variant-back:hover,
-#settings-variant-back:focus-visible {
+#settings-variant-back:focus-visible,
+#settings-leader-back:hover,
+#settings-leader-back:focus-visible {
   color: #ffffff;
+}
+
+/* ── Leader handout viewer: full-screen overlay with the PDF in an
+   iframe (Chromium's built-in viewer) and a big close button. ────── */
+#handout-view {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1a;
+}
+
+#handout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.5rem;
+  color: #ffffff;
+  font-family: system-ui, sans-serif;
+}
+
+#handout-title {
+  font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#handout-close-btn {
+  flex: none;
+  min-height: 56px;
+  padding: 0 1.6rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#handout-close-btn:hover,
+#handout-close-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+#handout-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #444444;
 }

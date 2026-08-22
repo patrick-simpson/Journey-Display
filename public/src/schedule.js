@@ -33,6 +33,15 @@ const settingsVariantPrompt = document.getElementById('settings-variant-prompt')
 const settingsVariantStudentBtn = document.getElementById('settings-variant-student');
 const settingsVariantLeaderBtn = document.getElementById('settings-variant-leader');
 const settingsVariantBackBtn = document.getElementById('settings-variant-back');
+const settingsLeaderPicker = document.getElementById('settings-leader-picker');
+const settingsLeaderPrompt = document.getElementById('settings-leader-prompt');
+const settingsLeaderVideoBtn = document.getElementById('settings-leader-video');
+const settingsLeaderHandoutBtn = document.getElementById('settings-leader-handout');
+const settingsLeaderBackBtn = document.getElementById('settings-leader-back');
+const handoutView = document.getElementById('handout-view');
+const handoutTitle = document.getElementById('handout-title');
+const handoutCloseBtn = document.getElementById('handout-close-btn');
+const handoutFrame = document.getElementById('handout-frame');
 
 let currentLesson = null;
 let currentObjectUrl = null;
@@ -595,8 +604,34 @@ function onLessonPicked(lesson) {
 function resetSettingsPanelToList() {
   pendingPreviewLesson = null;
   settingsVariantPicker.classList.add('hidden');
+  settingsLeaderPicker.classList.add('hidden');
   settingsLessonList.classList.remove('hidden');
 }
+
+/* ── Leader handout viewer ────────────────────────────────────────────
+   Each Leader Video has a one-page summary PDF (public/handouts/,
+   generated from its transcript in public/transcripts/ — see CLAUDE.md).
+   Shown full-screen in an iframe via Chromium's built-in PDF viewer, so
+   the kiosk never leaves the page or opens a tab. */
+function handoutUrl(week) {
+  return `handouts/week-${String(week).padStart(2, '0')}-leader-handout.pdf`;
+}
+
+function openHandout(lesson) {
+  handoutTitle.textContent = `Week ${lesson.week} — ${lesson.title} (Leader Handout)`;
+  handoutFrame.src = handoutUrl(lesson.week);
+  handoutView.classList.remove('hidden');
+  handoutCloseBtn.focus();
+}
+
+function closeHandout() {
+  handoutView.classList.add('hidden');
+  // Drop the PDF viewer's memory the moment it's closed — same 512MB-Pi
+  // hygiene as detaching the <video> element's src.
+  handoutFrame.removeAttribute('src');
+}
+
+handoutCloseBtn.addEventListener('click', closeHandout);
 
 async function openSettingsPanel() {
   audioUnlocked = true;
@@ -668,7 +703,17 @@ settingsVariantStudentBtn.addEventListener('click', () => {
   closeSettingsPanel();
 });
 
+// Leader is a two-step choice: first Leader vs Student, then Video vs
+// Handout (the one-page summary PDF generated from the Leader Video's
+// transcript).
 settingsVariantLeaderBtn.addEventListener('click', () => {
+  if (!pendingPreviewLesson || !pendingPreviewLesson.leaderDownloadUrl) return;
+  settingsLeaderPrompt.textContent = `"${pendingPreviewLesson.title}" (Leader) — video or handout?`;
+  settingsVariantPicker.classList.add('hidden');
+  settingsLeaderPicker.classList.remove('hidden');
+});
+
+settingsLeaderVideoBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson || !pendingPreviewLesson.leaderDownloadUrl) return;
   startPreview(
     transcodedPreviewUrl(pendingPreviewLesson.week, 'leader'),
@@ -676,4 +721,15 @@ settingsVariantLeaderBtn.addEventListener('click', () => {
     pendingPreviewLesson.leaderDownloadUrl
   );
   closeSettingsPanel();
+});
+
+settingsLeaderHandoutBtn.addEventListener('click', () => {
+  if (!pendingPreviewLesson) return;
+  openHandout(pendingPreviewLesson);
+  closeSettingsPanel();
+});
+
+settingsLeaderBackBtn.addEventListener('click', () => {
+  settingsLeaderPicker.classList.add('hidden');
+  settingsVariantPicker.classList.remove('hidden');
 });

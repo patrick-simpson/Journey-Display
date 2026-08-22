@@ -449,6 +449,35 @@ actually needs:
   it. Not fatal if unsupported — disabling blanking at the OS level
   (see `PI_SETUP.md`) is the belt-and-braces fallback either way.
 
+### Leader transcripts and handouts (owner-requested 2026-08-22)
+
+Derived text content from the Leader Videos, same licensing character
+as the re-encoded videos (internal ministry use for this church's own
+leaders, never linked/advertised elsewhere; owner requested this
+directly):
+
+- **`public/transcripts/week-NN-leader.vtt`** — WebVTT transcript of
+  each Leader Video (31 files; week 27 has none to transcribe),
+  generated once with faster-whisper (model "small", segment-level
+  cues) from the 480p release copies. Same-origin, so they can later be
+  wired up as `<track>` captions without CORS issues. Regenerate only
+  if Awana revises a video.
+- **`public/handouts/week-NN-leader-handout.pdf`** — a one-page
+  **accessible** (tagged) PDF summary of each Leader Video for leaders:
+  Big Idea, Key Points, Scripture, Discussion Questions, plus the
+  trademark/internal-use footer. Generated from semantic HTML via
+  Chromium `page.pdf({ tagged: true })` (real structure tags), then a
+  pikepdf pass sets `/Lang`, XMP+docinfo title, and
+  `DisplayDocTitle` — verify any regenerated file is still 1 page,
+  tagged, titled, and language-marked before committing. Content is
+  written from the transcript, not invented — scripture references only
+  where the video actually cites them.
+- **Picker flow:** lesson → Student/Leader → (Leader only)
+  Watch Video / View Handout. The handout opens in a full-screen
+  iframe overlay (`#handout-view`, Chromium's built-in PDF viewer) so
+  the kiosk never leaves the page; closing it detaches the iframe
+  `src` (512MB-Pi memory hygiene).
+
 ### Manual video preview (Settings panel)
 
 A third corner button (`#settings-btn`, top-right, same subtle style as

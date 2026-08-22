@@ -71,7 +71,23 @@
         </div>
         <button id="settings-variant-back" type="button">← Back to list</button>
       </div>
+      <div id="settings-leader-picker" class="hidden">
+        <p id="settings-leader-prompt"></p>
+        <div id="settings-leader-buttons">
+          <button id="settings-leader-video" type="button">Watch Video</button>
+          <button id="settings-leader-handout" type="button">View Handout</button>
+        </div>
+        <button id="settings-leader-back" type="button">← Back</button>
+      </div>
     </div>
+  </div>
+
+  <div id="handout-view" class="hidden" role="dialog" aria-modal="true" aria-label="Leader handout">
+    <div id="handout-header">
+      <span id="handout-title"></span>
+      <button id="handout-close-btn" type="button">✕ Close</button>
+    </div>
+    <iframe id="handout-frame" title="Leader handout PDF"></iframe>
   </div>
 
   <script src="src/schedule.js"></script>
