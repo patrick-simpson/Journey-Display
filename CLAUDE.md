@@ -458,15 +458,15 @@ upcoming lesson, or catching up after a missed night.
   batch-transcode extension above). Still bypasses the Cache API — an
   occasional manual action doesn't need the nightly lesson's
   pre-caching machinery, it just needs a decodable file.
-- **Outside the 6:30-7:15 window, picking a lesson asks Leader or
-  Student Video first**; inside the window it plays the Student Video
-  directly, same as the automatic show would. Outside the window is
-  more likely someone reviewing content (the Leader Video carries extra
-  discussion notes not meant for the room) than showing it to kids, so
-  offering the choice there — but not interrupting the normal in-window
-  experience with an extra step — was a deliberate distinction.
-  Lessons with no Leader Video (`leaderDownloadUrl: null` — currently
-  only week 27) disable that choice rather than offering a dead link.
+- **Picking a lesson always asks Leader or Student Video first.** An
+  earlier version skipped the question inside the 6:30-7:15 window
+  (playing the Student Video directly, like the scheduled show) as a
+  deliberate distinction — but in practice the two behaviors read as
+  the picker being flaky, not as a rule ("it's not asking me
+  consistently" — reported from the live kiosk 2026-08-22), so the
+  choice is now unconditional. Lessons with no Leader Video
+  (`leaderDownloadUrl: null` — currently only week 27) disable that
+  choice rather than offering a dead link.
 - **`previewMode`** (in `schedule.js`) is the flag that makes this
   safe: the 15s scheduler poll and the hourly lesson refresh both
   no-op while it's set, so neither can interrupt an active preview or

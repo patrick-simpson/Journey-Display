@@ -427,12 +427,10 @@ setInterval(refreshLesson, LESSON_REFRESH_MS);
    cannot decode at a watchable frame rate, so "only the current week
    plays properly" was reported broken from the live kiosk. Still skips
    the Cache API: an occasional manual action doesn't need the nightly
-   lesson's pre-caching machinery, it just needs a decodable file. When
-   it's not currently
-   the scheduled 6:30-7:15 window, picking a lesson asks Leader or Student
-   Video first — outside the window this is more likely someone reviewing
-   content than showing it to kids, so the Leader Video (which has extra
-   discussion notes not meant for the room) is worth offering directly. */
+   lesson's pre-caching machinery, it just needs a decodable file. Picking
+   a lesson ALWAYS asks Leader or Student Video first (lessons with no
+   Leader Video — week 27 — have that choice disabled); see the comment in
+   onLessonPicked() for why this is deliberately unconditional. */
 
 let allLessons = null;
 let pendingPreviewLesson = null;
@@ -489,13 +487,12 @@ function renderLessonList(lessons) {
 }
 
 function onLessonPicked(lesson) {
-  if (scheduledPhase() === 'journey') {
-    // Inside the normal window, a preview is a quick look at the Student
-    // Video the same way the real 6:30 show always plays — no extra step.
-    startPreview(transcodedPreviewUrl(lesson.week, 'student'), lesson.title, lesson.downloadUrl);
-    closeSettingsPanel();
-    return;
-  }
+  // Always ask Leader or Student — an earlier version skipped the question
+  // inside the 6:30-7:15 window (playing the Student Video directly, like
+  // the scheduled show), but the two behaviors read as the picker being
+  // flaky rather than as a deliberate rule ("it's not asking me
+  // consistently" — reported from the live kiosk 2026-08-22). One
+  // consistent extra click beats a clever inconsistency.
   pendingPreviewLesson = lesson;
   settingsVariantPrompt.textContent = `"${lesson.title}" — which video?`;
   settingsVariantLeaderBtn.disabled = !lesson.leaderDownloadUrl;
