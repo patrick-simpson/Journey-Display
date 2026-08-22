@@ -84,20 +84,25 @@ html.cursor-hidden * {
   padding: 4vh 4vw;
 }
 
+/* Splash type scales with the viewport (clamp between phone-readable and
+   the TV sizes these used to be fixed at) — the page is occasionally
+   opened on a phone, where the old fixed sizes overflowed the screen. */
 #journey-splash-wordmark {
   display: flex;
   align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 0.5em;
 }
 
 #journey-splash-journey {
-  font-size: 5rem;
+  font-size: clamp(2.4rem, 9vw, 5rem);
   font-weight: 800;
   letter-spacing: 0.03em;
 }
 
 #journey-splash-advocates {
-  font-size: 1.8rem;
+  font-size: clamp(1rem, 3.5vw, 1.8rem);
   font-weight: 600;
   color: #f2b705;
   text-transform: uppercase;
@@ -109,10 +114,11 @@ html.cursor-hidden * {
   border-radius: 999px;
   background: #c8102e;
   color: #ffffff;
-  font-size: 1.6rem;
+  font-size: clamp(1rem, 3.5vw, 1.6rem);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  text-align: center;
 }
 
 #journey-splash-lesson {
@@ -124,16 +130,16 @@ html.cursor-hidden * {
 }
 
 #journey-splash-week {
-  font-size: 1.3rem;
+  font-size: clamp(0.95rem, 3vw, 1.3rem);
   opacity: 0.7;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
 #journey-splash-title {
-  font-size: 3rem;
+  font-size: clamp(1.4rem, 5.5vw, 3rem);
   font-weight: 700;
-  max-width: 80vw;
+  max-width: 90vw;
 }
 
 #journey-splash-play-btn {
@@ -143,14 +149,15 @@ html.cursor-hidden * {
   gap: 0.6em;
   border: none;
   border-radius: 999px;
-  padding: 1em 2.4em;
+  padding: 0.9em 2em;
   background: #c8102e;
   color: #ffffff;
   font-family: inherit;
-  font-size: 1.6rem;
+  font-size: clamp(1.15rem, 4vw, 1.6rem);
   font-weight: 700;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  touch-action: manipulation;
 }
 
 #journey-splash-play-btn:hover,
@@ -188,6 +195,14 @@ html.cursor-hidden * {
   }
 }
 
+/* On touch-only devices the Space/→ hint is meaningless — the Begin Video
+   button is the touch path — so drop it rather than confuse. */
+@media (hover: none) and (pointer: coarse) {
+  #journey-splash-prompt {
+    display: none;
+  }
+}
+
 /* Loading indicator — shown while a lesson video is fetching/buffering, so a
    slow start (especially a manual preview streaming a full-size original)
    reads as "working on it" rather than a dead black screen. Same cheap
@@ -211,15 +226,15 @@ html.cursor-hidden * {
 }
 
 #journey-loading-text {
-  font-size: 2.4rem;
+  font-size: clamp(1.4rem, 5vw, 2.4rem);
   font-weight: 700;
   animation: journey-splash-pulse 2.4s ease-in-out infinite;
 }
 
 #journey-loading-note {
-  font-size: 1.2rem;
+  font-size: clamp(0.95rem, 3vw, 1.2rem);
   opacity: 0.6;
-  max-width: 70vw;
+  max-width: 80vw;
 }
 
 /* Both floating controls sit at least one safe-area inset in from the true
@@ -227,10 +242,36 @@ html.cursor-hidden * {
    edge ("overscan"), and PI_SETUP.md/README.md instruct enabling "HDMI Safe
    Mode", which crops further still. A control flush against the literal
    edge can be cropped off-screen entirely. */
-#unmute-btn {
+/* Playback control bar: pause/play, sound, scrubber, elapsed time. Fades
+   out together with the idle cursor (the same cursor-hidden class drives
+   both) so nothing sits over the video during the show, but reappears on
+   any mouse movement or touch — and stays visible while paused
+   (.force-visible, toggled from schedule.js). The right inset reserves
+   room for the view-toggle button parked in the corner. */
+#video-controls {
   position: absolute;
-  bottom: max(3vh, 24px);
   left: max(3vw, 24px);
+  right: calc(max(3vw, 24px) + 88px);
+  bottom: max(3vh, 24px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 10;
+  transition: opacity 0.25s ease;
+  touch-action: manipulation;
+}
+
+html.cursor-hidden #video-controls:not(.force-visible) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#pause-btn,
+#unmute-btn {
+  flex: none;
   padding: 10px 18px;
   border: none;
   border-radius: 999px;
@@ -243,8 +284,64 @@ html.cursor-hidden * {
   align-items: center;
   gap: 0.4em;
   cursor: pointer;
-  z-index: 10;
   transition: background-color 0.2s ease;
+}
+
+#pause-btn:hover,
+#pause-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* Scrubber: sized for fingers (28px thumb), plain flat colors only. */
+#video-scrubber {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+#video-scrubber::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+#video-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -10px;
+  border-radius: 50%;
+  border: none;
+  background: #ffffff;
+}
+
+#video-scrubber::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+#video-scrubber::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #ffffff;
+}
+
+#video-time {
+  flex: none;
+  color: #ffffff;
+  font-family: system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 #unmute-btn::after {

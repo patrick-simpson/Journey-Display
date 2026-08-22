@@ -17,7 +17,11 @@ const journeySplashTitle = document.getElementById('journey-splash-title');
 const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
 const journeyVideo = document.getElementById('journey-video');
 const journeyLoading = document.getElementById('journey-loading');
+const videoControls = document.getElementById('video-controls');
+const pauseBtn = document.getElementById('pause-btn');
 const unmuteBtn = document.getElementById('unmute-btn');
+const videoScrubber = document.getElementById('video-scrubber');
+const videoTime = document.getElementById('video-time');
 const toggleBtn = document.getElementById('toggle-btn');
 const settingsBtn = document.getElementById('settings-btn');
 const settingsPanel = document.getElementById('settings-panel');
@@ -50,23 +54,28 @@ let journeyRequestToken = 0;
 // just be wrong.
 let audioUnlocked = false;
 
-/* ── Idle cursor ──────────────────────────────────────────────────────
+/* ── Idle cursor / idle controls ──────────────────────────────────────
    The cursor starts hidden (kiosk mode: nothing should look "parked" on
-   the projected video) but reappears on any mouse movement and hides
-   again after a few idle seconds — an operator has to be able to see the
-   pointer to use the corner buttons and the settings panel at all. This
-   only governs this document; the Check-in Display iframe is a different
-   origin and manages its own cursor. */
+   the projected video) but reappears on any mouse movement or touch and
+   hides again after a few idle seconds — an operator has to be able to
+   see the pointer to use the corner buttons and the settings panel at
+   all. The same cursor-hidden class also fades the playback control bar
+   (see #video-controls in style.css), which is why touches count as
+   activity too: phones/tablets have no mousemove. This only governs this
+   document; the Check-in Display iframe is a different origin and
+   manages its own cursor. */
 const CURSOR_IDLE_MS = 5000;
 let cursorIdleTimer = null;
 document.documentElement.classList.add('cursor-hidden');
-document.addEventListener('mousemove', () => {
+function markActivity() {
   document.documentElement.classList.remove('cursor-hidden');
   clearTimeout(cursorIdleTimer);
   cursorIdleTimer = setTimeout(() => {
     document.documentElement.classList.add('cursor-hidden');
   }, CURSOR_IDLE_MS);
-});
+}
+document.addEventListener('mousemove', markActivity);
+document.addEventListener('touchstart', markActivity, { passive: true });
 
 function scheduledPhase() {
   const now = new Date();
@@ -160,7 +169,7 @@ async function showJourneyContent() {
     journeyVideo.removeAttribute('src');
     journeyVideo.classList.add('hidden');
     hideVideoLoading();
-    unmuteBtn.classList.add('hidden');
+    videoControls.classList.add('hidden');
     journeySplash.classList.add('hidden');
     journeyPlaceholder.classList.remove('hidden');
     return;
@@ -183,7 +192,7 @@ async function playCurrentLesson() {
   if (!currentLesson) return;
   journeySplash.classList.add('hidden');
   journeyVideo.classList.remove('hidden');
-  unmuteBtn.classList.remove('hidden');
+  videoControls.classList.remove('hidden');
   showVideoLoading();
   journeyVideo.loop = false; // plays once; falls back to Check-in Display on 'ended' below
   setMuted(!audioUnlocked);
@@ -235,6 +244,71 @@ function setMuted(muted) {
   unmuteBtn.setAttribute('aria-pressed', String(!muted));
 }
 
+/* ── Playback controls: pause/play, scrubber, elapsed time ────────────
+   The bar (#video-controls) shows whenever a video is active, fading out
+   with the idle cursor and pinned visible while paused. Tapping/clicking
+   the video itself toggles pause too — the natural touch gesture — and
+   Space does the same during playback (it already starts the splash's
+   queued lesson when that's what's on screen). */
+function formatTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+let scrubbing = false;
+
+function syncPlaybackUI() {
+  const paused = journeyVideo.paused;
+  pauseBtn.textContent = paused ? 'Play' : 'Pause';
+  // While paused, the bar must not fade away with the idle cursor —
+  // a silent frozen frame with no visible controls reads as a crash.
+  videoControls.classList.toggle('force-visible', paused);
+}
+
+function syncScrubber() {
+  if (scrubbing) return;
+  const duration = journeyVideo.duration;
+  if (Number.isFinite(duration) && duration > 0) {
+    videoScrubber.max = String(duration);
+    videoScrubber.value = String(journeyVideo.currentTime);
+    videoTime.textContent = `${formatTime(journeyVideo.currentTime)} / ${formatTime(duration)}`;
+  } else {
+    // Duration unknown (still loading, or a stream that doesn't report
+    // one) — show elapsed time only and leave the scrubber inert.
+    videoScrubber.max = '0';
+    videoScrubber.value = '0';
+    videoTime.textContent = formatTime(journeyVideo.currentTime);
+  }
+}
+
+function togglePause() {
+  if (journeyVideo.classList.contains('hidden')) return;
+  audioUnlocked = true; // pausing/resuming is itself a genuine gesture
+  if (journeyVideo.paused) journeyVideo.play().catch(() => {});
+  else journeyVideo.pause();
+}
+
+journeyVideo.addEventListener('play', syncPlaybackUI);
+journeyVideo.addEventListener('pause', syncPlaybackUI);
+journeyVideo.addEventListener('timeupdate', syncScrubber);
+journeyVideo.addEventListener('durationchange', syncScrubber);
+journeyVideo.addEventListener('click', togglePause);
+pauseBtn.addEventListener('click', togglePause);
+
+videoScrubber.addEventListener('input', () => {
+  scrubbing = true;
+  const t = Number(videoScrubber.value);
+  if (Number.isFinite(t)) {
+    journeyVideo.currentTime = t;
+    videoTime.textContent = `${formatTime(t)} / ${formatTime(journeyVideo.duration)}`;
+  }
+});
+videoScrubber.addEventListener('change', () => {
+  scrubbing = false;
+});
+
 function stopJourneyContent() {
   journeyVideo.pause();
   // Release the cached video's blob URL and detach the element while the
@@ -245,7 +319,11 @@ function stopJourneyContent() {
   journeyVideo.load();
   journeyVideo.classList.add('hidden');
   hideVideoLoading();
-  unmuteBtn.classList.add('hidden');
+  videoControls.classList.add('hidden');
+  videoControls.classList.remove('force-visible');
+  videoScrubber.max = '0';
+  videoScrubber.value = '0';
+  videoTime.textContent = '0:00';
   journeySplash.classList.add('hidden');
   if (currentObjectUrl) {
     URL.revokeObjectURL(currentObjectUrl);
@@ -320,10 +398,24 @@ journeySplashPlayBtn.addEventListener('click', () => {
 
 document.addEventListener('keydown', (e) => {
   if (e.code !== 'Space' && e.code !== 'ArrowRight') return;
-  if (!isAwaitingPlay()) return;
-  e.preventDefault(); // stop Space from also "clicking" a focused button below
-  audioUnlocked = true;
-  playCurrentLesson();
+  if (isAwaitingPlay()) {
+    e.preventDefault(); // stop Space from also "clicking" a focused button below
+    audioUnlocked = true;
+    playCurrentLesson();
+    return;
+  }
+  // Once a video is actually on screen, Space toggles pause — but never
+  // while the settings panel is open or a button/input has focus, where
+  // Space already means "activate that control".
+  if (
+    e.code === 'Space' &&
+    !journeyVideo.classList.contains('hidden') &&
+    settingsPanel.classList.contains('hidden') &&
+    !(e.target instanceof Element && e.target.closest('button, input'))
+  ) {
+    e.preventDefault();
+    togglePause();
+  }
 });
 
 /* ── Keep the kiosk screen awake ─────────────────────────────────────
@@ -392,7 +484,7 @@ journeyVideo.addEventListener('error', () => {
   }
   if (!journeyView.classList.contains('hidden')) {
     journeyVideo.classList.add('hidden');
-    unmuteBtn.classList.add('hidden');
+    videoControls.classList.add('hidden');
     journeyPlaceholder.classList.remove('hidden');
   }
 });
@@ -530,7 +622,7 @@ function startPreview(url, title, fallbackUrl = null) {
   // it sits on top of the video. playCurrentLesson() does the same.
   journeySplash.classList.add('hidden');
   journeyVideo.classList.remove('hidden');
-  unmuteBtn.classList.remove('hidden');
+  videoControls.classList.remove('hidden');
   showVideoLoading();
   journeyVideo.loop = false;
   setMuted(!audioUnlocked);

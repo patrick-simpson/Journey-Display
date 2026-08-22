@@ -40,7 +40,12 @@
       <span id="journey-loading-text">Loading video&hellip;</span>
       <span id="journey-loading-note">This can take a moment on the kiosk&rsquo;s connection</span>
     </div>
-    <button id="unmute-btn" type="button" class="hidden" aria-label="Unmute">🔇</button>
+    <div id="video-controls" class="hidden">
+      <button id="pause-btn" type="button">Pause</button>
+      <button id="unmute-btn" type="button" aria-label="Unmute">🔇</button>
+      <input id="video-scrubber" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek" />
+      <span id="video-time">0:00</span>
+    </div>
   </div>
 
   <button id="toggle-btn" type="button" aria-label="Switch display">⇄</button>

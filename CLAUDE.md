@@ -370,7 +370,23 @@ actually needs:
 - Video starts muted (autoplay policy) with a visible unmute button
   (a text label, not just an emoji glyph, since Raspberry Pi OS doesn't
   always ship a color-emoji font); finishing the video falls back to
-  the Check-in Display immediately rather than waiting for 7:15. A
+  the Check-in Display immediately rather than waiting for 7:15.
+- **Playback control bar** (`#video-controls`): pause/play, the unmute
+  button, a finger-sized scrubber, and an elapsed/total time readout,
+  along the bottom whenever a video is active. It fades out with the
+  same `cursor-hidden` idle mechanism as the mouse cursor (touches
+  count as activity too — phones have no mousemove) and is pinned
+  visible while paused (`.force-visible`), since a frozen frame with no
+  visible controls reads as a crash. Tapping/clicking the video itself
+  toggles pause, and Space does too during playback (guarded so it
+  never fires while the settings panel is open or a button has focus —
+  and Space's original job, starting the splash's queued lesson, takes
+  precedence). The bar's right inset reserves room for the view-toggle
+  button in the corner.
+- **The splash and loading overlays are viewport-responsive**
+  (`clamp()` type sizes, wrapping wordmark) — the page is occasionally
+  opened on a phone, where the original fixed TV sizes overflowed; the
+  Space/→ keyboard hint is hidden on touch-only devices. A
   failed/stalled video load falls back to the placeholder too, rather
   than a silent black frame indistinguishable from a dead display.
   `video.loop` is explicitly set `false` (it was never looping by
