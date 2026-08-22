@@ -374,6 +374,19 @@ journeyVideo.addEventListener('error', () => {
   console.warn('Journey: video failed to load/play', journeyVideo.error);
   hideVideoLoading();
   if (previewMode) {
+    // A preview tries the transcoded release asset first; if that errored
+    // (asset missing, release renamed), retry once with the lesson's
+    // original URL before giving up. Cleared immediately so a failure of
+    // the fallback itself lands in endPreview() below, not a loop.
+    if (previewFallbackUrl) {
+      const fallback = previewFallbackUrl;
+      previewFallbackUrl = null;
+      console.warn('Journey: transcoded preview failed, retrying with the original —', fallback);
+      showVideoLoading();
+      journeyVideo.src = fallback;
+      journeyVideo.play().catch(() => {});
+      return;
+    }
     endPreview();
     return;
   }
@@ -407,12 +420,15 @@ setInterval(refreshLesson, LESSON_REFRESH_MS);
    Lets an operator browse every lesson in public/lessons.json and play
    any one of them right now — always a one-off: it never changes what
    the schedule above will automatically show at the next 6:30 PM, and
-   never touches current-lesson.json. Deliberately plays the lesson's
-   original (untranscoded) URL directly rather than going through the
-   Cache API — this is an occasional manual action, not the nightly
-   auto-played lesson, so it doesn't need pre-caching machinery; it will
-   just take a little longer to start and may not play as smoothly on the
-   Pi Zero as the transcoded current lesson does. When it's not currently
+   never touches current-lesson.json. Plays the lesson's pre-transcoded
+   480p copy from the GitHub Release (see transcodedPreviewUrl above),
+   falling back to the original URL only if that asset is missing — an
+   earlier version played the originals directly, which the Pi Zero
+   cannot decode at a watchable frame rate, so "only the current week
+   plays properly" was reported broken from the live kiosk. Still skips
+   the Cache API: an occasional manual action doesn't need the nightly
+   lesson's pre-caching machinery, it just needs a decodable file. When
+   it's not currently
    the scheduled 6:30-7:15 window, picking a lesson asks Leader or Student
    Video first — outside the window this is more likely someone reviewing
    content than showing it to kids, so the Leader Video (which has extra
@@ -420,6 +436,22 @@ setInterval(refreshLesson, LESSON_REFRESH_MS);
 
 let allLessons = null;
 let pendingPreviewLesson = null;
+// Set alongside each preview: the lesson's original URL, tried once if the
+// transcoded release asset errors (missing, or the release was renamed).
+let previewFallbackUrl = null;
+
+// Every lesson (Student and Leader) has a Pi-playable 480p re-encode
+// uploaded as a GitHub Release asset by scripts/transcode-all-lessons.mjs —
+// the Pi Zero can't decode Awana's 1080p originals at a watchable frame
+// rate, so previews play these first and only fall back to the original if
+// the asset is missing. (Release asset URLs 302-redirect, which <video>
+// follows fine; no crossorigin attribute means CORS never applies.)
+const TRANSCODED_VIDEO_BASE =
+  'https://github.com/patrick-simpson/Journey-Display/releases/download/transcoded-videos-v1/';
+
+function transcodedPreviewUrl(week, variant) {
+  return `${TRANSCODED_VIDEO_BASE}week-${String(week).padStart(2, '0')}-${variant}.mp4`;
+}
 
 async function loadAllLessons() {
   if (allLessons) return allLessons;
@@ -460,7 +492,7 @@ function onLessonPicked(lesson) {
   if (scheduledPhase() === 'journey') {
     // Inside the normal window, a preview is a quick look at the Student
     // Video the same way the real 6:30 show always plays — no extra step.
-    startPreview(lesson.downloadUrl, lesson.title);
+    startPreview(transcodedPreviewUrl(lesson.week, 'student'), lesson.title, lesson.downloadUrl);
     closeSettingsPanel();
     return;
   }
@@ -489,9 +521,10 @@ function closeSettingsPanel() {
   settingsPanel.classList.add('hidden');
 }
 
-function startPreview(url, title) {
+function startPreview(url, title, fallbackUrl = null) {
   ++journeyRequestToken; // invalidate any in-flight showJourneyContent() call
   previewMode = true;
+  previewFallbackUrl = fallbackUrl;
   journeyView.classList.remove('hidden');
   checkinView.classList.add('hidden');
   journeyPlaceholder.classList.add('hidden');
@@ -513,6 +546,7 @@ function startPreview(url, title) {
 function endPreview() {
   if (!previewMode) return;
   previewMode = false;
+  previewFallbackUrl = null;
   setView(scheduledPhase());
 }
 
@@ -528,12 +562,20 @@ settingsVariantBackBtn.addEventListener('click', resetSettingsPanelToList);
 
 settingsVariantStudentBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson) return;
-  startPreview(pendingPreviewLesson.downloadUrl, `${pendingPreviewLesson.title} (Student Video)`);
+  startPreview(
+    transcodedPreviewUrl(pendingPreviewLesson.week, 'student'),
+    `${pendingPreviewLesson.title} (Student Video)`,
+    pendingPreviewLesson.downloadUrl
+  );
   closeSettingsPanel();
 });
 
 settingsVariantLeaderBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson || !pendingPreviewLesson.leaderDownloadUrl) return;
-  startPreview(pendingPreviewLesson.leaderDownloadUrl, `${pendingPreviewLesson.title} (Leader Video)`);
+  startPreview(
+    transcodedPreviewUrl(pendingPreviewLesson.week, 'leader'),
+    `${pendingPreviewLesson.title} (Leader Video)`,
+    pendingPreviewLesson.leaderDownloadUrl
+  );
   closeSettingsPanel();
 });

@@ -6,7 +6,8 @@
   "description": "Kiosk display (not affiliated with or endorsed by Awana Clubs International): Awana® Check-in Display by day, the Journey: Advocates video lesson each evening.",
   "scripts": {
     "fetch-lesson": "node scripts/fetch-current-lesson.mjs",
-    "transcode-lesson": "node scripts/transcode-lesson-video.mjs"
+    "transcode-lesson": "node scripts/transcode-lesson-video.mjs",
+    "transcode-all": "node scripts/transcode-all-lessons.mjs"
   },
   "devDependencies": {
     "jsdom": "^29.1.1"

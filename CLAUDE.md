@@ -114,7 +114,7 @@ anyone other than this kiosk. `public/lessons.json`'s `downloadUrl`s
 point at Awana's own CDN and are the canonical source; this repo never
 fetches them for any purpose beyond this kiosk's own playback/caching.
 
-**Deliberate, informed exception — re-encoded copies in `public/`:**
+**Deliberate, informed exception — re-encoded copies:**
 Awana doesn't offer a lower-resolution/lower-bitrate download for any
 lesson (checked directly against the real page — only "Leader Video"
 and "Student Video," both full quality), and the kiosk's Raspberry Pi
@@ -128,9 +128,23 @@ owner chose this trade-off explicitly, aware that it's a narrower
 version of "never rehost" than the original wording: it's a re-encoded,
 lower-quality copy, used solely for this kiosk's own playback, never
 linked/advertised anywhere else — not a copy of the original files
-being redistributed. If you're touching this boundary in either
-direction, that's a call for the project owner, not an assumption to
-make either way.
+being redistributed.
+
+**Owner-approved extension (2026-08-22) — all lessons, on a Release:**
+the same exception now covers Pi-playable 480p re-encodes of *every*
+lesson video (32 Student + 31 Leader; week 27 has no Leader Video),
+uploaded as assets on the `transcoded-videos-v1` GitHub Release by
+`scripts/transcode-all-lessons.mjs` / the on-demand
+`transcode-all-lessons.yml` workflow. The manual video-picker plays
+these (originals were undecodable on the Pi Zero — reported broken from
+the live kiosk), falling back to the original URL if an asset is
+missing. A Release rather than `public/` keeps ~1.1GB out of the repo,
+its history, and every Pages deploy. Same character as the nightly
+exception: re-encoded, kiosk-playback-only, never linked elsewhere.
+The owner explicitly approved this extension when asked directly on
+2026-08-22. If you're touching this boundary in either direction,
+that's a call for the project owner, not an assumption to make either
+way.
 
 ### `public/lessons.json` — the fixed lesson map
 
@@ -266,9 +280,14 @@ checked by extracting and viewing real frames from both).
   (~15-20MB) every time the lesson changes — around 500-600MB across a
   full 32-week run through the course. Not a problem at today's scale;
   if it ever becomes one, moving this asset to a GitHub Release (which
-  doesn't bloat git history) is the natural next step — deliberately
-  not built now, since it's real added complexity this repo doesn't
-  need yet.
+  doesn't bloat git history) is the natural next step. (The manual
+  picker's batch-transcoded copies DO live on a Release now — see the
+  owner-approved extension above — but this nightly file deliberately
+  stays in `public/`: the kiosk pre-caches it with a browser `fetch()`,
+  which needs a same-origin/CORS-friendly URL, and a Release download's
+  redirect hop has the same missing-CORS-header problem the "why
+  sourceUrl is a CDN URL" note below describes. Direct `<video>`
+  playback, which is all the picker does, doesn't care.)
 
 ### Video playback and offline resilience (`public/src/schedule.js`)
 
@@ -416,15 +435,17 @@ upcoming lesson, or catching up after a missed night.
   mid-preview doesn't interrupt it, and ending a preview afterward
   correctly resumes the real auto-resolved lesson, not the previewed
   one).
-- **Plays the original URL directly**, bypassing the Cache API/
-  transcode pipeline entirely — this is an occasional manual action on
-  a lesson that isn't necessarily "current," so it doesn't warrant the
-  pre-caching machinery built for the nightly auto-played lesson. It
-  will load slower and may not play as smoothly on the Pi Zero as the
-  transcoded current lesson does; that's an accepted trade-off for a
-  rarely-used feature, not a bug to fix by extending transcoding to all
-  32 lessons (see the repo-size trade-off already noted under "Video
-  transcoding").
+- **Plays the pre-transcoded 480p Release asset**
+  (`transcodedPreviewUrl()` in `schedule.js` →
+  `releases/download/transcoded-videos-v1/week-NN-{student,leader}.mp4`),
+  falling back to the original URL once if that asset errors. An
+  earlier version played the originals directly as an "accepted
+  trade-off" — but the Pi Zero can't decode 1080p at a watchable frame
+  rate at all, so every non-current week was effectively unplayable
+  (reported broken from the live kiosk; the owner then approved the
+  batch-transcode extension above). Still bypasses the Cache API — an
+  occasional manual action doesn't need the nightly lesson's
+  pre-caching machinery, it just needs a decodable file.
 - **Outside the 6:30-7:15 window, picking a lesson asks Leader or
   Student Video first**; inside the window it plays the Student Video
   directly, same as the automatic show would. Outside the window is

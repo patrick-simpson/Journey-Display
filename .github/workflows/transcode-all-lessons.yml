@@ -1,0 +1,38 @@
+name: Transcode all lesson videos
+
+# On-demand (not scheduled): re-encodes EVERY lesson video in
+# public/lessons.json to the Pi-Zero-playable 480p format and uploads them
+# as assets on the `transcoded-videos-v1` GitHub Release, which the manual
+# video-picker plays. Run it once to populate, and again only if Awana
+# revises the course (rebuild lessons.json first) or an asset failed.
+# Resumable: already-uploaded assets are skipped, so re-running after a
+# partial failure only does the remaining work. See the script header for
+# the owner-approved licensing boundary this operates under.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write # create the release / upload assets
+
+concurrency:
+  group: transcode-all-lessons
+  cancel-in-progress: false
+
+jobs:
+  transcode:
+    runs-on: ubuntu-latest
+    # 63 videos × (download + transcode + upload) — comfortably under the
+    # 6h job ceiling, but nowhere near the default 360min either way.
+    timeout-minutes: 350
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Transcode and upload every lesson video
+        run: node scripts/transcode-all-lessons.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
