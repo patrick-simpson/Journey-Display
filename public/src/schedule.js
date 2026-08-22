@@ -528,6 +528,10 @@ function startPreview(url, title, fallbackUrl = null) {
   journeyView.classList.remove('hidden');
   checkinView.classList.add('hidden');
   journeyPlaceholder.classList.add('hidden');
+  // The splash may be up when a preview starts (picking a lesson while the
+  // scheduled window's "Large Group Time" screen is showing) — hide it, or
+  // it sits on top of the video. playCurrentLesson() does the same.
+  journeySplash.classList.add('hidden');
   journeyVideo.classList.remove('hidden');
   unmuteBtn.classList.remove('hidden');
   showVideoLoading();
@@ -547,6 +551,11 @@ function endPreview() {
   if (!previewMode) return;
   previewMode = false;
   previewFallbackUrl = null;
+  // Tear the preview's video down before handing the view back. Without
+  // this, ending a preview inside the 6:30-7:15 window left the finished
+  // video element visible, which made showJourneyContent() early-return
+  // (it sees "playback in progress") instead of re-showing the splash.
+  stopJourneyContent();
   setView(scheduledPhase());
 }
 
