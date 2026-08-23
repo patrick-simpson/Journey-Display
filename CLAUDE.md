@@ -520,6 +520,33 @@ directly):
   cues) from the 480p release copies. Same-origin, so they can later be
   wired up as `<track>` captions without CORS issues. Regenerate only
   if Awana revises a video.
+- **Captions must be verified against AUDIO, not by reading.** Whisper
+  hallucinates, and this bit us: run with
+  `condition_on_previous_text=True` (the library default) it repeats and
+  invents fluent text that no amount of proofreading can distinguish
+  from a real sentence. Week 1 cue 53 read "Apology is not just about
+  being an apologist." — a perfectly sensible line that **does not exist
+  in the audio at all**; re-decoding that 0.64s window returns only the
+  tail of the previous sentence. Two defences, both now permanent:
+  - `scripts/validate-captions.py` gates publishing. It flags any cue
+    carrying >=25 characters faster than **26 chars/sec** (brisk human
+    speech peaks near 20; the worst offender was 106) and any cue that
+    largely duplicates its neighbour. `build-student-vtt.py` refuses to
+    write a week whose flags are neither corrected nor listed under
+    `"verified"` in that week's corrections file. Flags are not proof of
+    a hallucination — they are a demand to check that cue against audio.
+  - `scripts/../verify-cue.py` (scratch tooling) re-decodes the window
+    around a cue independently (beam 10, no conditioning, so it cannot
+    inherit the original's invention) and prints it beside the current
+    text and neighbours. Note the only ffmpeg on the box is Playwright's
+    stripped build, which cannot demux mp4 — decode via
+    `faster_whisper.audio.decode_audio` and slice the array instead.
+  - Transcription now runs `condition_on_previous_text=False` plus
+    `hallucination_silence_threshold=2.0` and `repetition_penalty=1.1`.
+    Measured effect: the conditioned pass flagged **1.98%** of cues
+    across 13 weeks; the first hardened week flagged **zero**. The cost
+    is slightly less cross-window consistency, which is a good trade
+    against inventing scripture.
 - **`public/handouts/week-NN-leader-handout.pdf`** — a one-page
   **accessible** (tagged) PDF summary of each Leader Video for leaders:
   Big Idea, Key Points, Scripture, Discussion Questions, plus the
