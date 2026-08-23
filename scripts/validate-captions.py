@@ -84,6 +84,20 @@ def flags_for(cues):
             # builder's "delete" list.
             elif dur < 0.6 and b and a.endswith(b):
                 out.append((i + 1, "BLOCK", f"spurious {dur:.2f}s cue echoing the previous one", text))
+        # Stranded word: a 1-2 word cue separated from the cue that continues
+        # its sentence by a long silence, i.e. timestamped seconds early. It
+        # flashes alone on screen well before its own sentence. Merge it
+        # forward; never delete it, the word was really spoken.
+        # A stray word ENDING in sentence punctuation completes the cue before
+        # it, so the long gap that follows is just silence and the caption reads
+        # correctly -- flagging those was a false positive (week 31's 'doubt.'
+        # properly follows "...mercy on those who").
+        if (i + 1 < len(cues) and len(text) <= 6 and dur < 1.3
+                and not text.rstrip().endswith((".", "!", "?"))):
+            gap = cues[i + 1]["start"] - c["end"]
+            if gap > 2.0:
+                out.append((i + 1, "REVIEW",
+                            f"stranded word, {gap:.1f}s before its sentence continues", text))
     return out
 
 cues_dir, corr_dir = sys.argv[1], sys.argv[2]
