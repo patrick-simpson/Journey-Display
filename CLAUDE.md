@@ -393,11 +393,42 @@ actually needs:
     operator picks a video, sees the Check-in Display, and playback
     waits forever on a question nobody can see. Caught by screenshot;
     don't regress it.
-  - Cue placement uses `snapToLines = false` with a **percentage**
-    `line` (`CUE_LINE_PERCENT`), not a line-snapped offset. Line-snapped
-    offsets depend on cue font size and landed captions *on top of* the
-    control bar at TV size — again caught by screenshot, not by unit
-    assertions.
+  - **Captions are painted by us, not by the browser.** The track runs in
+    `mode = 'hidden'` (cues parsed, `cuechange` fires, nothing drawn
+    natively) and `renderActiveCues()` writes them into
+    `#caption-overlay`. Native `::cue` was tried first and abandoned for
+    two measured reasons: its font-size had to be in `vh`, which
+    collapses to ~11px on a phone held sideways (844x390), and native cue
+    placement follows the *letterboxed* video box, so it drifted between
+    form factors and landed captions on top of the control bar. A real
+    element takes `clamp()`/`vmin`, and — unlike shadow-DOM cues — can be
+    measured by the test suite.
+  - Size is `clamp(18px, 4.5vmin, 56px)`: `vmin` tracks whichever screen
+    dimension constrains the video frame, so one expression serves a TV
+    read across a room (~49px at 1080p) and a phone in either
+    orientation (18px floor). Verified at 1920x1080, 390x844, 844x390,
+    and 1024x768.
+  - `positionCaptions()` satisfies two different constraints at once: on
+    a filled 16:9 screen captions only need to clear the control bar; on
+    a letterboxed phone they instead sit just inside the video frame's
+    lower edge, so they don't float in the black band. It reads the
+    bar's live `offsetHeight`, so captions lift automatically when the
+    bar wraps to more rows on a narrow screen.
+  - **Cue length is a hard caption constraint.** The Leader transcripts
+    were whisper's own sentence segments, up to **202 characters** —
+    fine to read, unusable as a caption (a wall of text on a TV, six
+    wrapped lines on a phone). `scripts/resegment-vtt.py` split all 532
+    over-long cues at sentence/clause/word boundaries, apportioning
+    duration by character count; every cue is now <=84 chars. The
+    Student pipeline builds cues from real word timestamps and needs
+    none of this. Re-running the script is idempotent.
+  - The control bar itself needed a `max-width: 760px` media query: three
+    non-shrinking buttons plus scrubber and time cannot fit one row on a
+    phone, and the CC button was being **clipped off the screen edge** —
+    captions became impossible to toggle on mobile. Note that media
+    query must sit *after* the base control rules in the stylesheet; an
+    earlier copy placed before them lost the cascade to
+    `#video-scrubber { flex: 1 }` and the scrubber never got its own row.
 - **Playback control bar** (`#video-controls`): pause/play, the unmute
   button, a finger-sized scrubber, and an elapsed/total time readout,
   along the bottom whenever a video is active. It fades out with the

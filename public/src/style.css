@@ -364,17 +364,45 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   color: #ffffff;
 }
 
-/* Caption rendering: white text on a semi-transparent band, sized for a TV
-   read across a room. Chromium scales ::cue text relative to the video box by
-   default, which is far too small at kiosk distance, hence the explicit vh
-   size. Cue lines are also lifted a few rows off the bottom in schedule.js so
-   captions never sit underneath the playback control bar. */
-#journey-video::cue {
+/* ── Caption rendering ────────────────────────────────────────────────
+   Captions are painted into this overlay rather than by the browser's own
+   ::cue renderer. Two reasons, both learned the hard way at real viewport
+   sizes: (1) ::cue sizing had to be in vh, which collapses to ~11px on a
+   phone held sideways (844x390) — illegible; (2) native cue placement is
+   relative to the letterboxed video box, so it drifts unpredictably between
+   a 16:9 TV and a portrait phone, and landed captions on top of the control
+   bar. A real element can use clamp()/vmin, is positioned by
+   positionCaptions() in schedule.js, and — unlike shadow-DOM cues — can be
+   measured by the test suite.
+
+   Size: vmin tracks whichever screen dimension constrains the video frame,
+   so one expression covers a TV read across a room and a phone in either
+   orientation; the clamp floor keeps it legible on the smallest screens and
+   the ceiling stops it swallowing the picture on very large ones. */
+#caption-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 96px; /* replaced by positionCaptions() once metadata is known */
+  z-index: 8; /* under the control bar (10), over the video */
+  text-align: center;
+  pointer-events: none;
+  padding: 0 2vw;
+}
+
+#caption-text {
+  display: inline-block;
+  max-width: 92%;
+  padding: 0.2em 0.55em;
+  border-radius: 6px;
   background-color: rgba(0, 0, 0, 0.55);
   color: #ffffff;
   font-family: system-ui, sans-serif;
-  font-size: 2.9vh;
-  line-height: 1.35;
+  font-size: clamp(18px, 4.5vmin, 56px);
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  text-wrap: balance;
   /* The band is deliberately semi-transparent, so over a bright or busy
      frame the white text can lose contrast against it — the shadow keeps
      the letterforms readable without making the band opaque. */
@@ -467,6 +495,42 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   font-size: 1.05rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* Narrow screens: the bar's contents (three non-shrinking buttons, scrubber,
+   time readout) cannot fit one row on a phone — the CC button was being
+   clipped off the screen edge entirely, which made captions impossible to
+   toggle on mobile. This wraps into two tidy rows: scrubber + elapsed time
+   first (both ordered ahead), then the buttons. It must come AFTER the base
+   rules above: an earlier copy of this block lost the cascade to
+   `#video-scrubber { flex: 1 }` and the scrubber never got its own row.
+   positionCaptions() reads the bar's real offsetHeight, so captions lift
+   automatically as it grows taller. */
+@media (max-width: 760px) {
+  #video-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 8px;
+    column-gap: 8px;
+    padding: 10px 12px;
+  }
+
+  #video-scrubber {
+    flex: 1 1 55%;
+    order: -1;
+  }
+
+  #video-time {
+    order: -1;
+    font-size: 0.95rem;
+  }
+
+  #pause-btn,
+  #unmute-btn,
+  #cc-btn {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
 }
 
 #unmute-btn::after {

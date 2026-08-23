@@ -46,6 +46,8 @@ const ccBtn = document.getElementById('cc-btn');
 const captionPrompt = document.getElementById('caption-prompt');
 const captionYesBtn = document.getElementById('caption-yes');
 const captionNoBtn = document.getElementById('caption-no');
+const captionOverlay = document.getElementById('caption-overlay');
+const captionText = document.getElementById('caption-text');
 
 let currentLesson = null;
 let currentObjectUrl = null;
@@ -287,6 +289,11 @@ async function captionsAvailable(url) {
 }
 
 function removeCaptionTracks() {
+  if (activeTextTrack) {
+    activeTextTrack.removeEventListener('cuechange', renderActiveCues);
+    activeTextTrack = null;
+  }
+  clearCaptionText();
   for (const track of Array.from(journeyVideo.querySelectorAll('track'))) {
     track.remove();
   }
@@ -297,23 +304,63 @@ function removeCaptionTracks() {
   }
 }
 
-/* WebVTT defaults put cues on the bottom line, exactly where the playback
-   control bar sits — verified by screenshot that they overlap it outright.
-   Line-snapped offsets (line = -3 etc.) proved unreliable: the row height
-   depends on the cue font size, so the same offset lands differently as the
-   viewport changes. A percentage position (snapToLines = false) is
-   resolution-independent: 82% down the caption area leaves room for a
-   two-line cue and still clears the control bar along the bottom. */
-const CUE_LINE_PERCENT = 82;
+/* Captions are painted by us, not by the browser (see #caption-overlay in
+   style.css for why). The track therefore runs in 'hidden' mode: cues are
+   still parsed and 'cuechange' still fires, but nothing is drawn natively. */
+let activeTextTrack = null;
 
-function liftCuesAboveControls(track) {
-  const cues = track.track && track.track.cues;
-  if (!cues) return;
-  for (const cue of Array.from(cues)) {
-    cue.snapToLines = false;
-    cue.line = CUE_LINE_PERCENT;
-  }
+function clearCaptionText() {
+  captionText.textContent = '';
+  captionOverlay.classList.add('hidden');
 }
+
+function renderActiveCues() {
+  if (!activeTextTrack || !captionsEnabled) {
+    clearCaptionText();
+    return;
+  }
+  const cues = Array.from(activeTextTrack.activeCues || []);
+  captionText.textContent = '';
+  for (const cue of cues) {
+    if (captionText.childNodes.length) captionText.appendChild(document.createElement('br'));
+    // getCueAsHTML() rather than .text: it returns a parsed, sanitized
+    // fragment, so any WebVTT markup renders as markup instead of literal
+    // angle brackets.
+    captionText.appendChild(cue.getCueAsHTML());
+  }
+  captionOverlay.classList.toggle('hidden', captionText.childNodes.length === 0);
+}
+
+/* Vertical placement has to satisfy two different screens at once:
+   - On a 16:9 TV the video fills the element, so captions just need to clear
+     the playback control bar.
+   - On a phone (especially portrait) the video is letterboxed into a band in
+     the middle, and captions pinned near the element's bottom would float in
+     the black area, disconnected from the picture. So they instead sit just
+     inside the video frame's lower edge, the way subtitles normally do.
+   Whichever of those two constraints is lower wins. */
+function positionCaptions() {
+  let bottom = 96;
+  const barStyle = getComputedStyle(videoControls);
+  const barBottom = parseFloat(barStyle.bottom) || 0;
+  const barClearance = videoControls.offsetHeight + barBottom + 12;
+  bottom = barClearance;
+  const vw = journeyVideo.videoWidth;
+  const vh = journeyVideo.videoHeight;
+  const ew = journeyVideo.clientWidth;
+  const eh = journeyVideo.clientHeight;
+  if (vw && vh && ew && eh) {
+    // object-fit: contain -> the frame is scaled by the tighter axis.
+    const scale = Math.min(ew / vw, eh / vh);
+    const letterbox = Math.max(0, (eh - vh * scale) / 2);
+    bottom = Math.max(barClearance, letterbox + 8);
+  }
+  captionOverlay.style.bottom = `${Math.round(bottom)}px`;
+}
+
+journeyVideo.addEventListener('loadedmetadata', positionCaptions);
+window.addEventListener('resize', positionCaptions);
+window.addEventListener('orientationchange', positionCaptions);
 
 function applyCaptions() {
   removeCaptionTracks();
@@ -328,12 +375,19 @@ function applyCaptions() {
   track.label = 'English';
   track.src = activeCaptionUrl;
   track.default = true;
-  track.addEventListener('load', () => {
-    if (track.track) track.track.mode = 'showing';
-    liftCuesAboveControls(track);
-  });
+  const attach = () => {
+    if (!track.track) return;
+    activeTextTrack = track.track;
+    // 'hidden', not 'showing': parse cues and fire cuechange, but let
+    // renderActiveCues() do the drawing into #caption-overlay.
+    activeTextTrack.mode = 'hidden';
+    activeTextTrack.addEventListener('cuechange', renderActiveCues);
+    positionCaptions();
+    renderActiveCues();
+  };
+  track.addEventListener('load', attach);
   journeyVideo.appendChild(track);
-  if (track.track) track.track.mode = 'showing';
+  attach();
 }
 
 function showCaptionPrompt() {
