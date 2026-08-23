@@ -21,8 +21,17 @@ cue number under "verified" in that week's corrections file to clear it.
 Usage: validate-captions.py <cues-dir> <corrections-dir>
 Exit 1 if any week has unresolved flags.
 """
-import glob, json, os, sys
+import glob, json, os, re, sys
 from difflib import SequenceMatcher
+
+# Words that legitimately double in English, so they must not be flagged.
+# Doubles that are real English, not artifacts: disfluencies ("the problem is,
+# is that"), emphasis, and scripture phrasing -- "truly, truly I say to you" is
+# the actual wording of John 8:58, so flagging it is pure noise.
+LEGIT_DOUBLE = {"that", "had", "very", "no", "so", "long", "well", "on", "in",
+                "out", "up", "down", "back", "over", "again", "you", "blah",
+                "is", "truly", "verily", "holy", "it"}
+DOUBLE_RE = re.compile(r"\b(\w+)\b([,;:]?\s+)\1\b", re.IGNORECASE)
 
 MIN_CHARS = 25       # ignore very short cues; their rate is noise
 REVIEW_RATE = 26.0   # chars/sec: fast, worth a careful read
@@ -51,6 +60,16 @@ def flags_for(cues):
             out.append((i + 1, "BLOCK", f"{rate:.0f} chars/sec ({len(text)}ch in {dur:.2f}s) - unsayable", text))
         elif len(text) >= MIN_CHARS and rate > REVIEW_RATE:
             out.append((i + 1, "REVIEW", f"{rate:.0f} chars/sec ({len(text)}ch in {dur:.2f}s) - fast", text))
+        # Turning OFF condition_on_previous_text stopped the model inventing
+        # text, but let window boundaries repeat a word ("beliefs, beliefs",
+        # "fit fit"). That trade is worth it -- a duplicated word is visible,
+        # mechanical and detectable, where a fabricated sentence is none of
+        # those -- but it is systematic enough to catch automatically rather
+        # than leave to a reader's eye.
+        for m in DOUBLE_RE.finditer(text):
+            if m.group(1).lower() not in LEGIT_DOUBLE:
+                out.append((i + 1, "REVIEW", f"doubled word {m.group(1)!r}", text))
+                break
         if i > 0:
             a, b = norm(cues[i - 1]["text"]), norm(text)
             if a and b and SequenceMatcher(None, a, b).ratio() > DUP_RATIO:
