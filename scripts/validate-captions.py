@@ -30,8 +30,12 @@ from difflib import SequenceMatcher
 # the actual wording of John 8:58, so flagging it is pure noise.
 LEGIT_DOUBLE = {"that", "had", "very", "no", "so", "long", "well", "on", "in",
                 "out", "up", "down", "back", "over", "again", "you", "blah",
-                "is", "truly", "verily", "holy", "it"}
-DOUBLE_RE = re.compile(r"\b(\w+)\b([,;:]?\s+)\1\b", re.IGNORECASE)
+                "is", "truly", "verily", "holy", "it", "many", "really"}
+# Sentence-ending punctuation must be included: the boundary repeats whisper
+# produces often come back as "manuscripts. manuscripts." or "exists. exists.",
+# and an earlier version of this pattern allowed only , ; : -- so it walked
+# straight past them and a reviewer had to catch them by eye.
+DOUBLE_RE = re.compile(r"\b(\w+)\b([,;:.!?]*\s+)\1\b", re.IGNORECASE)
 
 MIN_CHARS = 25       # ignore very short cues; their rate is noise
 REVIEW_RATE = 26.0   # chars/sec: fast, worth a careful read
