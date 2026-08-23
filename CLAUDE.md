@@ -371,6 +371,33 @@ actually needs:
   (a text label, not just an emoji glyph, since Raspberry Pi OS doesn't
   always ship a color-emoji font); finishing the video falls back to
   the Check-in Display immediately rather than waiting for 7:15.
+- **Captions** (owner-requested 2026-08-23): every lesson video can show
+  its transcript as WebVTT captions. Before playback the operator is
+  asked once — **"Show captions?" Yes/No, with Y/N keys** (Space/Enter
+  take the focused Yes default) — and the answer is persisted to
+  `localStorage` under `journey.captions`. Because the prompt asks
+  **once per device and then never again** (the owner's explicit
+  choice), the **CC button in the control bar is the only route back to
+  the setting** — keep it prominent, and keep it showing on/off state.
+  Note the contrast with `audioUnlocked`, which deliberately is *not*
+  persisted: a caption choice is a real operator preference with no
+  browser-side counterpart, so persisting it is honest rather than a
+  lie. Details worth not relearning:
+  - `requestPlayback()` is the single gate every playback path goes
+    through. It HEAD-probes the VTT first (memoized) and simply skips
+    the question when a transcript is missing — week 27 has no Leader
+    Video, and a future lesson revision could outpace the transcripts.
+  - That gate **must reveal `#journey-view` before showing the prompt**.
+    The prompt lives inside that layer, so asking while it's still
+    `hidden` renders the question into a `display:none` ancestor: the
+    operator picks a video, sees the Check-in Display, and playback
+    waits forever on a question nobody can see. Caught by screenshot;
+    don't regress it.
+  - Cue placement uses `snapToLines = false` with a **percentage**
+    `line` (`CUE_LINE_PERCENT`), not a line-snapped offset. Line-snapped
+    offsets depend on cue font size and landed captions *on top of* the
+    control bar at TV size — again caught by screenshot, not by unit
+    assertions.
 - **Playback control bar** (`#video-controls`): pause/play, the unmute
   button, a finger-sized scrubber, and an elapsed/total time readout,
   along the bottom whenever a video is active. It fades out with the

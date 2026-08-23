@@ -36,6 +36,14 @@
       <p id="journey-splash-prompt">or press <kbd>Space</kbd> / <kbd>→</kbd></p>
     </div>
     <video id="journey-video" class="hidden" muted playsinline></video>
+    <div id="caption-prompt" class="hidden" role="dialog" aria-modal="true" aria-labelledby="caption-prompt-q">
+      <p id="caption-prompt-q">Show captions?</p>
+      <div id="caption-prompt-buttons">
+        <button id="caption-yes" type="button">Yes <span class="key-hint">(Y)</span></button>
+        <button id="caption-no" type="button">No <span class="key-hint">(N)</span></button>
+      </div>
+      <p id="caption-prompt-note">You can change this later with the <strong>CC</strong> button on the video.</p>
+    </div>
     <div id="journey-loading" class="hidden" role="status">
       <span id="journey-loading-text">Loading video&hellip;</span>
       <span id="journey-loading-note">This can take a moment on the kiosk&rsquo;s connection</span>
@@ -43,6 +51,7 @@
     <div id="video-controls" class="hidden">
       <button id="pause-btn" type="button">Pause</button>
       <button id="unmute-btn" type="button" aria-label="Unmute">🔇</button>
+      <button id="cc-btn" type="button" class="hidden" aria-pressed="false" aria-label="Toggle captions">CC</button>
       <input id="video-scrubber" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek" />
       <span id="video-time">0:00</span>
     </div>

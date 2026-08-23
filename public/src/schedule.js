@@ -42,6 +42,10 @@ const handoutView = document.getElementById('handout-view');
 const handoutTitle = document.getElementById('handout-title');
 const handoutCloseBtn = document.getElementById('handout-close-btn');
 const handoutFrame = document.getElementById('handout-frame');
+const ccBtn = document.getElementById('cc-btn');
+const captionPrompt = document.getElementById('caption-prompt');
+const captionYesBtn = document.getElementById('caption-yes');
+const captionNoBtn = document.getElementById('caption-no');
 
 let currentLesson = null;
 let currentObjectUrl = null;
@@ -208,6 +212,7 @@ async function playCurrentLesson() {
   const src = await resolveVideoSrc(currentLesson);
   if (token !== journeyRequestToken) return; // a newer call has since taken over
   journeyVideo.src = src;
+  applyCaptions();
   journeyVideo.play().catch(() => {
     // Autoplay-with-sound can still be rejected in edge cases (e.g. the
     // browser's engagement heuristics disagree with our own tracking) —
@@ -218,6 +223,183 @@ async function playCurrentLesson() {
     }
   });
 }
+
+/* ── Captions ─────────────────────────────────────────────────────────
+   Every lesson video has a same-origin WebVTT transcript in
+   public/transcripts/ (see CLAUDE.md). Before playback starts, the operator
+   is asked once — Yes/No, with Y/N keys — and that answer is REMEMBERED for
+   this device, so the question never interrupts a service again. Because the
+   prompt doesn't come back, the CC button in the playback control bar is the
+   deliberate way back to the setting; keep it visible and obvious.
+
+   Unlike `audioUnlocked` (which deliberately isn't persisted, because the
+   browser's own gesture permission dies with the page), a caption choice IS a
+   genuine operator preference with no browser-side counterpart, so persisting
+   it across reloads/reboots is correct rather than a lie. */
+const CAPTION_PREF_KEY = 'journey.captions';
+
+// Every localStorage access is wrapped: Chromium in kiosk/private modes, or
+// with site data blocked, throws on access rather than returning null.
+function storedCaptionPref() {
+  try {
+    const v = localStorage.getItem(CAPTION_PREF_KEY);
+    return v === 'on' ? true : v === 'off' ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeCaptionPref(on) {
+  try {
+    localStorage.setItem(CAPTION_PREF_KEY, on ? 'on' : 'off');
+  } catch {
+    // Preference just won't survive a reload — the prompt asks again. Fine.
+  }
+}
+
+let captionsEnabled = storedCaptionPref() ?? false;
+// The VTT for whatever is on screen right now, or null when the current video
+// has no transcript (nothing to show, so the CC button stays hidden).
+let activeCaptionUrl = null;
+let pendingPlay = null;
+const captionProbeCache = new Map();
+
+function captionUrlFor(week, variant) {
+  return `transcripts/week-${String(week).padStart(2, '0')}-${variant}.vtt`;
+}
+
+/* A transcript may legitimately be missing (week 27 has no Leader Video at
+   all, and a future lesson revision could outpace the transcripts), so this
+   probes before offering captions rather than attaching a track that 404s and
+   silently does nothing. Results are memoized — one HEAD per URL per load. */
+async function captionsAvailable(url) {
+  if (!url) return false;
+  if (captionProbeCache.has(url)) return captionProbeCache.get(url);
+  let ok = false;
+  try {
+    const res = await fetch(url, { method: 'HEAD' });
+    ok = res.ok;
+  } catch {
+    ok = false;
+  }
+  captionProbeCache.set(url, ok);
+  return ok;
+}
+
+function removeCaptionTracks() {
+  for (const track of Array.from(journeyVideo.querySelectorAll('track'))) {
+    track.remove();
+  }
+  // Detaching the element doesn't always drop the TextTrack from
+  // video.textTracks in Chromium, so explicitly stop any that linger.
+  for (const tt of Array.from(journeyVideo.textTracks || [])) {
+    tt.mode = 'disabled';
+  }
+}
+
+/* WebVTT defaults put cues on the bottom line, exactly where the playback
+   control bar sits — verified by screenshot that they overlap it outright.
+   Line-snapped offsets (line = -3 etc.) proved unreliable: the row height
+   depends on the cue font size, so the same offset lands differently as the
+   viewport changes. A percentage position (snapToLines = false) is
+   resolution-independent: 82% down the caption area leaves room for a
+   two-line cue and still clears the control bar along the bottom. */
+const CUE_LINE_PERCENT = 82;
+
+function liftCuesAboveControls(track) {
+  const cues = track.track && track.track.cues;
+  if (!cues) return;
+  for (const cue of Array.from(cues)) {
+    cue.snapToLines = false;
+    cue.line = CUE_LINE_PERCENT;
+  }
+}
+
+function applyCaptions() {
+  removeCaptionTracks();
+  const show = captionsEnabled && !!activeCaptionUrl;
+  ccBtn.classList.toggle('hidden', !activeCaptionUrl);
+  ccBtn.setAttribute('aria-pressed', String(show));
+  ccBtn.textContent = show ? 'CC on' : 'CC off';
+  if (!show) return;
+  const track = document.createElement('track');
+  track.kind = 'captions';
+  track.srclang = 'en';
+  track.label = 'English';
+  track.src = activeCaptionUrl;
+  track.default = true;
+  track.addEventListener('load', () => {
+    if (track.track) track.track.mode = 'showing';
+    liftCuesAboveControls(track);
+  });
+  journeyVideo.appendChild(track);
+  if (track.track) track.track.mode = 'showing';
+}
+
+function showCaptionPrompt() {
+  captionPrompt.classList.remove('hidden');
+  // Focus has to wait for the element to actually be rendered: .hidden is
+  // `display: none !important`, and focus() on a still-unrendered element
+  // silently does nothing — which would leave the Yes default with no focus
+  // ring and nothing for a keyboard/screen-reader user to land on.
+  requestAnimationFrame(() => captionYesBtn.focus());
+}
+
+function isCaptionPromptOpen() {
+  return !captionPrompt.classList.contains('hidden');
+}
+
+function answerCaptionPrompt(on) {
+  if (!isCaptionPromptOpen()) return;
+  captionsEnabled = on;
+  storeCaptionPref(on);
+  captionPrompt.classList.add('hidden');
+  const proceed = pendingPlay;
+  pendingPlay = null;
+  if (proceed) proceed();
+}
+
+/* The single gate every playback path goes through: works out whether this
+   video has captions, asks once if the operator has never answered, then runs
+   the actual play function. */
+async function requestPlayback(captionUrl, proceed) {
+  const available = await captionsAvailable(captionUrl);
+  activeCaptionUrl = available ? captionUrl : null;
+  if (available && storedCaptionPref() === null) {
+    pendingPlay = proceed;
+    // The prompt lives inside #journey-view, so that layer has to be on
+    // screen or the question renders into a display:none ancestor and is
+    // invisible — which stranded manual previews (operator picks a video,
+    // sees the Check-in Display, and playback waits forever on a question
+    // nobody can answer). Reveal the Journey layer first, exactly as
+    // startPreview() would, then ask.
+    journeyView.classList.remove('hidden');
+    checkinView.classList.add('hidden');
+    journeyPlaceholder.classList.add('hidden');
+    // Hiding the splash keeps one question on screen at a time, and makes
+    // isAwaitingPlay() false so Space can't double-fire into playback.
+    journeySplash.classList.add('hidden');
+    showCaptionPrompt();
+    return;
+  }
+  proceed();
+}
+
+captionYesBtn.addEventListener('click', () => {
+  audioUnlocked = true;
+  answerCaptionPrompt(true);
+});
+captionNoBtn.addEventListener('click', () => {
+  audioUnlocked = true;
+  answerCaptionPrompt(false);
+});
+
+ccBtn.addEventListener('click', () => {
+  audioUnlocked = true;
+  captionsEnabled = !captionsEnabled;
+  storeCaptionPref(captionsEnabled);
+  applyCaptions();
+});
 
 // True only while the splash is up and waiting for the operator to start
 // the queued lesson — Space/→/the on-screen button all no-op outside this.
@@ -330,6 +512,13 @@ function stopJourneyContent() {
   hideVideoLoading();
   videoControls.classList.add('hidden');
   videoControls.classList.remove('force-visible');
+  // Drop caption tracks with the video, and abandon any unanswered prompt —
+  // its pending play refers to a video that's no longer on screen.
+  activeCaptionUrl = null;
+  pendingPlay = null;
+  captionPrompt.classList.add('hidden');
+  removeCaptionTracks();
+  ccBtn.classList.add('hidden');
   videoScrubber.max = '0';
   videoScrubber.value = '0';
   videoTime.textContent = '0:00';
@@ -402,15 +591,42 @@ unmuteBtn.addEventListener('click', () => {
 journeySplashPlayBtn.addEventListener('click', () => {
   if (!isAwaitingPlay()) return;
   audioUnlocked = true;
-  playCurrentLesson();
+  beginScheduledPlay();
 });
 
+// The scheduled show plays the Student Video, so that's the transcript to
+// offer. requestPlayback() asks about captions only if this device has never
+// answered, then starts playback either way.
+function beginScheduledPlay() {
+  if (!currentLesson) return;
+  requestPlayback(captionUrlFor(currentLesson.week, 'student'), playCurrentLesson);
+}
+
 document.addEventListener('keydown', (e) => {
+  // The caption prompt owns the keyboard while it's up: Y/N answer it, and
+  // Space/Enter take the focused default (Yes) so an operator who reflexively
+  // taps Space to start the video isn't stopped by an unfamiliar screen.
+  if (isCaptionPromptOpen()) {
+    if (e.code === 'KeyY') {
+      e.preventDefault();
+      audioUnlocked = true;
+      answerCaptionPrompt(true);
+    } else if (e.code === 'KeyN') {
+      e.preventDefault();
+      audioUnlocked = true;
+      answerCaptionPrompt(false);
+    } else if (e.code === 'Space' || e.code === 'Enter') {
+      e.preventDefault();
+      audioUnlocked = true;
+      answerCaptionPrompt(true);
+    }
+    return;
+  }
   if (e.code !== 'Space' && e.code !== 'ArrowRight') return;
   if (isAwaitingPlay()) {
     e.preventDefault(); // stop Space from also "clicking" a focused button below
     audioUnlocked = true;
-    playCurrentLesson();
+    beginScheduledPlay();
     return;
   }
   // Once a video is actually on screen, Space toggles pause — but never
@@ -485,6 +701,7 @@ journeyVideo.addEventListener('error', () => {
       console.warn('Journey: transcoded preview failed, retrying with the original —', fallback);
       showVideoLoading();
       journeyVideo.src = fallback;
+      applyCaptions(); // keep captions across the one-time fallback swap
       journeyVideo.play().catch(() => {});
       return;
     }
@@ -662,6 +879,7 @@ function startPreview(url, title, fallbackUrl = null) {
   journeyVideo.loop = false;
   setMuted(!audioUnlocked);
   journeyVideo.src = url;
+  applyCaptions();
   journeyVideo.play().catch(() => {
     if (!journeyVideo.muted) {
       setMuted(true);
@@ -695,12 +913,15 @@ settingsVariantBackBtn.addEventListener('click', resetSettingsPanelToList);
 
 settingsVariantStudentBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson) return;
-  startPreview(
-    transcodedPreviewUrl(pendingPreviewLesson.week, 'student'),
-    `${pendingPreviewLesson.title} (Student Video)`,
-    pendingPreviewLesson.downloadUrl
-  );
+  const lesson = pendingPreviewLesson;
   closeSettingsPanel();
+  requestPlayback(captionUrlFor(lesson.week, 'student'), () =>
+    startPreview(
+      transcodedPreviewUrl(lesson.week, 'student'),
+      `${lesson.title} (Student Video)`,
+      lesson.downloadUrl
+    )
+  );
 });
 
 // Leader is a two-step choice: first Leader vs Student, then Video vs
@@ -715,12 +936,15 @@ settingsVariantLeaderBtn.addEventListener('click', () => {
 
 settingsLeaderVideoBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson || !pendingPreviewLesson.leaderDownloadUrl) return;
-  startPreview(
-    transcodedPreviewUrl(pendingPreviewLesson.week, 'leader'),
-    `${pendingPreviewLesson.title} (Leader Video)`,
-    pendingPreviewLesson.leaderDownloadUrl
-  );
+  const lesson = pendingPreviewLesson;
   closeSettingsPanel();
+  requestPlayback(captionUrlFor(lesson.week, 'leader'), () =>
+    startPreview(
+      transcodedPreviewUrl(lesson.week, 'leader'),
+      `${lesson.title} (Leader Video)`,
+      lesson.leaderDownloadUrl
+    )
+  );
 });
 
 settingsLeaderHandoutBtn.addEventListener('click', () => {

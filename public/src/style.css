@@ -335,6 +335,131 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   background: #ffffff;
 }
 
+/* CC toggle: same pill styling as pause/sound, with a clear on-state so an
+   operator can see at a glance whether captions are live. This button is the
+   only way back to the caption choice once it has been remembered (the
+   prompt asks once per device), so it must never be subtle. */
+#cc-btn {
+  flex: none;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #000000;
+  font-family: system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#cc-btn:hover,
+#cc-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+#cc-btn[aria-pressed='true'] {
+  background: #c8102e;
+  color: #ffffff;
+}
+
+/* Caption rendering: white text on a semi-transparent band, sized for a TV
+   read across a room. Chromium scales ::cue text relative to the video box by
+   default, which is far too small at kiosk distance, hence the explicit vh
+   size. Cue lines are also lifted a few rows off the bottom in schedule.js so
+   captions never sit underneath the playback control bar. */
+#journey-video::cue {
+  background-color: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  font-family: system-ui, sans-serif;
+  font-size: 2.9vh;
+  line-height: 1.35;
+  /* The band is deliberately semi-transparent, so over a bright or busy
+     frame the white text can lose contrast against it — the shadow keeps
+     the letterforms readable without making the band opaque. */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+/* ── Caption yes/no prompt ─────────────────────────────────────────────
+   Shown once per device (the answer is remembered) between the operator's
+   "start" gesture and playback. Same flat-color, opacity-only budget as the
+   splash it replaces on screen. */
+#caption-prompt {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3vh;
+  padding: 4vh 4vw;
+  background: #000000;
+  color: #ffffff;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+}
+
+#caption-prompt-q {
+  font-size: clamp(1.6rem, 6vw, 3.2rem);
+  font-weight: 800;
+}
+
+#caption-prompt-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(1rem, 3vw, 2rem);
+}
+
+#caption-prompt-buttons button {
+  min-width: clamp(9rem, 26vw, 15rem);
+  padding: clamp(0.8em, 2.5vh, 1.1em) clamp(1.4em, 4vw, 2.4em);
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: clamp(1.2rem, 4vw, 2rem);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  touch-action: manipulation;
+}
+
+#caption-yes {
+  background: #c8102e !important;
+}
+
+#caption-prompt-buttons button:hover,
+#caption-prompt-buttons button:focus-visible {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+#caption-yes:hover,
+#caption-yes:focus-visible {
+  background: #e8123a !important;
+}
+
+#caption-prompt-buttons .key-hint {
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+#caption-prompt-note {
+  font-size: clamp(0.95rem, 2.6vw, 1.3rem);
+  opacity: 0.7;
+  max-width: 40ch;
+}
+
+/* Touch devices have no Y/N keys to press - the buttons are the whole UI. */
+@media (hover: none) and (pointer: coarse) {
+  #caption-prompt-buttons .key-hint {
+    display: none;
+  }
+}
+
 #video-time {
   flex: none;
   color: #ffffff;
