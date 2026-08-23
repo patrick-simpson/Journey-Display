@@ -98,6 +98,10 @@ for path in sorted(glob.glob(os.path.join(cues_dir, "week-*.json"))):
         cd = json.load(open(cpath))
         corrected = {c["cue"] for c in cd.get("corrections", [])}
         verified = set(cd.get("verified", []))
+        # A cue slated for deletion is resolved too -- build-student-vtt.py
+        # drops it. Omitting this made the validator disagree with the builder
+        # and report a week as blocked that in fact publishes correctly.
+        verified |= set(cd.get("delete", []))
     cleared = corrected | verified
     blocking = [f for f in flags if f[1] == "BLOCK" and f[0] not in cleared]
     reviewy = [f for f in flags if f[1] == "REVIEW" and f[0] not in cleared]
