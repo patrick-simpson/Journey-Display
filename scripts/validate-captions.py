@@ -78,6 +78,12 @@ def flags_for(cues):
             a, b = norm(cues[i - 1]["text"]), norm(text)
             if a and b and SequenceMatcher(None, a, b).ratio() > DUP_RATIO:
                 out.append((i + 1, "BLOCK", "near-duplicate of previous cue", text))
+            # A very short cue whose whole text already ends the previous cue is
+            # a window-boundary artifact, not speech -- it flickers on screen
+            # for a third of a second. Text edits cannot fix it; it needs the
+            # builder's "delete" list.
+            elif dur < 0.6 and b and a.endswith(b):
+                out.append((i + 1, "BLOCK", f"spurious {dur:.2f}s cue echoing the previous one", text))
     return out
 
 cues_dir, corr_dir = sys.argv[1], sys.argv[2]
