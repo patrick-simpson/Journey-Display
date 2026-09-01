@@ -7,6 +7,24 @@ const JOURNEY_END_MINUTES = 19 * 60 + 15; // 7:15 PM
 const POLL_INTERVAL_MS = 15000;
 const LESSON_REFRESH_MS = 60 * 60 * 1000; // current-lesson.json only changes nightly
 const VIDEO_CACHE_NAME = 'journey-videos-v1';
+// Small same-origin documents (lessons.json) that make the UI answerable
+// offline — kept separate from the video bucket, whose eviction logic
+// deliberately clears everything but the current week's bundle.
+const ASSET_CACHE_NAME = 'journey-assets-v1';
+
+// fetch() has no timeout of its own: on the kiosk's flaky connection a hung
+// request can sit unresolved for minutes, which is how "you click buttons and
+// it doesn't respond" happened. Anything the UI is (indirectly) waiting on
+// goes through this instead. AbortController is feature-checked because this
+// runs on an oldish kiosk Chromium.
+function fetchWithTimeout(url, options, timeoutMs) {
+  if (typeof AbortController === 'undefined') return fetch(url, options);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
+}
 
 const checkinView = document.getElementById('checkin-view');
 const journeyView = document.getElementById('journey-view');
@@ -17,6 +35,7 @@ const journeySplashTitle = document.getElementById('journey-splash-title');
 const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
 const journeyVideo = document.getElementById('journey-video');
 const journeyLoading = document.getElementById('journey-loading');
+const journeyLoadingNote = document.getElementById('journey-loading-note');
 const videoControls = document.getElementById('video-controls');
 const pauseBtn = document.getElementById('pause-btn');
 const unmuteBtn = document.getElementById('unmute-btn');
@@ -125,35 +144,106 @@ function sameLesson(a, b) {
   return !!a && !!b && a.week === b.week && a.downloadUrl === b.downloadUrl;
 }
 
-async function cacheLessonVideo(lesson) {
+/* The nightly transcode reuses ONE filename (current-lesson-video.mp4), so
+   when the lesson changes, this week's bytes and last week's live at the same
+   URL — and a kiosk refreshing hourly essentially never witnesses the brief
+   pre-transcode state (downloadUrl = the per-week CloudFront original) whose
+   URL change used to be what flushed the cache. Keying the cached video by
+   transcodedAt (which uniquely identifies each transcode run) instead of by
+   URL alone is what keeps a cached lesson from surviving its own replacement.
+   The fetch itself still goes to the real URL — only the cache key carries
+   the version. */
+function videoCacheKey(lesson) {
+  if (!lesson.transcodedAt) return lesson.downloadUrl;
+  const sep = lesson.downloadUrl.includes('?') ? '&' : '?';
+  return `${lesson.downloadUrl}${sep}v=${encodeURIComponent(lesson.transcodedAt)}`;
+}
+
+/* Pre-download everything the current week's show and picker can need — the
+   video, BOTH transcripts, and the leader handout — not just the video, so a
+   dead connection at 6:30 PM (or during a same-week preview) costs nothing.
+   Missing files (week 27 has no leader transcript/handout) 404 and are simply
+   skipped. Eviction of the previous week's bundle only happens once every
+   piece of the new one is safely stored — a mid-download failure can never
+   leave the cache emptier than it started (the invariant the old
+   cacheLessonVideo() kept for the video alone, extended to the bundle). */
+let bundleInFlight = false;
+async function cacheLessonBundle(lesson) {
   if (!('caches' in window)) return;
+  // Startup, the hourly timer, and the 'online' listener can all fire close
+  // together — without this, each would re-download the same multi-MB video
+  // in parallel on a single-core Pi. Whatever a skipped call would have
+  // stored, the next refresh's call picks up (skip-if-cached is per item).
+  if (bundleInFlight) return;
+  bundleInFlight = true;
   try {
     const cache = await caches.open(VIDEO_CACHE_NAME);
-    if (await cache.match(lesson.downloadUrl)) return; // already cached
-    const response = await fetch(lesson.downloadUrl);
-    if (!response.ok) return;
-    await cache.put(lesson.downloadUrl, response);
-    // Only evict older cached videos once the new one is safely stored.
+    const candidates = [
+      { fetchUrl: lesson.downloadUrl, cacheKey: videoCacheKey(lesson) },
+      { fetchUrl: captionUrlFor(lesson.week, 'student') },
+      { fetchUrl: captionUrlFor(lesson.week, 'leader') },
+      { fetchUrl: handoutUrl(lesson.week) },
+    ];
+    for (const c of candidates) c.cacheKey = c.cacheKey || c.fetchUrl;
+    const bundleUrls = new Set(candidates.map((c) => new URL(c.cacheKey, location.href).href));
+    let allStored = true;
+    for (const { fetchUrl, cacheKey } of candidates) {
+      try {
+        if (await cache.match(cacheKey)) continue; // already stored
+        const response = await fetch(fetchUrl);
+        if (response.status === 404) continue; // legitimately doesn't exist — skip, not a failure
+        if (!response.ok) {
+          allStored = false;
+          continue;
+        }
+        await cache.put(cacheKey, response);
+      } catch (err) {
+        // Offline, or the host unreachable right now — keep whatever's
+        // already cached and try again on the next refresh. Logged (not just
+        // swallowed) so a permanently-failing cache attempt is discoverable
+        // in devtools rather than invisible until the network is down at
+        // showtime.
+        allStored = false;
+        console.warn('Journey: could not cache', fetchUrl, '—', err);
+      }
+    }
+    if (!allStored) return;
     const keys = await cache.keys();
     await Promise.all(
-      keys.filter((req) => req.url !== lesson.downloadUrl).map((req) => cache.delete(req))
+      keys.filter((req) => !bundleUrls.has(req.url)).map((req) => cache.delete(req))
     );
   } catch (err) {
-    // Offline, or Awana's site unreachable right now — keep whatever's
-    // already cached and try again on the next poll. Logged (not just
-    // swallowed) so a permanently-failing cache attempt is discoverable
-    // in devtools rather than invisible until the network is down at showtime.
-    console.warn('Journey: could not cache lesson video —', err);
+    console.warn('Journey: could not cache lesson bundle —', err);
+  } finally {
+    bundleInFlight = false;
   }
 }
 
-async function resolveVideoSrc(lesson) {
+/* Resolves what the <video> element should play: the cached copy as a blob
+   URL when available, the live URL otherwise. `token` is the caller's
+   journeyRequestToken snapshot — if a teardown or newer request has bumped
+   the token while the (slow, ~17MB) cache read was in flight, this returns
+   null WITHOUT committing anything, so a stale resolve can neither clobber
+   currentObjectUrl nor strand a multi-megabyte blob URL that nothing will
+   ever revoke (on a 512MB Pi that leak would sit resident until the next
+   show). Callers must bail on null. */
+async function resolveVideoSrc(lesson, token) {
   if ('caches' in window) {
     try {
       const cache = await caches.open(VIDEO_CACHE_NAME);
-      const cached = await cache.match(lesson.downloadUrl);
+      // Migration fallback: kiosks that cached this week's video before the
+      // key was versioned hold it under the bare downloadUrl. That copy can
+      // only be a same-URL fetch — at worst exactly the staleness the old
+      // code always had — so it's strictly better than falling through to
+      // the network on a dead evening connection. The bundle prefetch stores
+      // under the versioned key and then evicts the legacy entry, so this
+      // heals itself after one online refresh.
+      const cached =
+        (await cache.match(videoCacheKey(lesson))) || (await cache.match(lesson.downloadUrl));
       if (cached) {
-        const blobUrl = URL.createObjectURL(await cached.blob());
+        const blob = await cached.blob();
+        if (token !== undefined && token !== journeyRequestToken) return null;
+        const blobUrl = URL.createObjectURL(blob);
         // Only revoke the previous object URL once its replacement is in
         // hand — never before — so a slower, still-in-flight resolve can
         // never be left pointing at an already-revoked URL.
@@ -165,6 +255,7 @@ async function resolveVideoSrc(lesson) {
       // fall through to the live URL
     }
   }
+  if (token !== undefined && token !== journeyRequestToken) return null;
   return lesson.downloadUrl;
 }
 
@@ -173,7 +264,7 @@ async function resolveVideoSrc(lesson) {
 // for the operator to actually start the video (Space / → / the on-screen
 // button — see playCurrentLesson() and the keydown listener below). The
 // video itself is still pre-fetched into the Cache API well ahead of time
-// by refreshLesson()/cacheLessonVideo() regardless of what's on screen, so
+// by refreshLesson()/cacheLessonBundle() regardless of what's on screen, so
 // it's already "queued" and ready the moment playback is requested.
 async function showJourneyContent() {
   ++journeyRequestToken; // invalidate any in-flight playCurrentLesson() call
@@ -194,6 +285,10 @@ async function showJourneyContent() {
   // already playing mid-window.
   if (!journeyVideo.classList.contains('hidden')) return;
   journeyPlaceholder.classList.add('hidden');
+  // The splash owns the screen now — a loading overlay left up by an
+  // in-flight playback request this call just invalidated would otherwise
+  // sit on top of it (and its stall note would fire over it 12s later).
+  hideVideoLoading();
   journeySplashWeek.textContent = `Week ${currentLesson.week}`;
   journeySplashTitle.textContent = currentLesson.title;
   journeySplash.classList.remove('hidden');
@@ -211,8 +306,8 @@ async function playCurrentLesson() {
   showVideoLoading();
   journeyVideo.loop = false; // plays once; falls back to Check-in Display on 'ended' below
   setMuted(!audioUnlocked);
-  const src = await resolveVideoSrc(currentLesson);
-  if (token !== journeyRequestToken) return; // a newer call has since taken over
+  const src = await resolveVideoSrc(currentLesson, token);
+  if (!src || token !== journeyRequestToken) return; // a newer call has since taken over
   journeyVideo.src = src;
   applyCaptions();
   journeyVideo.play().catch(() => {
@@ -265,27 +360,91 @@ let captionsEnabled = storedCaptionPref() ?? false;
 let activeCaptionUrl = null;
 let pendingPlay = null;
 const captionProbeCache = new Map();
+// URL -> bool, built from lessons.json's `captions` field once it loads.
+// Null until then; captionsAvailable() falls back to cache/probe checks.
+let captionManifest = null;
+
+function buildCaptionManifest(lessons) {
+  const map = new Map();
+  let sawAny = false;
+  for (const lesson of lessons) {
+    if (!lesson || typeof lesson.week !== 'number' || !lesson.captions) continue;
+    sawAny = true;
+    map.set(captionUrlFor(lesson.week, 'student'), !!lesson.captions.student);
+    map.set(captionUrlFor(lesson.week, 'leader'), !!lesson.captions.leader);
+  }
+  // An old cached lessons.json from before the manifest existed carries no
+  // captions fields — keep falling back to probes rather than treating
+  // "unknown" as "none".
+  if (sawAny) captionManifest = map;
+}
 
 function captionUrlFor(week, variant) {
   return `transcripts/week-${String(week).padStart(2, '0')}-${variant}.vtt`;
 }
 
 /* A transcript may legitimately be missing (week 27 has no Leader Video at
-   all, and a future lesson revision could outpace the transcripts), so this
-   probes before offering captions rather than attaching a track that 404s and
-   silently does nothing. Results are memoized — one HEAD per URL per load. */
+   all, and a future lesson revision could outpace the transcripts), so
+   playback needs to know before offering captions rather than attaching a
+   track that 404s and silently does nothing. Which transcripts exist is
+   answered in this order, cheapest first:
+   1. lessons.json's shipped `captions` manifest (kept in sync by
+      scripts/update-captions-manifest.mjs) — no network at all. This is the
+      normal path; the rest is fallback for when lessons.json never loaded.
+   2. An already-cached copy of the VTT (the current week's are prefetched).
+   3. A HEAD probe with a short timeout — the original mechanism, now bounded.
+      An earlier version awaited this probe unbounded and BEFORE any visual
+      feedback, which on flaky WiFi made Begin Video/the picker look dead.
+   Only positive answers are memoized: a probe that failed because the network
+   was down must not disable captions until the next reload on a 24/7 kiosk. */
 async function captionsAvailable(url) {
   if (!url) return false;
-  if (captionProbeCache.has(url)) return captionProbeCache.get(url);
-  let ok = false;
-  try {
-    const res = await fetch(url, { method: 'HEAD' });
-    ok = res.ok;
-  } catch {
-    ok = false;
+  if (captionProbeCache.get(url)) return true;
+  if (captionManifest && captionManifest.has(url)) {
+    const ok = captionManifest.get(url);
+    if (ok) captionProbeCache.set(url, true);
+    return ok;
   }
-  captionProbeCache.set(url, ok);
-  return ok;
+  if ('caches' in window) {
+    try {
+      if (await caches.match(url)) {
+        captionProbeCache.set(url, true);
+        return true;
+      }
+    } catch {
+      // fall through to the probe
+    }
+  }
+  try {
+    const res = await fetchWithTimeout(url, { method: 'HEAD' }, 2500);
+    if (res.ok) {
+      captionProbeCache.set(url, true);
+      return true;
+    }
+  } catch {
+    // Unreachable right now — treat as "no captions" for this playback only.
+  }
+  return false;
+}
+
+/* Serve a prefetched transcript from the cache as a blob URL, so turning
+   captions on never depends on the network at play time. Returns null on a
+   cache miss (the caller falls back to the plain URL, which the <track>
+   element fetches). Deliberately PURE — it touches no shared state, so a
+   stale caller can simply discard (revoke) the result; requestPlayback()
+   commits the blob URL to captionObjectUrl only after confirming it is still
+   the current request. VTTs are ~10-20KB, so none of this holds meaningful
+   memory on the Pi. */
+let captionObjectUrl = null;
+async function cachedCaptionBlobUrl(url) {
+  if (!('caches' in window)) return null;
+  try {
+    const hit = await caches.match(url);
+    if (!hit) return null;
+    return URL.createObjectURL(await hit.blob());
+  } catch {
+    return null;
+  }
 }
 
 function removeCaptionTracks() {
@@ -415,24 +574,48 @@ function answerCaptionPrompt(on) {
 
 /* The single gate every playback path goes through: works out whether this
    video has captions, asks once if the operator has never answered, then runs
-   the actual play function. */
+   the actual play function.
+
+   The screen changes BEFORE anything is awaited — the Journey layer and the
+   loading overlay appear the instant the operator acts. An earlier version
+   awaited the caption probe first, so on flaky WiFi a press of Begin
+   Video/Space (or a picker choice) changed nothing on screen for as long as
+   the network dawdled — reported from the live kiosk as "you click buttons
+   and it doesn't respond". Hiding the splash immediately also makes
+   isAwaitingPlay() false, so mashing Space/the button can't stack duplicate
+   requests.
+
+   The reveal matters for the prompt path too: the prompt lives inside
+   #journey-view, so that layer has to be on screen or the question renders
+   into a display:none ancestor and is invisible — which once stranded manual
+   previews (operator picks a video, sees the Check-in Display, and playback
+   waits forever on a question nobody can see). */
 async function requestPlayback(captionUrl, proceed) {
+  const token = ++journeyRequestToken;
+  journeyView.classList.remove('hidden');
+  checkinView.classList.add('hidden');
+  journeyPlaceholder.classList.add('hidden');
+  journeySplash.classList.add('hidden');
+  showVideoLoading();
   const available = await captionsAvailable(captionUrl);
-  activeCaptionUrl = available ? captionUrl : null;
+  // The operator may have torn this down (toggle button) or started a newer
+  // request while the probe was in flight — don't resurrect it.
+  if (token !== journeyRequestToken) return;
+  const blobUrl = available ? await cachedCaptionBlobUrl(captionUrl) : null;
+  if (token !== journeyRequestToken) {
+    // Stale: a newer request owns the screen now — discard our blob rather
+    // than clobbering (and revoking) caption state that request just set.
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    return;
+  }
+  if (blobUrl) {
+    if (captionObjectUrl) URL.revokeObjectURL(captionObjectUrl);
+    captionObjectUrl = blobUrl;
+  }
+  activeCaptionUrl = available ? blobUrl || captionUrl : null;
   if (available && storedCaptionPref() === null) {
     pendingPlay = proceed;
-    // The prompt lives inside #journey-view, so that layer has to be on
-    // screen or the question renders into a display:none ancestor and is
-    // invisible — which stranded manual previews (operator picks a video,
-    // sees the Check-in Display, and playback waits forever on a question
-    // nobody can answer). Reveal the Journey layer first, exactly as
-    // startPreview() would, then ask.
-    journeyView.classList.remove('hidden');
-    checkinView.classList.add('hidden');
-    journeyPlaceholder.classList.add('hidden');
-    // Hiding the splash keeps one question on screen at a time, and makes
-    // isAwaitingPlay() false so Space can't double-fire into playback.
-    journeySplash.classList.add('hidden');
+    hideVideoLoading();
     showCaptionPrompt();
     return;
   }
@@ -470,11 +653,26 @@ function isAwaitingPlay() {
    full-size original over church WiFi) can be long enough to look like a
    dead screen. Also re-shown by the video's 'waiting' event for mid-play
    buffering stalls, and hidden again by 'playing'. */
+const LOADING_STALL_MS = 12000;
+const LOADING_NOTE_DEFAULT = journeyLoadingNote.textContent;
+let loadingStallTimer = null;
+
 function showVideoLoading() {
   journeyLoading.classList.remove('hidden');
+  // If loading drags on, say so honestly instead of pulsing forever — a
+  // stalled fetch on a dead connection never fires an error event, so
+  // without this the overlay is indistinguishable from progress. The ⇄
+  // button always works as the way out (it never waits on the network).
+  clearTimeout(loadingStallTimer);
+  loadingStallTimer = setTimeout(() => {
+    journeyLoadingNote.textContent =
+      'Still loading — the internet may be down. The ⇄ button (bottom right) goes back.';
+  }, LOADING_STALL_MS);
 }
 
 function hideVideoLoading() {
+  clearTimeout(loadingStallTimer);
+  journeyLoadingNote.textContent = LOADING_NOTE_DEFAULT;
   journeyLoading.classList.add('hidden');
 }
 
@@ -555,6 +753,10 @@ videoScrubber.addEventListener('change', () => {
 });
 
 function stopJourneyContent() {
+  // Invalidate any still-awaiting requestPlayback()/playCurrentLesson() call:
+  // once the operator has torn the view down, a slow caption probe or cache
+  // read resolving later must not restart playback into a hidden layer.
+  ++journeyRequestToken;
   journeyVideo.pause();
   // Release the cached video's blob URL and detach the element while the
   // Journey view isn't showing — on a 512MB Pi Zero, a ~100-200MB decoded
@@ -572,6 +774,10 @@ function stopJourneyContent() {
   pendingPlay = null;
   captionPrompt.classList.add('hidden');
   removeCaptionTracks();
+  if (captionObjectUrl) {
+    URL.revokeObjectURL(captionObjectUrl);
+    captionObjectUrl = null;
+  }
   ccBtn.classList.add('hidden');
   videoScrubber.max = '0';
   videoScrubber.value = '0';
@@ -781,12 +987,18 @@ async function refreshLesson() {
   if (!lesson) return;
   const changed = !sameLesson(currentLesson, lesson);
   currentLesson = lesson;
-  cacheLessonVideo(lesson);
+  cacheLessonBundle(lesson);
   if (changed && lastPhase === 'journey' && !previewMode) showJourneyContent();
 }
 
 refreshLesson();
 setInterval(refreshLesson, LESSON_REFRESH_MS);
+// The browser noticing the connection coming back is a better moment to
+// retry than waiting out the hourly timer — flaky church WiFi is the normal
+// operating condition here. ('online' can fire in bursts on a flapping
+// connection; the bundleInFlight guard in cacheLessonBundle() is what keeps
+// that from stacking duplicate multi-MB downloads on the single-core Pi.)
+window.addEventListener('online', () => refreshLesson());
 
 /* ── Manual video preview (Settings panel) ────────────────────────────
    Lets an operator browse every lesson in public/lessons.json and play
@@ -823,18 +1035,68 @@ function transcodedPreviewUrl(week, variant) {
   return `${TRANSCODED_VIDEO_BASE}week-${String(week).padStart(2, '0')}-${variant}.mp4`;
 }
 
-async function loadAllLessons() {
-  if (allLessons) return allLessons;
+/* lessons.json is a static file that changes ~never, yet an earlier version
+   fetched it with {cache:'no-store'} at the moment the Settings gear was
+   pressed — a forced network round-trip standing between the click and the
+   panel's contents. Now it's cache-first: a good copy is kept in the Cache
+   API (stored by fetchLessonsJson below, refreshed in the background), so
+   after the first successful load ever, the lesson list works with the
+   network fully dead. GitHub Pages' own max-age=600 means a plain fetch is
+   at most 10 minutes stale, same as every other asset on the site. */
+function adoptLessonsData(data) {
+  if (!data || !Array.isArray(data.lessons)) return false;
+  allLessons = data.lessons;
+  buildCaptionManifest(allLessons);
+  return true;
+}
+
+async function fetchLessonsJson() {
+  const res = await fetchWithTimeout('lessons.json', {}, 5000);
+  if (!res.ok) throw new Error(`lessons.json ${res.status}`);
+  // Parse and shape-check BEFORE caching: a 200 carrying garbage (a truncated
+  // deploy, a hand-edit typo) must never replace the known-good offline copy.
+  const text = await res.text();
+  const data = JSON.parse(text); // throws on invalid JSON
+  if (!data || !Array.isArray(data.lessons)) throw new Error('lessons.json: unexpected shape');
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open(ASSET_CACHE_NAME);
+      await cache.put(
+        'lessons.json',
+        new Response(text, { headers: { 'content-type': 'application/json' } })
+      );
+    } catch {
+      // Not storable right now (quota, private mode) — still usable live.
+    }
+  }
+  return data;
+}
+
+async function cachedLessonsJson() {
+  if (!('caches' in window)) return null;
   try {
-    const res = await fetch('lessons.json', { cache: 'no-store' });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data || !Array.isArray(data.lessons)) return null;
-    allLessons = data.lessons;
-    return allLessons;
+    const cache = await caches.open(ASSET_CACHE_NAME);
+    const hit = await cache.match('lessons.json');
+    return hit ? await hit.json() : null;
   } catch {
     return null;
   }
+}
+
+async function loadAllLessons() {
+  if (allLessons) return allLessons;
+  const cached = await cachedLessonsJson();
+  if (cached && adoptLessonsData(cached)) {
+    // Serve the cached copy instantly; revalidate quietly for next time.
+    fetchLessonsJson().then(adoptLessonsData, () => {});
+    return allLessons;
+  }
+  try {
+    if (adoptLessonsData(await fetchLessonsJson())) return allLessons;
+  } catch {
+    // Offline with nothing cached yet — the caller shows the error state.
+  }
+  return null;
 }
 
 function renderLessonList(lessons) {
@@ -888,28 +1150,97 @@ function handoutUrl(week) {
   return `handouts/week-${String(week).padStart(2, '0')}-leader-handout.pdf`;
 }
 
+let handoutObjectUrl = null;
+
+// The current week's handout is prefetched into the Cache API by
+// cacheLessonBundle(); serving it as a blob URL means opening it needs no
+// network. Other weeks fall back to the live URL (Chromium's PDF viewer
+// streams it), and the ~55KB PDF is small enough that this stays a
+// degraded-not-dead path: the overlay and its Close button appear instantly
+// and never wait on the fetch. PURE, like cachedCaptionBlobUrl(): returns a
+// fresh blob URL or null, and openHandout() commits it to handoutObjectUrl
+// only after confirming the open it belongs to is still the current one.
+async function cachedHandoutBlobUrl(url) {
+  if (!('caches' in window)) return null;
+  try {
+    const hit = await caches.match(url);
+    if (!hit) return null;
+    return URL.createObjectURL(await hit.blob());
+  } catch {
+    return null;
+  }
+}
+
+// Identity of the latest open — a slow cache read for handout A must not
+// land its PDF into an overlay that has since been closed and reopened
+// showing handout B's title.
+let handoutRequestId = 0;
+
 function openHandout(lesson) {
+  const requestId = ++handoutRequestId;
   handoutTitle.textContent = `Week ${lesson.week} — ${lesson.title} (Leader Handout)`;
-  handoutFrame.src = handoutUrl(lesson.week);
   handoutView.classList.remove('hidden');
   handoutCloseBtn.focus();
+  const url = handoutUrl(lesson.week);
+  cachedHandoutBlobUrl(url).then((blobUrl) => {
+    if (requestId !== handoutRequestId) {
+      // Closed or replaced while the cache read was in flight — discard our
+      // blob rather than clobbering (and revoking) the newer open's.
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      return;
+    }
+    if (blobUrl) {
+      if (handoutObjectUrl) URL.revokeObjectURL(handoutObjectUrl);
+      handoutObjectUrl = blobUrl;
+      handoutFrame.src = blobUrl;
+    } else {
+      handoutFrame.src = url;
+    }
+  });
 }
 
 function closeHandout() {
+  ++handoutRequestId; // abandon any still-resolving open
   handoutView.classList.add('hidden');
   // Drop the PDF viewer's memory the moment it's closed — same 512MB-Pi
   // hygiene as detaching the <video> element's src.
   handoutFrame.removeAttribute('src');
+  if (handoutObjectUrl) {
+    URL.revokeObjectURL(handoutObjectUrl);
+    handoutObjectUrl = null;
+  }
 }
 
 handoutCloseBtn.addEventListener('click', closeHandout);
 
-async function openSettingsPanel() {
+function openSettingsPanel() {
   audioUnlocked = true;
   resetSettingsPanelToList();
-  const lessons = await loadAllLessons();
-  if (lessons) renderLessonList(lessons);
+  // The panel appears the instant the gear is pressed — an earlier version
+  // awaited lessons.json first, so on a hung request the gear looked broken
+  // (nothing on screen, ever). The list fills in when the data arrives, from
+  // the Cache API when the network can't answer.
   settingsPanel.classList.remove('hidden');
+  if (allLessons) {
+    renderLessonList(allLessons);
+    return;
+  }
+  settingsLessonList.textContent = '';
+  const note = document.createElement('p');
+  note.className = 'settings-list-note';
+  note.textContent = 'Loading lesson list…';
+  settingsLessonList.appendChild(note);
+  loadAllLessons().then((lessons) => {
+    if (settingsPanel.classList.contains('hidden')) return; // closed meanwhile
+    if (lessons) {
+      // Only replace the loading note if the list hasn't already been
+      // rendered by a faster concurrent open.
+      if (note.isConnected) renderLessonList(lessons);
+    } else {
+      note.textContent =
+        'The lesson list couldn’t load — check the kiosk’s internet connection, then close and reopen this panel.';
+    }
+  });
 }
 
 function closeSettingsPanel() {
@@ -969,13 +1300,29 @@ settingsVariantStudentBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson) return;
   const lesson = pendingPreviewLesson;
   closeSettingsPanel();
-  requestPlayback(captionUrlFor(lesson.week, 'student'), () =>
+  requestPlayback(captionUrlFor(lesson.week, 'student'), async () => {
+    // The current week's Student Video is the one already pre-downloaded for
+    // the 6:30 show — play the local copy instead of re-streaming ~17MB from
+    // the GitHub Release, so a same-week preview works with the network dead.
+    // Gated on transcodedAt so a not-yet-transcoded week (downloadUrl still
+    // the 1080p original the Pi can't decode) keeps using the Release asset.
+    if (currentLesson && currentLesson.week === lesson.week && currentLesson.transcodedAt) {
+      const token = journeyRequestToken;
+      const src = await resolveVideoSrc(currentLesson, token);
+      if (!src || token !== journeyRequestToken) return; // torn down while reading the cache
+      startPreview(
+        src,
+        `${lesson.title} (Student Video)`,
+        transcodedPreviewUrl(lesson.week, 'student')
+      );
+      return;
+    }
     startPreview(
       transcodedPreviewUrl(lesson.week, 'student'),
       `${lesson.title} (Student Video)`,
       lesson.downloadUrl
-    )
-  );
+    );
+  });
 });
 
 // Leader is a two-step choice: first Leader vs Student, then Video vs
@@ -1011,3 +1358,10 @@ settingsLeaderBackBtn.addEventListener('click', () => {
   settingsLeaderPicker.classList.add('hidden');
   settingsVariantPicker.classList.remove('hidden');
 });
+
+// Warm the lesson list + captions manifest at startup rather than on the
+// first Settings press, and store lessons.json for offline use. Failure is
+// fine — openSettingsPanel() retries and shows its own error state. (Kept at
+// the very end of the script: it reads `allLessons`, a `let` that must be
+// past its declaration before any call runs.)
+loadAllLessons();

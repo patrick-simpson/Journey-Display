@@ -816,3 +816,71 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   border: none;
   background: #444444;
 }
+
+/* Status/error line inside the settings lesson list (loading, or the
+   list couldn't be fetched) — same 10-foot sizing as the rows it stands
+   in for. */
+.settings-list-note {
+  padding: 0.9rem 1.2rem;
+  font-size: 1.4rem;
+  opacity: 0.7;
+}
+
+/* ── Instant press feedback ───────────────────────────────────────────
+   Every control visibly changes the moment a finger/click lands on it —
+   before its handler has done any work at all. On the kiosk's flaky
+   connection some actions used to start with a (now-bounded) network wait,
+   and a press that changes nothing for even half a second reads as "the
+   button is broken". Flat background swaps only, no transforms — Pi Zero
+   animation budget. `transition: none` makes the pressed state land on the
+   very next paint instead of easing in; the release still eases out via
+   each control's own base transition. These sit at the end of the sheet so
+   they win the cascade over the hover/focus rules above. */
+#journey-splash-play-btn:active {
+  background: #a00d25;
+  transition: none;
+}
+
+#pause-btn:active,
+#unmute-btn:active,
+#cc-btn:active {
+  background: rgba(255, 255, 255, 0.95);
+  transition: none;
+}
+
+#cc-btn[aria-pressed='true']:active {
+  background: #a00d25;
+  transition: none;
+}
+
+#toggle-btn:active,
+#settings-btn:active {
+  background: rgba(255, 255, 255, 0.9);
+  transition: none;
+}
+
+.settings-lesson-row:active {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+#settings-variant-buttons button:active:not(:disabled),
+#settings-leader-buttons button:active,
+#settings-close-btn:active,
+#handout-close-btn:active {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+#settings-variant-back:active,
+#settings-leader-back:active {
+  color: #ffffff;
+}
+
+#caption-prompt-buttons button:active {
+  background: rgba(255, 255, 255, 0.5);
+  transition: none;
+}
+
+#caption-yes:active {
+  background: #ff2e52 !important;
+  transition: none;
+}
