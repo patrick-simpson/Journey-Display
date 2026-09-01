@@ -376,6 +376,9 @@ a reboot during a total outage has no app shell to load).
   store their bytes — only same-origin copies would make a "download
   all videos" feature possible, and rehosting is a project-owner call
   (see the licensing boundary above). The picker still streams those.
+  **Asked and declined 2026-09-01**: the owner chose "current week is
+  enough" over a same-origin mirror + download-all — don't re-raise it
+  unless they bring it up.
 - If the loading overlay stays up ~12s, its note switches to say the
   internet may be down and points at the ⇄ button (which never waits on
   the network) — a stalled fetch fires no error event, and an endless
