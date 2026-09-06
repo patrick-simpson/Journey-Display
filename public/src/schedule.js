@@ -694,8 +694,14 @@ function showVideoLoading() {
   // button always works as the way out (it never waits on the network).
   clearTimeout(loadingStallTimer);
   loadingStallTimer = setTimeout(() => {
+    // Stalled on the tail of the lesson — go straight to the slides rather
+    // than leaving the room staring at a frozen last frame.
+    if (!journeyVideo.classList.contains('hidden') && videoNearEnd()) {
+      endOfLessonHandoff();
+      return;
+    }
     journeyLoadingNote.textContent =
-      'Still loading — the internet may be down. The ⇄ button (bottom right) goes back.';
+      'Still loading — the internet may be down. Press → for the teaching slides, or ⇄ (bottom right) to go back.';
   }, LOADING_STALL_MS);
 }
 
@@ -950,6 +956,21 @@ document.addEventListener('keydown', (e) => {
     beginScheduledPlay();
     return;
   }
+  // → moves the show on while a lesson video is up — playing, paused, or
+  // wedged on a dead connection — handing over to the teaching slides. This
+  // is the operator's guaranteed way forward when the video never finishes;
+  // Space stays "pause" so a reflexive tap can't skip the lesson.
+  if (
+    e.code === 'ArrowRight' &&
+    !journeyVideo.classList.contains('hidden') &&
+    settingsPanel.classList.contains('hidden') &&
+    handoutView.classList.contains('hidden')
+  ) {
+    e.preventDefault();
+    audioUnlocked = true;
+    endOfLessonHandoff();
+    return;
+  }
   // Once a video is actually on screen, Space toggles pause — but never
   // while the settings panel is open or a button/input has focus, where
   // Space already means "activate that control".
@@ -997,7 +1018,15 @@ document.addEventListener('visibilitychange', () => {
 // poll tick see a manufactured "flip" back to 'journey' and restart the
 // lesson from frame zero, which is exactly the bug this comment is here to
 // prevent regressing.
-journeyVideo.addEventListener('ended', () => {
+/* The single way out of a lesson video, whatever ended it: Awana's teaching
+   slides for that lesson come next, and only once they finish does the old
+   end-of-video behavior run (Check-in Display for the scheduled show,
+   endPreview() for a preview). Reached four ways — the video's own 'ended'
+   event, the near-end stall watchdog, a manual skip with →, and a fatal
+   video error. It used to hang off 'ended' alone, which stranded a leader
+   mid-club: the lesson stalled on its last chunk over flaky WiFi, 'ended'
+   never fired, and there was no way to reach the slides at all. */
+function endOfLessonHandoff() {
   const finish = () => {
     if (previewMode) {
       endPreview();
@@ -1005,13 +1034,24 @@ journeyVideo.addEventListener('ended', () => {
     }
     setView('checkin');
   };
-  // Awana's teaching slides for this lesson come next (see
-  // startTeachingSlides); the fallback above runs only once they finish —
-  // or right away when there are none to show.
   const week = previewMode ? previewWeek : currentLesson && currentLesson.week;
-  if (startTeachingSlides(week, finish)) return;
+  if (startTeachingSlides(week, finish)) return true;
   finish();
-});
+  return false;
+}
+
+journeyVideo.addEventListener('ended', endOfLessonHandoff);
+
+/* A video that stalls within a few seconds of its end has, for the room's
+   purposes, finished — the last frames are never worth waiting on. Judged
+   only when the stall has already lasted LOADING_STALL_MS, so an ordinary
+   buffering hiccup near the end still gets a chance to recover and play out. */
+const END_STALL_TOLERANCE_S = 3;
+function videoNearEnd() {
+  const d = journeyVideo.duration;
+  const t = journeyVideo.currentTime;
+  return Number.isFinite(d) && d > 0 && d - t <= END_STALL_TOLERANCE_S;
+}
 
 // A failed/unsupported video load, or a stall that never recovers, should
 // fall back to the placeholder rather than leaving a silent black frame
@@ -1038,6 +1078,10 @@ journeyVideo.addEventListener('error', () => {
     return;
   }
   if (!journeyView.classList.contains('hidden')) {
+    // The lesson can't play, but this week's teaching slides are already on
+    // this device — far better on the wall than a dead placeholder. Only a
+    // week with no slides falls through to it.
+    if (startTeachingSlides(currentLesson && currentLesson.week, () => setView('checkin'))) return;
     journeyVideo.classList.add('hidden');
     videoControls.classList.add('hidden');
     journeyPlaceholder.classList.remove('hidden');

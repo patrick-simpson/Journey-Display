@@ -676,6 +676,19 @@ video's ending used to do.
   (`#slide-template` in style.css mirrors the deck: centered heading,
   three left-aligned bullets, white on the texture) so they stay crisp
   and editable — the only slide we *fill in*, never an image we copy.
+- **Four ways in, never just `ended`** (`endOfLessonHandoff()`): the
+  video's own `ended` event, the near-end stall watchdog, a manual → , and
+  a fatal video error all funnel through one handoff. Hanging the slides off
+  `ended` alone stranded a leader mid-club on 2026-09-06: the lesson wedged
+  on its last chunk over church WiFi, `ended` never fired, and the room sat
+  on a frozen final frame under "Loading video…" with no way to reach the
+  slides. So: a stall that is still stuck after `LOADING_STALL_MS` **and**
+  within `END_STALL_TOLERANCE_S` of the end is treated as finished; **→**
+  hands over from a video that is playing, paused or wedged (Space stays
+  "pause", so a reflexive tap can't skip a lesson); and a video that errors
+  outright shows the slides rather than the dead placeholder. Test the
+  triggers, not just `startTeachingSlides()` — the original suite called
+  that function directly, which is exactly why this shipped broken.
 - **Playback** (`startTeachingSlides()` in schedule.js): the video is
   released (same memory hygiene as `stopJourneyContent()`), the deck's
   slides show in a 4:3 stage (pillarboxed on the TV), then whichever
