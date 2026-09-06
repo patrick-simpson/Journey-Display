@@ -1,0 +1,684 @@
+{
+  "version": 1,
+  "note": "Page-1 content for each Leader Handout, written from that week's Leader Video transcript. Hand-edit here, then re-run scripts/render-leader-handouts.mjs.",
+  "weeks": {
+    "1": {
+      "week": 1,
+      "title": "Unit 1, Lesson 1: Apologetics",
+      "shortTitle": "Apologetics",
+      "bigIdea": "Apologetics comes from the Greek apologia in 1 Peter 3:15: giving a reasoned defense for the hope we have, with gentleness and respect. This year asks students, and you, to know why you believe what you believe and to discuss it intelligently.",
+      "keyPoints": [
+        "Peter commands believers to be prepared to give a reason, a courtroom-style defense, for their faith; that word apologia is where apologetics comes from.",
+        "Peter wrote to Christians persecuted by Rome, and that same responsibility to stand and defend belief applies to us today.",
+        "Being called to give a defense also means being capable of one; Peter in Acts 4:20 could not stop speaking of what he had seen and heard.",
+        "Some cite 1 Corinthians 2 to claim persuasion is dangerous, but in context Paul is not forbidding reasoned evidence; Jesus, Paul, and Peter all gave good reasons.",
+        "Create an environment where students can ask anything, even questions that voice doubt, and feel safe doing it.",
+        "You do not need every answer; saying 'let's figure this out together' builds the relationship and finds the answer, using church, seminary, and Awana resources."
+      ],
+      "scriptures": [
+        "1 Peter 3:15",
+        "Acts 4:20",
+        "1 Corinthians 2"
+      ],
+      "questions": [
+        "Why do you believe what you believe, and can you discuss those beliefs intelligently?",
+        "Do your students feel free to ask any question, including ones that voice doubt? What would make it safer?",
+        "How will you respond when a student asks something you cannot answer?",
+        "What resources or people could you draw on this year when hard questions come up?"
+      ]
+    },
+    "2": {
+      "week": 2,
+      "title": "Unit 1, Lesson 2: Faith",
+      "shortTitle": "Faith",
+      "bigIdea": "Biblical faith is not wandering in the darkness hoping you are right. John says the miraculous signs were written so we may believe: faith is trust based on evidence, and like any relationship, the more reasons we have to trust Christ, the deeper the relationship goes.",
+      "keyPoints": [
+        "The speaker once saw faith as stumbling in the dark, like breaking his toe in a pitch-black apartment, and many students still see it that way.",
+        "John 20:30-31 says the recorded signs were written so you may believe; John gives seven escalating signs, plus the resurrection, as reasons to believe.",
+        "Biblical faith is trust based on evidence, and just as trust deepens human relationships, knowing Christ better deepens our relationship with him.",
+        "Hebrews 11:1's 'certain' carries the idea of a foundation or substructure, like a basement so solid you never fear the house will cave in.",
+        "Jesus kept his wounds after the resurrection, showing them to Thomas as one more reason to believe he did exactly what he said.",
+        "Create space for students to consider the evidence themselves, so faith becomes their own rather than borrowed from parents or leaders; that faith sticks through college."
+      ],
+      "scriptures": [
+        "John 20:30-31",
+        "Hebrews 11:1"
+      ],
+      "questions": [
+        "Do you have your own faith, or are you still believing what your parents or others told you to believe?",
+        "Have you considered the evidence God has given for who Jesus is? Is it enough?",
+        "How does trust between friends grow, and how is that like trusting Christ?",
+        "How can we help students move from accepting what we tell them to discovering it is true?"
+      ]
+    },
+    "3": {
+      "week": 3,
+      "title": "Unit 1, Lesson 3: Truth",
+      "shortTitle": "Truth",
+      "bigIdea": "Students live in a post-truth, relativist culture that says you can create your own reality. But truth is what corresponds with reality, independent of anyone's opinion. Jesus' claim in John 14 is objective, either true or false, and understanding that leads students to genuine freedom in Christ.",
+      "keyPoints": [
+        "Oxford's 2016 word of the year, 'post-truth,' captures the relativism students face daily: feelings and personal belief outweighing objective facts.",
+        "When leaders present something as objectively true, students often hear only 'that's what you think,' a wall this lesson helps take down.",
+        "Nothing else this year, Scripture's authority, the resurrection, God's existence, the problem of evil, can be discussed until students understand the nature of truth.",
+        "Truth is what corresponds with reality, and coherence or practicality is not enough: Santa Claus makes sense to kids but does not line up with reality.",
+        "Subjective truths, like a favorite ice cream flavor, are about the subject's experience; objective truths, like a shirt's color, hold regardless of anyone's opinion.",
+        "Culture lumps Jesus with subjective truth, but John 14's 'I am the way' is an objective claim: if true, contradicting beliefs are false."
+      ],
+      "scriptures": [
+        "John 14:6"
+      ],
+      "questions": [
+        "What is the difference between a subjective truth and an objective truth? Give an example of each.",
+        "Why do people put belief in Jesus on the subjective side, and why does John 14 not allow that?",
+        "Can something make sense and be practical but still not be true? How would you tell?",
+        "How does truth open the door to a life of genuine freedom in Christ?"
+      ]
+    },
+    "4": {
+      "week": 4,
+      "title": "Unit 1, Lesson 4: Logic",
+      "shortTitle": "Logic",
+      "bigIdea": "Scripture treats logic as a vital tool, not a threat: Hebrews calls believers past milk to maturity, Jesus commands loving God with all our mind and models logical argument himself. Students should embrace clear, careful thinking as part of their search for truth, so they can look truth in the face and see Jesus.",
+      "keyPoints": [
+        "Hebrews 5-6 urges believers to move from spiritual milk to solid food and maturity; Peter and Paul echo the call to renewed, Christ-like minds.",
+        "Jesus said to worship God with all your heart, soul, mind, and strength, so logic has a clear place in faith.",
+        "Reductio ad absurdum means drawing an argument to its absurd conclusion, like a dad answering 'all my friends did it' with the jumping-off-a-bridge reply.",
+        "In Matthew 22 Jesus uses that same logical analysis in his confrontation with the Pharisees.",
+        "Throughout Acts, in Corinth, Ephesus, Thessalonica, and Athens, Paul constantly reasons from the Scriptures to show who Jesus is.",
+        "Some arguments against Christianity sound good, so discuss them honestly, gauging what your students are ready to handle before diving in."
+      ],
+      "scriptures": [
+        "Matthew 22"
+      ],
+      "questions": [
+        "Should faith make sense? What parts of faith seem confusing until you think them through?",
+        "What about your faith does not make sense to you, and what would it take to work through it?",
+        "How do you already use logic in your relationships to figure out what is true?",
+        "What is an argument against Christianity that sounds good, and does it hold up logically?"
+      ]
+    },
+    "5": {
+      "week": 5,
+      "title": "Unit 2, Lesson 1: Worldview",
+      "shortTitle": "Worldview",
+      "bigIdea": "A worldview is the set of lenses through which we see and interpret the world, shaping how we answer life's foundational questions and how we live. Students will compare naturalism, pantheism, and monotheism; leaders should not assume students already hold a biblical worldview, and should be patient as change comes slowly.",
+      "keyPoints": [
+        "Like the speaker's first pair of glasses, a worldview changes everything you see; it is foundational, life-shaping questions about reality that dictate how you live.",
+        "Students will examine other popular lenses, naturalism and pantheism, then monotheism, because those views reach them through movies, music, art, TV, and books.",
+        "Do not assume your students have a biblical worldview; even churched kids often hold a 'buffet' worldview assembled from whatever looked good online.",
+        "The four worldview questions gently draw out what students think and reveal flaws in their thinking, so encourage honest answers, not expected ones.",
+        "Worldviews must be coherent and consistent; the buffet approach eventually fails, and Christianity is compelling because it is entirely coherent and consistent.",
+        "Do not expect students to change worldviews right away; changing how you see reality is a huge, anxious adjustment, so be patient and walk alongside them."
+      ],
+      "scriptures": [],
+      "questions": [
+        "What lenses are you already looking through, and where did they come from?",
+        "Where might your own worldview be a 'buffet,' with pieces that do not fit together?",
+        "How do movies, music, and media communicate naturalism or pantheism to you without saying so?",
+        "Is your group a place where students answer honestly rather than saying what leaders want to hear? How can you tell?"
+      ]
+    },
+    "6": {
+      "week": 6,
+      "title": "Unit 2, Lesson 2: Monotheism",
+      "shortTitle": "Monotheism",
+      "bigIdea": "Monotheism is more than the claim that one God exists: it is the view that a single, personal, all-powerful Creator has made himself known. In Exodus 6 God reveals himself to Moses as Yahweh, a covenant-remembering, redeeming God who pursues his creation, which sets up everything Christianity will claim.",
+      "keyPoints": [
+        "In Exodus 6 God tells Moses that Abraham, Isaac, and Jacob knew him as God Almighty, but not by his name, the Lord.",
+        "The name Yahweh, 'I am who I am,' reveals God's personal nature, his holiness, and a covenant becoming more real than before.",
+        "Having covered naturalism (the West) and pantheism (the East), the case for Christianity must first show a single, personal, all-powerful Creator exists.",
+        "Monotheism is a worldview containing Judaism, Christianity, and Islam; it means leaving the buffet and ordering the most consistent, coherent dish off the menu.",
+        "God is not a creator who walks away; he is actively engaged in history, redeeming and chasing after his image-bearers even after we screwed it up.",
+        "That personal, pursuing God sets up what Jesus does, the Holy Spirit, and the Trinity; coming weeks build the case that Christianity within monotheism is true."
+      ],
+      "scriptures": [
+        "Exodus 6:1-5"
+      ],
+      "questions": [
+        "What changes between knowing God as 'God Almighty' and knowing him by name as Yahweh?",
+        "What would it look like to view the world as if one personal God cares about and pursues you individually?",
+        "How would a monotheistic worldview change your thoughts on morality, justice, love, and how you act at school?",
+        "How could Christians looking through this lens actually influence the culture, rather than just being influenced by it?"
+      ]
+    },
+    "7": {
+      "week": 7,
+      "title": "Unit 2, Lesson 3: Pantheism",
+      "shortTitle": "Pantheism",
+      "bigIdea": "Pantheism, the dominant Eastern worldview, teaches that god is in all and is all: a divine spark in everything, with no distinction between creator and creation. It has reached the West through karma, meditation, yoga, and Star Wars, and losing the Creator-creation distinction drives us straight back to idolatry.",
+      "keyPoints": [
+        "Pantheism dominates Eastern culture, but karma, meditation, yoga, and Star Wars' 'force' show it has made its way West, so students must learn to identify it.",
+        "Pantheism says god is literally part of everything, rocks, trees, all of nature, a divine essence; this differs from the Holy Spirit dwelling in believers.",
+        "The key word is distinction: naturalism says there is no God, pantheism says God exists but is not distinct from creation.",
+        "At the Areopagus Paul helps the Stoics, who believed much like modern pantheists, see that God is personal and near yet distinct and other than us.",
+        "Without distinction everything is as divine as God, so worshiping rocks and trees is no different; losing the distinction leads to the root of sin, idolatry.",
+        "A God who is distinct, holy, and outside ourselves gives us a standard for right and wrong, just and unjust, love and hate."
+      ],
+      "scriptures": [],
+      "questions": [
+        "Where do you see pantheistic ideas, like karma or a divine force, showing up in movies, music, or wellness culture?",
+        "Why does the distinction between Creator and creation matter so much? What is lost without it?",
+        "How does losing that distinction lead to idolatry, even in subtle forms like elevating self, people, or causes?",
+        "How can we show another worldview is inconsistent while still speaking in love, without making fun of it?"
+      ]
+    },
+    "8": {
+      "week": 8,
+      "title": "Unit 2, Lesson 4: Naturalism",
+      "shortTitle": "Naturalism",
+      "bigIdea": "Naturalism, the dominant worldview of Western culture, says only what the five senses can detect constitutes reality, and meaning must come through science. But it cannot answer how or why, or ground justice, love, and morality; as Ecclesiastes shows, without God putting meaning in life, everything is meaningless.",
+      "keyPoints": [
+        "Naturalism teaches that only what we can taste, touch, smell, see, and feel constitutes reality, and students meet it daily, especially in school science classes.",
+        "Naturalism says any meaning in life must be found through science, but science only reaches the natural world; the lesson's goal is seeing it cannot work.",
+        "Closely tied to atheism, naturalism cannot explain the universe's how or why; the why question can be asked over and over without an answer.",
+        "Justice, love, and morality are not tangible things the senses can grab, yet some morals are universal across all cultures, demanding a deeper explanation.",
+        "Ecclesiastes opens 'meaningless, meaningless, utterly meaningless': Solomon's point is that without God putting meaning in life, all our labor is meaningless.",
+        "Believing in naturalism while caring for orphans, widows, or clean water is inconsistent; that sense of justice points beyond nature to a Creator God."
+      ],
+      "scriptures": [
+        "Ecclesiastes 1:2-4"
+      ],
+      "questions": [
+        "Where does naturalism show up in your school and classes, beyond just evolutionary science?",
+        "If only the natural world exists, where would justice, love, and morality come from?",
+        "Why do people without belief in God still care about clean water or helping others? What does that inclination suggest?",
+        "From a naturalistic worldview, what would give your work or efforts any meaning? Does that answer satisfy you?"
+      ]
+    },
+    "9": {
+      "week": 9,
+      "title": "Unit 3, Lesson 1: Science",
+      "shortTitle": "Science",
+      "bigIdea": "Students are taught that faith and science live in separate spheres that don't belong together. They don't need to be separated: the more we discover through science, the more we discover about how awesome God is. Science doesn't contradict our faith; it lays a crucial foundation for understanding our world.",
+      "keyPoints": [
+        "You don't have to be a science expert; the speaker's own seventh-grade teacher modeled the split, saying 'that is religion and faith, and this is science.'",
+        "As STEM research and careers grow more popular with students, that separation will only get more defined, so showing the two worlds interconnect is crucial.",
+        "Find students who are amped up about science, math, or technology and get them switched on now; this unit is a great way to engage them.",
+        "This week's crucial piece is the storyteller: someone in your congregation who works in the sciences and can show students how they connect it with faith.",
+        "Sit down with that person first; even Christian math and science teachers often struggle to see their own subject through a biblical lens.",
+        "We treat life like a two-story house, keeping Jesus in the private upstairs and school or work in the public sphere; bring Jesus into public space."
+      ],
+      "scriptures": [],
+      "questions": [
+        "Who in your congregation works in the sciences and could show students how they connect their field with their faith?",
+        "What are your students learning in school right now that you could help them see through a biblical lens?",
+        "Where have you kept your 'Jesus life' private and separate from your public school or work life?",
+        "Which of your students already love science, math, or technology, and how could this unit switch them on?"
+      ]
+    },
+    "10": {
+      "week": 10,
+      "title": "Unit 3, Lesson 2: Universe",
+      "shortTitle": "Universe",
+      "bigIdea": "Even without Scripture telling us God created the world, nature itself shows fine-tuning: atmosphere, rotation, distance from the sun, all calculated just so for life. This lesson asks whether the universe is random chance or a well-crafted design, and what a fine-tuned home says about God's character.",
+      "keyPoints": [
+        "The viral bottle flip looks like luck, but it's really fine-tuning: the right bottle, amount of water, and spin make it land every time.",
+        "Genesis tells us God created and designed the world, but even without Scripture, nature itself tells us the same thing through its fine-tuning.",
+        "Everything is calculated just so, so we can survive and thrive; the question is whether that's random chance or a well-crafted design by God.",
+        "This week's one word is 'thinking': last week introduced science furthering faith, and now students start putting the pieces together themselves.",
+        "Fine-tuning doesn't just show evidence God exists or made earth habitable; it shows he created a home for us, with his heart and love in mind."
+      ],
+      "scriptures": [
+        "Genesis"
+      ],
+      "questions": [
+        "What does fine-tuning say about the character of God?",
+        "If you didn't have Scripture, what would nature itself tell you about God's design?",
+        "Did this world pop into existence by random chance, restarting until it worked, or was it crafted with the right conditions for life?",
+        "What does it mean that God made not just a habitable planet, but a home for us?"
+      ]
+    },
+    "11": {
+      "week": 11,
+      "title": "Unit 3, Lesson 3: DNA",
+      "shortTitle": "DNA",
+      "bigIdea": "Halfway through the science unit, pause and take stock: how are your relationships and question-welcoming culture doing, and how are students actually tracking? Don't be afraid to slow down and revisit concepts, and lean on the provided misconceptions and simple examples, like Sean's book analogy for DNA.",
+      "keyPoints": [
+        "Take a step back this week and analyze your relationships: is the culture of welcome questions, honesty, and developing faith actually growing?",
+        "Ask how new students are assimilating and whether relationships are furthering and getting better since the beginning.",
+        "Honestly assess how students are tracking; some may nod along without getting it, some may be fired up and digging, and everywhere in between.",
+        "Don't be afraid to slow down, pull back, and revisit concepts; don't move forward until you're certain your students are ready.",
+        "The provided misconceptions are a clear window into the underlying narrative students are actually reading in their school textbooks.",
+        "Use the right examples to simplify difficult concepts; the best is Sean's use of simply describing a book to help us understand DNA."
+      ],
+      "scriptures": [],
+      "questions": [
+        "How are your relationships with students going, and do they feel safe being honest with you and one another?",
+        "Where are your students on the spectrum: nodding without understanding, fired up and asking great questions, or in between?",
+        "Which concepts from this unit might you need to slow down and revisit before moving forward?",
+        "What simple examples, like describing a book to explain DNA, could you use to simplify difficult concepts?"
+      ]
+    },
+    "12": {
+      "week": 12,
+      "title": "Unit 3, Lesson 4: Designer",
+      "shortTitle": "Designer",
+      "bigIdea": "The science unit closes with three pieces of evidence pointing to God: fine-tuning, DNA, and design. This week watch two kinds of students: the fired-up arguer, who needs to challenge with truth, love, and respect, and the still-unsure student, who needs you to ask whether the evidence was enough.",
+      "keyPoints": [
+        "Science is a foundation for understanding our world and does not contradict our faith; fine-tuning, DNA, and design all point to God.",
+        "With design, the conversation between creation and evolution really comes alive, and some students will be fired up to argue with teachers who know more.",
+        "Champion those students rather than telling them not to engage, but make sure they challenge in truth and love, with appropriate respect for teachers.",
+        "For students still not sure, take inventory and ask plainly: was this enough evidence, do you need more, what further questions or clarifications remain?",
+        "The goal of the study is deep personal conviction about what students believe and why, communicated in love and humility, relationally.",
+        "Help eager students be patient about jumping into arguments, because there is so much more to learn."
+      ],
+      "scriptures": [],
+      "questions": [
+        "Which of your students are fired up to argue, and how can you help them challenge others in truth, love, and respect?",
+        "Which students are still unsure, and have you asked them plainly whether the evidence was enough or what questions remain?",
+        "How do fine-tuning, DNA, and design each point to God through science?",
+        "How can you help eager students stay patient when there is still so much more to learn?"
+      ]
+    },
+    "13": {
+      "week": 13,
+      "title": "Unit 4, Lesson 1: Morality",
+      "shortTitle": "Morality",
+      "bigIdea": "Morality seems straightforward, but students are taught that moral claims, even murder being wrong, are matters of opinion, so when you present Scripture as fact they may hear only your opinion. Like little Johnny measuring himself in Johnnys, we need a standard beyond ourselves, and having morals at all points us to God.",
+      "keyPoints": [
+        "When leaders present Christian truth as black-and-white fact, students taught otherwise may be thinking, 'that's your opinion, and I'm not sure I agree.'",
+        "Meet with your small group leaders and gather student feedback on right versus wrong; some answers may not thrill you, but it's a starting point.",
+        "The speaker's students copied homework in the hallways and, when asked if it was wrong, simply answered no, 'because we just don't' think it is.",
+        "Education increasingly frames right and wrong as opinion, a slippery slope from copying homework to equality, drinking age, unjust killing, and same-sex marriage.",
+        "Little Johnny measuring himself as 'one Johnny tall' shows we can't measure ourselves by ourselves; morality likewise needs an external standard, which points us to God.",
+        "Respond with grace and love: listen thoroughly, ask where their ideas come from, and don't be afraid to challenge their thinking without shooting them down."
+      ],
+      "scriptures": [],
+      "questions": [
+        "When you present what Scripture says as fact, how many of your students are hearing it as just your opinion?",
+        "Is 'all people are created equal' a fact or an opinion? What about murder being wrong?",
+        "Where are your students getting their ideas about right and wrong: classes, teachers, home, online, TV?",
+        "Why does needing a moral standard beyond ourselves point us to God?"
+      ]
+    },
+    "14": {
+      "week": 14,
+      "title": "Unit 4, Lesson 2: Beauty",
+      "shortTitle": "Beauty",
+      "bigIdea": "Beauty, agency, and story may seem strange topics, but don't gloss over them: they are important pointers to God in students' everyday lives. This week is mainly an evaluation stop: figure out where each student actually is, answer recurring questions head on, and adjust before moving into the year's second half.",
+      "keyPoints": [
+        "The next lessons are easier than recent months but still incredibly important pointers to God, showing he is present in things students interact with daily.",
+        "Take stock of where students are now versus their questions and beliefs at the start; check old notes for change, good or bad.",
+        "Keep five or six Essentials books on hand so new students can be brought up to speed quickly without feeling intimidated mid-study.",
+        "If the same questions keep recurring, pause and answer them head on; students hung up on a question often can't move on until it's answered.",
+        "Notice who's tracking, but don't fixate on engaged students for affirmation or on one skeptic as your project; don't forget everyone in the middle.",
+        "Engage the silently skeptical student one-on-one, not publicly; the speaker's arms-folded student eventually admitted 'there's something to what you're saying.'"
+      ],
+      "scriptures": [],
+      "questions": [
+        "Where is each of your students now compared to the questions and beliefs they walked in with?",
+        "What recurring questions keep coming up, and do you need to pause and answer them head on before moving forward?",
+        "Which quiet student in the back seems to be 'not buying it,' and how could you engage them one-on-one?",
+        "Do you keep going as planned, or put the brakes on and revisit an old lesson before the next half of the year?"
+      ]
+    },
+    "15": {
+      "week": 15,
+      "title": "Unit 4, Lesson 3: Agency",
+      "shortTitle": "Agency",
+      "bigIdea": "Agency is the ability to choose, a God-given privilege and responsibility that points to his existence. Students are challenged to see that free will points us to God and should reflect him. This week, leaders take the temperature of their community: is it still safe, loving, and challenging?",
+      "keyPoints": [
+        "So many questions about why things happen are answered simply by humanity's God-given ability to make choices, which govern so much of our lives.",
+        "Students are challenged with two things: our free will points us to God, and our free will should reflect him in how we behave.",
+        "After last week's temperature check on students, this week check your community: is it the open, loving, safe place set as the overarching goal?",
+        "Ask whether leaders foster the right atmosphere of discussion where questions are welcome, with grace, love, and truth, and no one student dominating.",
+        "Love and challenge go together; in the speaker's experience, the students he challenged most were the ones who felt most loved and valued.",
+        "Check that students feel safe to be honest, that small groups serve and care for one another, and consider serving together in the community."
+      ],
+      "scriptures": [],
+      "questions": [
+        "How do our choices, good or bad, actually reflect God?",
+        "What does the fact that we have free will tell us about God's existence?",
+        "Do students in your group feel safe to be honest, even when honesty is hard?",
+        "Is one student dominating discussion, or is everyone invited to participate? What adjustment would help?"
+      ]
+    },
+    "16": {
+      "week": 16,
+      "title": "Unit 4, Lesson 4: Story",
+      "shortTitle": "Story",
+      "bigIdea": "Story itself originates from God: because we bear his image, we can tell great stories, and that is another pointer to his existence. This lesson closes the unit, and with the curriculum half over, leaders are urged to run a simple 'midterm' evaluation of how the year is going.",
+      "keyPoints": [
+        "Students need to see that story originates from God himself; our ability to tell great stories comes from reflecting his image, another pointer that God exists.",
+        "A fun approach: take stories, your own, students', a book, or a movie, and find the redemptive and salvation themes buried within them.",
+        "You are officially halfway through the curriculum, so it is time to evaluate; call it your midterm, with two simple suggestions.",
+        "First, have students pick a favorite lesson or topic and teach it back or lead a discussion; accurately communicating it back proves they got it.",
+        "Second, look at where you got stuck: do more research, find an additional video, or bring in an apologetics expert from the list at awyam.org.",
+        "Awana is there to help by email or social media, including the In Two Minutes video series where students can ask further questions."
+      ],
+      "scriptures": [],
+      "questions": [
+        "Where do you see redemptive or salvation themes in a favorite book or movie?",
+        "What does our love of storytelling suggest about the God whose image we reflect?",
+        "Which lesson from this year could you teach back to the group in your own words?",
+        "Which topic has your group been stuck or uncomfortable on, and what would help unstick it?"
+      ]
+    },
+    "17": {
+      "week": 17,
+      "title": "Unit 5, Lesson 1: Miracles",
+      "shortTitle": "Miracles",
+      "bigIdea": "The point is not just proving miracles exist, but that miracles point to God's existence. Students first pin down what a real miracle is, versus parking spots and figures of speech, then wrestle with whether miracles are possible and still happen today, groundwork for next week's lesson on the resurrection.",
+      "keyPoints": [
+        "Because there are miracles, God's existence is pointed to; 1 Kings 18, Elijah and the prophets of Baal, was chosen to show God's sovereign power.",
+        "The intro experience asks students to name improbable events, helping them define a biblical miracle versus a lucky parking spot or the so-called miracle of birth.",
+        "For this week's storyteller, consider a student who has witnessed a miracle, like the trusted student who saw a girl's legs healed in Africa.",
+        "Students are conditioned to assume science explains everything, but science cannot explain the supernatural; help them see what science can and cannot explain.",
+        "Students will ask why such miracles, like the lame man healed at the temple, don't happen today; we cannot say they don't, and God can.",
+        "Have leaders note whether students are convinced miracles are possible and have happened; ask the unconvinced what it would take, ahead of next week's resurrection lesson."
+      ],
+      "scriptures": [
+        "1 Kings 18"
+      ],
+      "questions": [
+        "What is the most improbable event in human history you can think of?",
+        "What counts as a real miracle, and what is just an improbable or lucky event?",
+        "Are you convinced miracles are possible, and that they have happened around you? If not, what would it take?",
+        "Why might God heal one person and not another, and how do we walk with someone through that?"
+      ]
+    },
+    "18": {
+      "week": 18,
+      "title": "Unit 5, Lesson 2: Resurrection",
+      "shortTitle": "Resurrection",
+      "bigIdea": "Per 1 Corinthians 15, without the resurrection Christianity falls apart, yet many church kids have never heard that there is historical evidence for it. This lesson frames the resurrection as a historical event with better evidence than any rival explanation, then asks students: if you are convinced, what changes?",
+      "keyPoints": [
+        "The speaker's students knew Jesus rose but had never considered 1 Corinthians 15's point: cut the thread of the resurrection and everything falls apart.",
+        "Mainline history agrees Jesus existed, was crucified by the Romans, and buried; Paul lists witnesses, the twelve and more than 500, as if saying ask them.",
+        "The intro experience has students consider documented events before their lifetime, the Roman Empire, Alexander the Great, so they see the resurrection as history.",
+        "For a storyteller, find a history professor or buff who tells history well, since the Gospels are historical narrative culminating in Christ's death and resurrection.",
+        "Nothing in history is provable beyond all doubt; the best evidence decides, including here the Bible, Jewish and Roman historians, the Didache, and Clement's letters.",
+        "Rival theories, a swoon, shallow grave, or substituted body, all have less evidence than the resurrection; ask students if convinced, and what must change."
+      ],
+      "scriptures": [
+        "1 Corinthians 15"
+      ],
+      "questions": [
+        "What would it mean for Christianity if Jesus had stayed in the grave?",
+        "How do we know about events like the Roman Empire or the Civil War, and how does the resurrection's evidence compare?",
+        "Are you convinced the evidence points to Jesus resurrecting? If not, what questions or roadblocks remain?",
+        "If you are convinced the resurrection happened, what does that mean for your life and what needs to change?"
+      ]
+    },
+    "19": {
+      "week": 19,
+      "title": "Unit 5, Lesson 3: Deity",
+      "shortTitle": "Deity",
+      "bigIdea": "Don't assume your students believe Jesus is God; many love his teaching with no intention of following him as God. In John 8 Jesus flatly claims deity, 'before Abraham was born, I am,' and there is evidence backing the claim. Press students with Jesus' own question: who do you say I am?",
+      "keyPoints": [
+        "The speaker assumed for years his students believed Jesus is God, until conversations, including one with Mormon visitors at his door, showed otherwise.",
+        "Students focus on John 8, where Jesus flatly says 'before Abraham was born, I am,' the claim that made the religious leaders want to kill him.",
+        "The intro activity has students write who they think they are, whether others agree, and what evidence backs it, like a scorer being a basketball player.",
+        "The trick: Jesus says who he is, and we have evidence for who he says he is; that combination gives us something solid.",
+        "Expect students to accept Jesus as a great moral teacher but resist him as God, because accountability to the God of the universe carries unwanted implications.",
+        "Like Jesus asking Peter in Matthew 16, ask students who they say Jesus is and why; if only a teacher, is it evidence or willingness?"
+      ],
+      "scriptures": [
+        "John 8",
+        "Matthew 16"
+      ],
+      "questions": [
+        "Who do you say Jesus is, and why do you answer that way?",
+        "What evidence backs up who you think you are, and what evidence backs up who Jesus claims to be?",
+        "Why is it easier to accept Jesus as a good moral teacher than as God of the universe?",
+        "If you see Jesus as only a teacher, what would it take to see him as God: more evidence, or willingness?"
+      ]
+    },
+    "20": {
+      "week": 20,
+      "title": "Unit 5, Lesson 4: Apostles",
+      "shortTitle": "Apostles",
+      "bigIdea": "It's easy to be a Christian at camp or youth group; not so easy everywhere else. The apostles were eyewitnesses who lived with Jesus, saw him die and rise, and were willing to die for that message. Nobody dies for what they know is a lie, so their fate is testimony students must reckon with.",
+      "keyPoints": [
+        "Mountaintop retreat experiences fade by Monday because Christianity is cool inside the youth-group pressure cooker but not out in the world where following Jesus is hard.",
+        "We know little about the apostles' lives, but many gave and all were willing to give their lives for the message they preached.",
+        "In Acts 4:20 Peter and John, facing persecution and threats, insist they cannot stop speaking about what they have seen and heard.",
+        "Students will object that others die for beliefs too; the difference is the apostles were eyewitnesses who lived with Jesus and saw him die and resurrect.",
+        "You will not die for something you know is a lie; this proves nothing beyond all doubt, but it shows the apostles were not lying.",
+        "Exact fates of some apostles are debated church tradition, but they suffered and died; the unit closes with miracles, resurrection, and deity converging in their testimony."
+      ],
+      "scriptures": [
+        "Acts 4:20"
+      ],
+      "questions": [
+        "How would you describe the conviction the apostles had for their message, and do you agree with it?",
+        "If you absolutely saw something and knew it was true, how far would you go to make sure the truth came out?",
+        "What fate did the apostles meet for spreading the gospel, and what does that mean for your faith?",
+        "Knowing all this about miracles, the resurrection, and the apostles, how will you live differently moving forward?"
+      ]
+    },
+    "21": {
+      "week": 21,
+      "title": "Unit 6, Lesson 1: Text",
+      "shortTitle": "Text",
+      "bigIdea": "No original 'autographs' of any ancient text survive, only manuscript copies. With over 6,000 New Testament manuscripts agreeing more than 95 percent — variants affecting no theology — the New Testament is better attested than the sources behind school history textbooks. What Paul wrote and Jesus said is what we actually have.",
+      "keyPoints": [
+        "An article claimed the Epistle of Barnabas proves Jesus never resurrected; this unit tackles how we know the Bible is true, accurate, and authoritative.",
+        "Answering 'the Bible is true because the Bible says so' is a circle; we need something exterior to establish whether it is actually true.",
+        "No autographs (originals) survive from antiquity, only manuscripts — copies, sometimes copies of copies — so the question is whether we have enough accurate ones.",
+        "Pliny's Natural History, a source behind Roman history in textbooks, survives in roughly 100 copies; the New Testament in over 6,000, over 20,000 counting related texts.",
+        "Across all the copies the text agrees in excess of 95 percent, and the differences — words like 'the' and 'a' — affect no theology.",
+        "Critic Bart Ehrman calls these 'error-ridden copies,' but the evidence contradicts him; help students weigh such mainstream media voices critically — Jonathan Morrow's Questioning the Bible helps."
+      ],
+      "scriptures": [],
+      "questions": [
+        "What's the difference between an autograph and a manuscript, and why does that matter for the New Testament?",
+        "How does the New Testament's manuscript evidence compare with the ancient sources your textbooks treat as fact?",
+        "When someone like Bart Ehrman says the Bible is full of errors, how would you respond?",
+        "If the Bible really is reliable, what will that mean for your life today, tomorrow, and down the road?"
+      ]
+    },
+    "22": {
+      "week": 22,
+      "title": "Unit 6, Lesson 2: Archaeology",
+      "shortTitle": "Archaeology",
+      "bigIdea": "Archaeology shows the Bible is not just inspired but genuinely historical. Like a signature or an artifact, physical finds — coins pointing to King David, an inscription naming Pontius Pilate — tie the biblical text to real history, making its story that much more reliable and more powerful for students.",
+      "keyPoints": [
+        "Ancient cities collapsed and were rebuilt on their own rubble; archaeologists dig down through these layers, called tells, into successively older time periods.",
+        "The signature introduction activity shows how clues date a find: marker, whiteboard, and identity together let you place roughly when it happened.",
+        "Your storyteller needn't be an archaeologist; someone who found a family heirloom shows how an artifact makes a story both more reliable and more powerful.",
+        "In small groups, drive home that the Bible is also history: coins indicate David really was a king, and an inscription names Pontius Pilate.",
+        "Expect pushback like 'isn't this just stories and myths?' — watch for those questions and be ready to talk them through.",
+        "If this evidence is new to you too, say so; students need to see this is a journey you are walking together."
+      ],
+      "scriptures": [],
+      "questions": [
+        "Two weeks in, what does the manuscript and archaeological evidence do for how you see the Bible?",
+        "How does connecting a story to a physical artifact change how much you trust the story?",
+        "What archaeological finds mentioned this week surprised you, and why?",
+        "If the Bible is real history and not just stories, what difference does that make for your life?"
+      ]
+    },
+    "23": {
+      "week": 23,
+      "title": "Unit 6, Lesson 3: Prophecy",
+      "shortTitle": "Prophecy",
+      "bigIdea": "Prophecy is trickier than manuscripts or archaeology: fulfilled prophecy can be dismissed as coincidence or manufactured. Jesus fulfilled Messianic prophecy contrary to expectations of a political-military ruler, establishing a spiritual kingdom instead — a worldview shift. Expect hard questions this week; write them down, research, and come back with real answers.",
+      "keyPoints": [
+        "Having shown the Bible accurate and historical, prophecy is trickier: fulfillment can be discounted as happenstance, coincidence, or something manufactured to look fulfilled.",
+        "The week's introduction activity and exploration walk students through Isaiah chapters 52 and 53.",
+        "This may be a difficult week: students may start firing all kinds of questions, especially at your small group leaders.",
+        "Don't pretend to have every answer; write questions down, research together, and come back — even taking an additional week if needed.",
+        "Skeptical students may be drawing closer, but the closer they get, the easier a brushed-off question can knock them off the edge.",
+        "Address the misconception directly: Jewish leaders expected a political, military ruler dethroning foreign rule; Jesus unexpectedly established a spiritual kingdom — a worldview shift."
+      ],
+      "scriptures": [
+        "Isaiah 52-53"
+      ],
+      "questions": [
+        "Could Jesus fulfilling hundreds of prophecies really be coincidence or something manufactured? Why or why not?",
+        "What do Isaiah 52 and 53 say the Messiah would be like, and how did Jesus fulfill that?",
+        "Why did the Messiah Jesus actually was differ so much from the ruler Jewish leaders expected?",
+        "What questions about prophecy do you still have that we should research together?"
+      ]
+    },
+    "24": {
+      "week": 24,
+      "title": "Unit 6, Lesson 4: Authority",
+      "shortTitle": "Authority",
+      "bigIdea": "If the Bible is reliable, historical, and prophetic, then it carries authority over our lives — so now what? Answer objections like 'it was written by men' (as Jesus is fully man and fully God, the Bible is written by men, inspired by God), aiming for students to appreciate, read, and follow it.",
+      "keyPoints": [
+        "This lesson invokes a response: if the Bible is everything we've shown so far, it has authority over our lives — so now what?",
+        "For the storyteller, use a student whose mind has been blown; a peer declaring the Bible authoritative is more powerful than an adult saying it.",
+        "If no student fits, invite a graduate now in college, facing contradictions on campus, to speak about the Bible's authority.",
+        "To the objection 'it was written by men': as Jesus is 100% man and 100% God, the Bible is written by men, inspired by God.",
+        "The Bible isn't merely man's record of who they thought God was; God came in Jesus, so it accurately shows who God really is.",
+        "The aim: students appreciate the Bible more, read it more, and follow it better — equipping them to talk intelligently about it in coming conversations."
+      ],
+      "scriptures": [],
+      "questions": [
+        "If the Bible really is accurate, historical, and prophetic, what should change in how you live — now what?",
+        "How would you answer someone who says the Bible can't be God's word because men wrote it?",
+        "What conclusions have you come to over these four weeks about the Bible's reliability?",
+        "The Bible is the best-selling yet perhaps least-read book in history; what would help you actually read it more?"
+      ]
+    },
+    "25": {
+      "week": 25,
+      "title": "Unit 7, Lesson 1: Evil",
+      "shortTitle": "Evil",
+      "bigIdea": "Evil is not a force God created; it is the absence of good, as darkness is the absence of light — the result of humanity's free choice to remove God since the garden. Philosophically, evil's very existence suggests God exists, because without good there is no standard for calling anything evil.",
+      "keyPoints": [
+        "Pray deliberately for yourself, your students, and your leaders; these next weeks dive into deep, heavy things and may surface real pain and doubts.",
+        "The coming weeks take two approaches to evil — philosophical (academic) and pastoral — so be patient; not every student responds to both.",
+        "Evil is not something God created; it is the absence or privation of good, like darkness is absence of light and cold of heat.",
+        "Since the garden, humanity chose to remove God and go its own way; God graciously allows free will, and evil resulted from that choice.",
+        "Use a storyteller about being lost: a compass only works by pointing to something external; God serves as that external moral compass.",
+        "Small group will get real fast: expect 'why does God allow suffering?'; table questions carefully, write them down, and pose them yourself if needed."
+      ],
+      "scriptures": [],
+      "questions": [
+        "Why does God allow suffering, and why do bad things happen to good people?",
+        "If evil is the absence of good rather than a created thing, how does that change how you think about it?",
+        "How does the very existence of evil actually suggest that God exists?",
+        "What happens when we make ourselves our own moral compass instead of orienting to something external?"
+      ]
+    },
+    "26": {
+      "week": 26,
+      "title": "Unit 7, Lesson 2: Falsehood",
+      "shortTitle": "Falsehood",
+      "bigIdea": "This lesson answers the atheist objection that an all-powerful, all-good God would have prevented evil. There are some things God cannot do, like contradict himself or lie, and he did not create evil. He has morally justified reasons for allowing it temporarily, even though we only see in part.",
+      "keyPoints": [
+        "The lesson responds to a common atheist objection: if God is so powerful and good, he would have prevented evil from the start.",
+        "In a debate, an atheist argued God should have made a 'God-world' of only God-like objects with no suffering or evil.",
+        "That fails: a world where everything equals God means God is no longer God, collapsing into a form of pantheism.",
+        "Being all-powerful does not mean God can do anything; God cannot contradict himself or lie, and he did not create evil.",
+        "God is not responsible for evil, and while he works to remedy it, he must allow us free will to make our own choices.",
+        "God has morally justified reasons for allowing evil's temporary existence; as Paul says in 1 Corinthians, we only see things in part right now."
+      ],
+      "scriptures": [],
+      "questions": [
+        "What are some things it is actually impossible for God to do, and what do those limits show about his nature?",
+        "If God did not create evil, why does he allow it, even for a time?",
+        "What good can come from evil? Brainstorm examples together.",
+        "How can we look to God for hope instead of doubting him because of the evil around us?"
+      ]
+    },
+    "28": {
+      "week": 28,
+      "title": "Unit 7, Lesson 4: Hell",
+      "shortTitle": "Hell",
+      "bigIdea": "Hell is not God; it is the tragic consequence of rejecting God. God does not send anyone there; we send ourselves by choosing not to want him. God invites us into relationship but never forces us, and that is love in action. Be patient as students process this hard reality.",
+      "keyPoints": [
+        "Rob Bell's Love Wins stirred controversy by suggesting endless chances to get to God and that hell is not really accurate, and students gravitated toward it.",
+        "The Bible is clear and Jesus is really clear that hell exists, but students discount it because no one wants to face consequences.",
+        "The intro experience has students imagine their favorite place, then strip out all its goodness, value, and joy, to sense what hell would be like.",
+        "Another picture: common grace is God sustaining every breath, sun, and rain for everyone; hell is all of that removed, uninhabitable.",
+        "God does not send anyone to hell; we send ourselves by choosing not to want him, and God honors that choice.",
+        "Students will ask how a good God who allows evil can also have hell; invite open discussion rather than Bible-thumping, and let them process patiently."
+      ],
+      "scriptures": [],
+      "questions": [
+        "Describe your favorite place, then remove everything good about it. What would be left, and what does that suggest hell is like?",
+        "If God is good and loving, why would hell exist as a consequence? Is that a contradiction?",
+        "Does God send people to hell, or do we send ourselves? What difference does that make?",
+        "How is God refusing to force us into relationship with him actually love in action?"
+      ]
+    },
+    "29": {
+      "week": 29,
+      "title": "Unit 8, Lesson 1: Love",
+      "shortTitle": "Love",
+      "bigIdea": "After months of apologetics knowledge, this lesson refocuses on love: as Paul says in 1 Corinthians, without love it is all for nothing. Students must learn to communicate their faith in love and humility, not to win arguments, because love builds relationships, and relationships, not conversions, are the goal.",
+      "keyPoints": [
+        "Paul says in 1 Corinthians that if we can do amazing things but do not have love, it is all for nothing.",
+        "Students have gained an incredible amount of knowledge, but it is easy to get caught up in being right and winning arguments instead of sharing with love.",
+        "This lesson trains students to communicate faith in love and humility: listening, being interested in others, and being just like Jesus.",
+        "The intro activity has students recall a time they experienced love, so they know how others ought to feel when love is expressed.",
+        "This week, go off script and role-play conversations done with love and without love; students need to see both before real conversations, and mistakes are okay.",
+        "Jesus said people will know his disciples by their love; focus on relationships, not conversions, because our love is how some people only ever see Jesus."
+      ],
+      "scriptures": [],
+      "questions": [
+        "Think of a time you truly experienced love. What did it feel like, and how should others feel when you love them?",
+        "What does a conversation about faith look like with love, and what does it look like without it?",
+        "What are ways to love and connect with other people that you have never thought of?",
+        "Why should we focus on building relationships rather than getting conversions?"
+      ]
+    },
+    "30": {
+      "week": 30,
+      "title": "Unit 8, Lesson 2: Questions",
+      "shortTitle": "Questions",
+      "bigIdea": "You do not need every answer to have gospel conversations; the art of asking good questions is the key tool. Two simple questions, 'What do you mean by that?' and 'How did you come to that conclusion?', dig deeper, buy time to think, and show genuine loving interest that builds relationship.",
+      "keyPoints": [
+        "Going out to have spiritual conversations is terrifying for introverted students, and having a plan of attack helps.",
+        "We feel we must answer every question to convince people, but nothing could be further from the truth; everyone gets stumped sometimes.",
+        "The strategy this week is asking good, probing questions rather than yes-or-no ones, especially when you do not know the other person's view.",
+        "First question: 'What do you mean by that?' It makes the person clarify their statement and buys you time to think more thoroughly.",
+        "Second question: 'How did you come to that conclusion?' Asked with genuine interest, not attitude, it shows you actually want to know what they think.",
+        "Asking great questions shows love and builds relationship, so when a person receives Christ, discipleship can actually begin rather than just a conversion."
+      ],
+      "scriptures": [],
+      "questions": [
+        "What makes starting a spiritual conversation feel terrifying, and how could a plan of attack help you?",
+        "Why is it a mistake to think you must have all the answers before sharing your faith?",
+        "Practice: someone says 'God can't exist because there's too much evil.' How would you use the two questions in reply?",
+        "How does asking good questions show love and build relationship instead of just feeding someone your opinion?"
+      ]
+    },
+    "31": {
+      "week": 31,
+      "title": "Unit 8, Lesson 3: Doubt",
+      "shortTitle": "Doubt",
+      "bigIdea": "The speaker walked away from Christianity in high school because his doubts were met with 'just believe.' Students will face doubt too, and unanswered doubts are one reason so many leave youth group after high school. Invite doubts openly and walk with students through them; God can handle any question.",
+      "keyPoints": [
+        "The speaker left Christianity as a high school student because he had questions and doubts and was told not to ask them, just to have faith.",
+        "Statistics still show a large majority of students leave youth group after high school, and unanswered doubts are one reason why.",
+        "More information often brings more questions, so keep the group an open, authentic forum that invites the difficult questions, and share your own doubts.",
+        "Helping students navigate doubt actually furthers their faith; expressing doubts freely shows them leaders understand, have been there, and will walk with them.",
+        "The intro activity has each student write down one question they are wrestling with; a Q&A session lets one student's question answer another's unspoken one.",
+        "Make sure small group leaders are equipped, know it is okay to say 'I don't have an answer,' and use a storyteller who has walked through doubt."
+      ],
+      "scriptures": [],
+      "questions": [
+        "What is one question about God or faith you have been wrestling with?",
+        "Have you ever felt you were not allowed to ask a question about faith? What happened?",
+        "Why do you think doubts, when answered honestly, can actually make faith stronger?",
+        "Who could you talk to when a doubt feels bigger than you can handle alone?"
+      ]
+    },
+    "32": {
+      "week": 32,
+      "title": "Unit 8, Lesson 4: Challenges",
+      "shortTitle": "Challenges",
+      "bigIdea": "The final week wraps up the year: celebrate, take inventory of how far students have come, and prepare them for what is next. Remind them it is God who does the saving, that they will face challenges and failures, and to be faithful to the gifts God has given them.",
+      "keyPoints": [
+        "This final lesson caps a year preparing students to be entirely confident and to engage their culture with the truth of the gospel.",
+        "Take time to celebrate; this has been one of the most difficult topics some students have ever dealt with in church.",
+        "Do an inventory: have students compare their thinking now with lesson 1.1, ask what questions were answered, and ask seniors if they feel ready.",
+        "Choose a storyteller who can share failures as well as successes, because students will fall flat sometimes and generally learn more from failure.",
+        "It is not us who does the saving; some water, some plant, but God causes the growth, from excavators to tree shakers.",
+        "Encourage students to be faithful to their own gifts; they will face unanswered questions and also the thrill of leading someone to Christ."
+      ],
+      "scriptures": [],
+      "questions": [
+        "Look back at your notes from lesson 1.1. How has your thinking changed since the year began?",
+        "Have the questions you had at the start been answered? What new questions do you have now?",
+        "Are you an excavator, a tree shaker, or something in between? How has God gifted you for sharing truth?",
+        "Seniors: do you feel ready for what is next, and what would help you be more ready?"
+      ]
+    }
+  }
+}

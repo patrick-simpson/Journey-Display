@@ -625,8 +625,42 @@ directly):
     across 13 weeks; the first hardened week flagged **zero**. The cost
     is slightly less cross-window consistency, which is a good trade
     against inventing scripture.
-- **`public/handouts/week-NN-leader-handout.pdf`** — a one-page
-  **accessible** (tagged) PDF summary of each Leader Video for leaders:
+- **`public/handouts/week-NN-leader-handout.pdf`** — an **accessible**
+  (tagged) PDF for leaders: page 1 is the summary, and after it come the
+  **transcript pages** (owner-requested 2026-09-06) — that week's Leader
+  Video edited into readable prose, a timestamp beside each paragraph and
+  section headings to skim by. Roughly 2-5 pages of transcript per handout;
+  week 27 has no Leader Video, so it has no handout at all.
+  - The whole pipeline lives in the repo now, so a handout can actually be
+    corrected and regenerated: `data/leader-handout-summaries.json` (page 1)
+    and `data/leader-transcript-prose.json` (the edited transcript) are
+    hand-editable data; `scripts/render-leader-handouts.mjs` renders, and
+    `scripts/finalize-handout-pdf.py` stamps /Lang, the XMP+docinfo title
+    and DisplayDocTitle **and verifies** every file is tagged, titled and
+    language-marked. Both data files are build inputs, deliberately NOT under
+    `public/` — the transcript is already published there as the caption
+    `.vtt`, and there is no reason to serve a second copy.
+  - The prose is *edited for reading* (the owner's choice over verbatim):
+    spoken grammar repaired, filler and false starts removed, every point,
+    example and Scripture reference kept. Two rules exist because the leader
+    transcripts came from whisper's **small** model, not large-v3 like the
+    student ones — an error that flickers past in a caption is permanent in
+    print: an editor may repair a misheard word only when context makes the
+    intended one unambiguous, and must **never** guess at a proper noun or a
+    Scripture reference (leave the oddity instead). Every week was then
+    re-checked against its own VTT by a second pass.
+  - `scripts/validate-transcript-prose.py` gates it mechanically, because
+    proofreading cannot catch these: paragraphs must **tile the cue numbers**
+    1..lastCue with no gap (a dropped passage shows up as a gap), the edited
+    text must stay above half the spoken word count (below that it was
+    summarized, not edited), and **every book of the Bible named in the prose
+    must also appear in the transcript** — which is what catches an invented
+    or "tidied-up" citation. Run it before rendering.
+  - **`@page` carries the margins, not `body` padding.** Body padding only
+    insets the first page's top and the last page's bottom, so with the old
+    single-page CSS the new transcript pages ran to the paper's edge.
+- **The old one-page description, for context** — page 1 is still exactly
+  this: a summary of each Leader Video for leaders:
   Big Idea, Key Points, Scripture, Discussion Questions, plus the
   trademark/internal-use footer. Generated from semantic HTML via
   Chromium `page.pdf({ tagged: true })` (real structure tags), then a
