@@ -87,11 +87,20 @@ def check(week, entry):
     if ratio < MIN_LENGTH_RATIO:
         problems.append(f'summarized, not edited: {edited} words vs {len(words)} spoken ({ratio:.0%})')
 
-    # SCRIPTURE
-    said = set(m.group(1).split()[-1] for m in BOOKS.finditer(' '.join(words)))
+    # SCRIPTURE. Matched case-INSENSITIVELY against the transcript: speech
+    # recognition does not reliably capitalize a book name (week 1's audio came
+    # through as "we see in acts 420"), and demanding a capital there raised
+    # false alarms on citations the editor had repaired correctly. A gate that
+    # cries wolf gets ignored, so the trade is deliberate — it does mean a
+    # prose citation of "Acts" passes if the transcript only ever used "acts"
+    # as an ordinary verb. What still gets caught is the case that matters: a
+    # book named in the handout that appears nowhere in what was said.
+    spoken_text = ' '.join(words).lower()
+    said = set(m.group(1).split()[-1] for m in BOOKS.finditer(spoken_text.title()))
+    said |= set(b.lower() for b in said)
     for m in BOOKS.finditer(' '.join(p['text'] for p in paras)):
         book = m.group(1).split()[-1]
-        if book not in said:
+        if book.lower() not in said and book.lower() not in spoken_text:
             problems.append(f'cites "{m.group(1)}" — never named in the transcript')
 
     # SHAPE
