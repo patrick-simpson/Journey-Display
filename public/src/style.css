@@ -624,6 +624,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   max-height: 88vh;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
   background: #1a1a1a;
   color: #ffffff;
   border-radius: 20px;
@@ -666,7 +667,15 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   margin-bottom: 1.25rem;
 }
 
+/* The lesson list is the card's flexible middle: it takes the space left over
+   after the header and the teaching-slide preferences below it, and scrolls
+   internally. The min-height floor matters — without it, on a short window
+   (or a phone, where the preferences block is tall) flexbox squeezed the list
+   to zero and the picker became unusable; the card's own overflow then catches
+   whatever still doesn't fit. */
 #settings-lesson-list {
+  flex: 1 1 auto;
+  min-height: 10rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1134,4 +1143,35 @@ html.cursor-hidden #slide-controls {
   height: 1.6rem;
   accent-color: #c8102e;
   cursor: pointer;
+}
+
+/* Phone: one scroller, not two. The card itself scrolls and the lesson list
+   renders at its natural height, so a thumb-scroll runs through the weeks and
+   on into the preferences below — instead of a short list fighting the card
+   for room. The auto-advance row stacks so its menu can't overhang the card. */
+@media (max-width: 760px) {
+  #settings-lesson-list {
+    flex: none;
+    min-height: 0;
+    overflow-y: visible;
+  }
+
+  .settings-slides-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+  }
+
+  .settings-slides-field select {
+    width: 100%;
+  }
+
+  .settings-slides-check {
+    align-items: flex-start;
+  }
+
+  .settings-slides-check input {
+    margin-top: 0.15em;
+    flex: none;
+  }
 }
