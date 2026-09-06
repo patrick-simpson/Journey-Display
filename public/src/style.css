@@ -884,3 +884,254 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   background: #ff2e52 !important;
   transition: none;
 }
+
+/* ── Teaching slides (after the lesson video) ──────────────────────────
+   Awana's four 4:3 teaching slides for the lesson, then the generated
+   Talk About It / Remember This / This Week slides, shown once the video
+   ends. The stage is the largest 4:3 box that fits the screen (pillarboxed
+   on a 16:9 TV, letterboxed on a phone); everything inside is sized
+   relative to that box so the layout matches the deck at any screen size.
+   Static images + text only — no animation budget spent here at all. */
+#slides-view {
+  position: absolute;
+  inset: 0;
+  z-index: 6; /* over the (hidden) video, under the corner buttons (10) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+}
+
+#slide-stage {
+  position: relative;
+  width: min(100vw, calc(100vh * 4 / 3));
+  height: min(100vh, calc(100vw * 3 / 4));
+  background: #000000;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#slide-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* The generated slides reproduce Awana's TEMPLATE slide: a centered
+   heading over three left-aligned bullets on the deck's own background
+   texture (extracted per week into slides/week-NN/template.jpg). Type is
+   measured against the stage height — the deck is 7.5in tall, its heading
+   60pt (~10.5%) and bullets 36pt when empty; filled bullets run smaller so
+   an 80-character line wraps to two lines, not three. */
+#slide-template {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  color: #ffffff;
+  font-family: Calibri, Carlito, system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  padding: calc(min(100vh, 75vw) * 0.055) calc(min(100vw, 133.33vh) * 0.07) calc(min(100vh, 75vw) * 0.05);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+#slide-template-heading {
+  flex: none;
+  text-align: center;
+  font-weight: 400;
+  font-size: calc(min(100vh, 75vw) * 0.105);
+  line-height: 1.15;
+  margin-bottom: calc(min(100vh, 75vw) * 0.07);
+}
+
+#slide-template-bullets {
+  flex: 1;
+  min-height: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 calc(min(100vw, 133.33vh) * 0.02);
+  font-size: calc(min(100vh, 75vw) * 0.052);
+  line-height: 1.28;
+  display: flex;
+  flex-direction: column;
+  gap: calc(min(100vh, 75vw) * 0.045);
+}
+
+#slide-template-bullets li {
+  position: relative;
+  padding-left: 1.1em;
+}
+
+#slide-template-bullets li::before {
+  content: '\2022';
+  position: absolute;
+  left: 0;
+}
+
+/* Prev / counter / Next — same pill as the video bar, same idle fade, same
+   reserved corner for the ⇄ button. Space / → / ← and tapping the slide
+   (right two-thirds = next, left third = back) work without it. */
+#slide-controls {
+  position: absolute;
+  left: max(3vw, 24px);
+  right: calc(max(3vw, 24px) + 88px);
+  bottom: max(3vh, 24px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 10;
+  transition: opacity 0.25s ease;
+  touch-action: manipulation;
+}
+
+html.cursor-hidden #slide-controls {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#slide-prev-btn,
+#slide-next-btn {
+  flex: none;
+  min-width: 7.5em;
+  padding: 12px 22px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #000000;
+  font-family: system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#slide-next-btn {
+  background: #c8102e;
+  color: #ffffff;
+}
+
+#slide-prev-btn:hover,
+#slide-prev-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+#slide-next-btn:hover,
+#slide-next-btn:focus-visible {
+  background: #e8123a;
+}
+
+#slide-prev-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+#slide-prev-btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.95);
+  transition: none;
+}
+
+#slide-next-btn:active {
+  background: #a00d25;
+  transition: none;
+}
+
+#slide-counter {
+  color: #ffffff;
+  font-family: system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  #slide-prev-btn,
+  #slide-next-btn {
+    min-width: 0;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+  }
+
+  #slide-counter {
+    font-size: 0.95rem;
+  }
+}
+
+/* Settings → teaching-slide preferences (10-foot sized like the rest). */
+#settings-slides {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#settings-slides h3 {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.settings-slides-hint {
+  font-size: 1.2rem;
+  opacity: 0.7;
+}
+
+.settings-slides-hint kbd {
+  display: inline-block;
+  padding: 0.05em 0.45em;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  font-family: inherit;
+  font-size: 0.95em;
+}
+
+.settings-slides-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 1.4rem;
+}
+
+.settings-slides-field select {
+  font: inherit;
+  font-size: 1.25rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.settings-slides-field select option {
+  color: #000000;
+}
+
+.settings-slides-label {
+  font-size: 1.3rem;
+  opacity: 0.85;
+  margin-top: 0.25rem;
+}
+
+.settings-slides-check {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1.35rem;
+  cursor: pointer;
+}
+
+.settings-slides-check input {
+  width: 1.6rem;
+  height: 1.6rem;
+  accent-color: #c8102e;
+  cursor: pointer;
+}

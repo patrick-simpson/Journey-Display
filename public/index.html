@@ -33,7 +33,7 @@
         <span id="journey-splash-play-icon" aria-hidden="true">▶</span>
         Begin Video
       </button>
-      <p id="journey-splash-prompt">or press <kbd>Space</kbd> / <kbd>→</kbd></p>
+      <p id="journey-splash-prompt">or press <kbd>Space</kbd> / <kbd>→</kbd> &middot; <kbd>S</kbd> for settings</p>
     </div>
     <video id="journey-video" class="hidden" muted playsinline></video>
     <div id="caption-prompt" class="hidden" role="dialog" aria-modal="true" aria-labelledby="caption-prompt-q">
@@ -55,6 +55,20 @@
       <button id="cc-btn" type="button" class="hidden" aria-pressed="false" aria-label="Toggle captions">CC</button>
       <input id="video-scrubber" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek" />
       <span id="video-time">0:00</span>
+    </div>
+    <div id="slides-view" class="hidden" aria-label="Teaching slides">
+      <div id="slide-stage">
+        <img id="slide-image" alt="" draggable="false" />
+        <div id="slide-template" class="hidden">
+          <h2 id="slide-template-heading"></h2>
+          <ul id="slide-template-bullets"></ul>
+        </div>
+      </div>
+      <div id="slide-controls">
+        <button id="slide-prev-btn" type="button">&larr; Back</button>
+        <span id="slide-counter" aria-live="polite"></span>
+        <button id="slide-next-btn" type="button">Next &rarr;</button>
+      </div>
     </div>
   </div>
 
@@ -88,6 +102,28 @@
           <button id="settings-leader-handout" type="button">View Handout</button>
         </div>
         <button id="settings-leader-back" type="button">← Back</button>
+      </div>
+      <div id="settings-slides">
+        <h3>After the video: teaching slides</h3>
+        <p class="settings-slides-hint">
+          Awana&rsquo;s teaching slides for the lesson play once the video ends.
+          <kbd>Space</kbd> / <kbd>&rarr;</kbd> next, <kbd>&larr;</kbd> back, or tap the slide.
+        </p>
+        <label class="settings-slides-field" for="slides-auto-advance">
+          <span>Auto-advance</span>
+          <select id="slides-auto-advance">
+            <option value="0">Off &mdash; advance by hand</option>
+            <option value="15">Every 15 seconds</option>
+            <option value="30">Every 30 seconds</option>
+            <option value="45">Every 45 seconds</option>
+            <option value="60">Every minute</option>
+            <option value="120">Every 2 minutes</option>
+          </select>
+        </label>
+        <p class="settings-slides-label">Add to the end of the deck:</p>
+        <label class="settings-slides-check"><input type="checkbox" id="slides-extra-questions" /> <strong>Talk About It</strong> &mdash; discussion questions</label>
+        <label class="settings-slides-check"><input type="checkbox" id="slides-extra-takeaways" /> <strong>Remember This</strong> &mdash; key takeaways</label>
+        <label class="settings-slides-check"><input type="checkbox" id="slides-extra-challenges" /> <strong>This Week</strong> &mdash; challenges to try</label>
       </div>
     </div>
   </div>

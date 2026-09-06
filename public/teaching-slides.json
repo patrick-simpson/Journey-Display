@@ -1,0 +1,715 @@
+{
+  "version": 1,
+  "sourceUrl": "https://clubs.awana.org/ym-course/advocates/",
+  "headings": {
+    "questions": "Talk About It",
+    "takeaways": "Remember This",
+    "challenges": "This Week"
+  },
+  "weeks": {
+    "1": {
+      "title": "Unit 1, Lesson 1: Apologetics",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-1/journey-advocates-1-1-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Why do you believe what you believe, and could you explain it to a friend?",
+          "Peter ran from the cross, then spoke boldly in Acts. What changed him?",
+          "Is there a question about your faith you have never felt safe asking?"
+        ],
+        "takeaways": [
+          "Apologetics means giving a reason, a defense, for the hope you have.",
+          "You are called not only to defend your faith but to be able to do it.",
+          "Jesus, Paul, and Peter all gave good, consistent reasons for their faith."
+        ],
+        "challenges": [
+          "Write down, in your own words, one honest reason you believe.",
+          "Read 1 Peter 3:15 this week and notice the words gentleness and respect.",
+          "Bring one hard faith question to club and work through it with your group."
+        ]
+      }
+    },
+    "2": {
+      "title": "Unit 1, Lesson 2: Faith",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-1/journey-advocates-1-2-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "When has a friend earned your trust, and what did they do to earn it?",
+          "Is the faith you have really your own, or is it borrowed from your parents?",
+          "Why do you think Jesus kept his wounds and showed them to Thomas?"
+        ],
+        "takeaways": [
+          "Biblical faith is trust based on evidence, not wandering in the dark.",
+          "John wrote down Jesus' signs so that you may believe (John 20:30-31).",
+          "Faith is a solid foundation, like a basement that holds up the whole house."
+        ],
+        "challenges": [
+          "Look up Jesus' signs in John's gospel, from water into wine to Lazarus.",
+          "Ask yourself honestly whether you have looked at the evidence for Jesus.",
+          "Notice this week how trust grows as you get to know a friend better."
+        ]
+      }
+    },
+    "3": {
+      "title": "Unit 1, Lesson 3: Truth",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-1/journey-advocates-1-3-teaching-slides.pptx.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Where do you see feelings treated as more important than facts?",
+          "Is your favorite ice cream flavor a subjective or an objective truth? Why?",
+          "Jesus said 'I am the way.' Can that be true for you but not for others?"
+        ],
+        "takeaways": [
+          "Truth is what corresponds with reality, whether we like it or not.",
+          "Subjective truth is about you; objective truth is about the object.",
+          "Jesus' claim in John 14 is objective: true or false, whatever we think."
+        ],
+        "challenges": [
+          "Notice one idea this week that sounds good but does not match reality.",
+          "Sort three things you believe into subjective truth or objective truth.",
+          "Think about how living by what is true could make you more free in Christ."
+        ]
+      }
+    },
+    "4": {
+      "title": "Unit 1, Lesson 4: Logic",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-1/journey-advocates-1-4-teaching-slides.pptx.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Should faith make sense? Why or why not?",
+          "How do you use logic in your friendships to figure out what's true?",
+          "Which argument against Christianity sounds good until you think it through?"
+        ],
+        "takeaways": [
+          "Logic is not a threat to faith; it is a God-given tool for finding truth.",
+          "In Matthew 22 Jesus used careful reasoning to answer the Pharisees.",
+          "Maturity means leaving spiritual milk for solid food (Hebrews 5-6)."
+        ],
+        "challenges": [
+          "Write down one thing about your faith that doesn't make sense to you yet.",
+          "When you hear a weak argument, follow it to its natural conclusion.",
+          "Read how Paul reasons from Scripture in Acts and notice his logic."
+        ]
+      }
+    },
+    "5": {
+      "title": "Unit 2, Lesson 1: Worldview",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-2/journey-advocates-2-1-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "What lenses do you look through, and where did you first pick them up?",
+          "Where is your worldview a buffet, with pieces that don't fit together?",
+          "How do movies and music you love show a worldview without ever saying so?"
+        ],
+        "takeaways": [
+          "A worldview is the lens you see through, and it shapes how you live.",
+          "A worldview has to be coherent and consistent, or over time it breaks down.",
+          "Christianity is compelling because it holds together as one whole view."
+        ],
+        "challenges": [
+          "Answer the four worldview questions honestly, not how you think you should.",
+          "Notice the worldview behind one show or song you take in this week.",
+          "Next time you ask Google a big question, stop and consider the source."
+        ]
+      }
+    },
+    "6": {
+      "title": "Unit 2, Lesson 2: Monotheism",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-2/journey-advocates-2-2-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "What changes when you know God by name, not just as God Almighty?",
+          "How would one personal God change what you believe about right and wrong?",
+          "How would one caring, personal God change how you treat friends and family?"
+        ],
+        "takeaways": [
+          "Monotheism means one personal God who has made himself known to us.",
+          "In Exodus 6, God reveals his name, the Lord, and remembers his covenant.",
+          "God does not create and walk away; he pursues his people to redeem them."
+        ],
+        "challenges": [
+          "Read Exodus 6:1-5 and notice how God describes himself to Moses.",
+          "Try viewing one ordinary day as if God is pursuing you personally.",
+          "Name one way your view of God could shape culture, not just follow it."
+        ]
+      }
+    },
+    "7": {
+      "title": "Unit 2, Lesson 3: Pantheism",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-2/journey-advocates-2-3-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "How is God's Spirit living in you different from god being in everything?",
+          "Why does it matter that God is distinct from the world He made?",
+          "How can you talk about a friend's beliefs honestly and still show love?"
+        ],
+        "takeaways": [
+          "Pantheism says god is in everything, so nothing is distinct from god.",
+          "Losing the line between Creator and creation leads straight to idolatry.",
+          "Because God is holy and other than us, we have a standard for right and wrong."
+        ],
+        "challenges": [
+          "Notice one place this week where karma, the Force, or yoga shows up.",
+          "Read Paul's talk at Mars Hill and spot how he separates God from creation.",
+          "Ask yourself what you tend to elevate to god-like status, and why."
+        ]
+      }
+    },
+    "8": {
+      "title": "Unit 2, Lesson 4: Naturalism",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-2/journey-advocates-2-4-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Where do you see naturalism showing up in your school or classes?",
+          "If only what you can sense is real, where do justice and love come from?",
+          "Why would someone who rejects God still want to give kids clean water?"
+        ],
+        "takeaways": [
+          "Naturalism says only what you can taste, touch, smell, or feel is real.",
+          "Science only studies the natural world, so it cannot say why we are here.",
+          "Justice, love, and morality point to a Creator beyond the natural world."
+        ],
+        "challenges": [
+          "Read the opening of Ecclesiastes and ask what makes your life meaningful.",
+          "Notice one moment this week when you are taught that only nature is real.",
+          "Ask yourself if what you value and what you believe actually fit together."
+        ]
+      }
+    },
+    "9": {
+      "title": "Unit 3, Lesson 1: Science",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-3/journey-advocates-3-1-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Where have you been told that faith and science just don't mix?",
+          "What are you learning in school right now that makes you think about God?",
+          "Is your faith kept private, or does it show up at school and in public?"
+        ],
+        "takeaways": [
+          "Science doesn't contradict faith; it lays a foundation to know our world.",
+          "The more we discover through science, the more we see how awesome God is.",
+          "Faith and science were never meant to live in two separate spheres of life."
+        ],
+        "challenges": [
+          "Bring one thing from a science or math class and ask how it points to God.",
+          "Ask a Christian who works in science how they see God through their work.",
+          "Pick one place where Jesus stays private and let Him into your public life."
+        ]
+      }
+    },
+    "10": {
+      "title": "Unit 3, Lesson 2: Universe",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-3/journey-advocates-3-2-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "If you had no Bible, what would nature alone tell you about God?",
+          "Is the universe random chance or a crafted design? Why do you think so?",
+          "What does a fine-tuned home for us reveal about God's heart?"
+        ],
+        "takeaways": [
+          "Like a bottle flip, what looks like luck is really fine-tuning.",
+          "Earth's rotation, atmosphere, and distance from the sun are set just so.",
+          "God did not just make a habitable planet; He made us a home with love."
+        ],
+        "challenges": [
+          "Take one minute this week to consider that God made a place for you.",
+          "Notice one thing in nature that seems set just right for life to thrive.",
+          "Start putting the pieces together: how does science further your faith?"
+        ]
+      }
+    },
+    "11": {
+      "title": "Unit 3, Lesson 3: DNA",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-3/journey-advocates-3-3-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Halfway through the science unit, what has truly made sense to you so far?",
+          "Do you ever nod along in a lesson while secretly thinking you don't get it?",
+          "How does comparing DNA to a book help you picture what DNA really is?"
+        ],
+        "takeaways": [
+          "Honest questions are welcome here; faith grows when you ask them out loud.",
+          "What textbooks teach is a narrative you can examine, not just accept.",
+          "It is okay to slow down and revisit an idea until it truly makes sense."
+        ],
+        "challenges": [
+          "Tell a leader honestly where you are: confused, fired up, or in between.",
+          "Notice how your school textbook talks about DNA and bring one line to club.",
+          "Try explaining DNA to a friend using the simple picture of a book."
+        ]
+      }
+    },
+    "12": {
+      "title": "Unit 3, Lesson 4: Designer",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-3/journey-advocates-3-4-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Of fine-tuning, DNA, and design, which evidence spoke to you most, and why?",
+          "Was this enough evidence for you, or what questions do you still have?",
+          "How can you challenge a teacher's view while still showing real respect?"
+        ],
+        "takeaways": [
+          "Science is a foundation for understanding our world, not an enemy of faith.",
+          "Fine-tuning, DNA, and design all point to God through what science shows.",
+          "Know what you believe and why, then share it with love and humility."
+        ],
+        "challenges": [
+          "Write down one question about creation or design you still want answered.",
+          "Before you debate anyone, check that truth and love are driving you.",
+          "Stay patient and keep learning; there is so much more to discover."
+        ]
+      }
+    },
+    "13": {
+      "title": "Unit 4, Lesson 1: Morality",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-4/journey-advocates-4-1-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Is it a fact that murder is wrong, or just an opinion? How do you know?",
+          "Where do your ideas about right and wrong actually come from?",
+          "If copying homework isn't wrong just \"because we don't,\" is that a good reason?"
+        ],
+        "takeaways": [
+          "Right and wrong are more than opinion; God is the standard we compare to.",
+          "A boy who is \"one Johnny tall\" can't measure himself, and neither can we.",
+          "Having a sense of right and wrong at all is evidence that points to God."
+        ],
+        "challenges": [
+          "Notice one time this week you call something wrong, and ask yourself why.",
+          "Ask a friend whether murder is wrong as fact or opinion, and really listen.",
+          "Hear someone's reasons fully before you challenge what they believe."
+        ]
+      }
+    },
+    "14": {
+      "title": "Unit 4, Lesson 2: Beauty",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-4/journey-advocates-4-2-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Where do you notice beauty in everyday life, and what might it point to?",
+          "Which question from this study is still unanswered for you right now?",
+          "How have your beliefs or questions changed since this study began?"
+        ],
+        "takeaways": [
+          "Beauty, agency, and story point to God, just as morality does.",
+          "God is present in the ordinary things you see and interact with every day.",
+          "This whole study is meant to prepare you to move the gospel forward."
+        ],
+        "challenges": [
+          "Write down one question you feel stuck on and ask a leader this week.",
+          "If you're not buying something, say so; honest pushback is welcome here.",
+          "Welcome someone new to the group so they don't feel behind or intimidated."
+        ]
+      }
+    },
+    "15": {
+      "title": "Unit 4, Lesson 3: Agency",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-4/journey-advocates-4-3-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Why do so many questions about why things happen come down to human choices?",
+          "Why might the fact that you can choose at all point to a God who exists?",
+          "When is it hard to be honest in your group, and what would make it safer?"
+        ],
+        "takeaways": [
+          "Your ability to choose is a gift from God, and it points to him.",
+          "Free will is both a privilege and a responsibility, not just freedom.",
+          "How you choose to live should reflect who God is."
+        ],
+        "challenges": [
+          "Before each choice this week, big or small, ask if it reflects who God is.",
+          "Find one way to serve alongside your group, at church or in your community.",
+          "Notice a quiet person in your group and invite them into the conversation."
+        ]
+      }
+    },
+    "16": {
+      "title": "Unit 4, Lesson 4: Story",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-4/journey-advocates-4-4-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Where do you see God's rescue or redemption in your own life story?",
+          "Why do you think people everywhere love telling and hearing stories?",
+          "Which topic this year has been hardest for you to understand or accept?"
+        ],
+        "takeaways": [
+          "Story itself comes from God, so our love of stories points back to him.",
+          "We can tell great stories because we are made in God's image.",
+          "Many favorite books and movies carry hidden themes of salvation."
+        ],
+        "challenges": [
+          "Watch a movie or read a book this week and look for its redemptive themes.",
+          "Pick one topic from this year and explain it to a friend or family member.",
+          "Ask a leader one question you still can't answer, or research it yourself."
+        ]
+      }
+    },
+    "17": {
+      "title": "Unit 5, Lesson 1: Miracles",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-5/journey-advocates-5-1-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "What is the most improbable event you can think of in human history?",
+          "Is a good parking spot or a baby's birth a miracle like those in Scripture?",
+          "If miracles still happen, why do you think you rarely see them near you?"
+        ],
+        "takeaways": [
+          "Miracles point to the fact that God exists and show us exactly who He is.",
+          "Science cannot explain the supernatural, so it can't explain away miracles.",
+          "God still has the power to do miracles of biblical size if He chooses."
+        ],
+        "challenges": [
+          "Read 1 Kings 18 and notice how the fire showed God's sovereign power.",
+          "Ask someone you trust whether they have ever witnessed a real miracle.",
+          "Be honest with yourself: are you convinced miracles are even possible?"
+        ]
+      }
+    },
+    "18": {
+      "title": "Unit 5, Lesson 2: Resurrection",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-5/journey-advocates-5-2-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "How would you respond to a friend who says the resurrection is just a myth?",
+          "How do you know Alexander the Great was real when you weren't there?",
+          "Does the evidence convince you Jesus rose, or does something hold you back?"
+        ],
+        "takeaways": [
+          "Without the resurrection, Christianity falls apart (1 Corinthians 15).",
+          "The resurrection is history, with evidence inside and outside the Bible.",
+          "No rival theory has better evidence than the resurrection."
+        ],
+        "challenges": [
+          "Read 1 Corinthians 15 and notice how Paul points to living witnesses.",
+          "Write down one question about the resurrection you still want answered.",
+          "If you believe Jesus rose, name one thing in your life that should change."
+        ]
+      }
+    },
+    "19": {
+      "title": "Unit 5, Lesson 3: Diety",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-5/journey-advocates-5-3-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "When Jesus asks 'Who do you say I am?', how would you answer him today?",
+          "Why is it easier to call Jesus a good teacher than to call him God?",
+          "What evidence backs up who you say you are, and what backs up who Jesus is?"
+        ],
+        "takeaways": [
+          "In John 8 Jesus flatly claims to be God: 'Before Abraham was born, I am.'",
+          "Not everyone who says 'Jesus' means the same thing, so be clear who he is.",
+          "A good moral teacher can be ignored, but the God of the universe cannot."
+        ],
+        "challenges": [
+          "Read John 8 this week and notice how Jesus describes himself.",
+          "Ask a friend who they think Jesus is, then listen for why they think it.",
+          "Be honest with yourself: is it a lack of evidence or a lack of willingness?"
+        ]
+      }
+    },
+    "20": {
+      "title": "Unit 5, Lesson 4: Apostles",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-5/journey-advocates-5-4-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "How would you describe the apostles' conviction, and do you agree with it?",
+          "If you knew something was true, how far would you go to make it known?",
+          "What does the apostles' fate mean for your own faith, here and now?"
+        ],
+        "takeaways": [
+          "The apostles lived with Jesus and saw him die and rise with their own eyes.",
+          "Nobody dies for what they know is a lie, so the apostles were not lying.",
+          "Peter and John could not stop telling what they saw and heard (Acts 4:20)."
+        ],
+        "challenges": [
+          "Notice one place this week where following Jesus is harder than at club.",
+          "Pray for boldness to talk about Jesus where it is not easy or popular.",
+          "Review miracles and the resurrection, then ask what changes for you now."
+        ]
+      }
+    },
+    "21": {
+      "title": "Unit 6, Lesson 1: Text",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-6/journey-advocates-6-1-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Why does 'the Bible is true because it says so' just go in a circle?",
+          "How would you answer a friend who says we only have error-filled copies?",
+          "If the Bible really is reliable, what should change in your life this week?"
+        ],
+        "takeaways": [
+          "No originals of ancient texts survive, only copies called manuscripts.",
+          "Over 6,000 New Testament copies agree more than 95 percent of the time.",
+          "The New Testament is more reliable than the history in your textbooks."
+        ],
+        "challenges": [
+          "List the documents that prove who you are, then ask what proves the Bible.",
+          "When a TV expert says the Bible is full of errors, ask for the evidence.",
+          "Read something Paul wrote this week, trusting it is what he actually wrote."
+        ]
+      }
+    },
+    "22": {
+      "title": "Unit 6, Lesson 2: Archaeology",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-6/journey-advocates-6-2-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "How does linking a story to a real object change how much you trust it?",
+          "After two weeks of evidence, has the way you see the Bible changed at all?",
+          "If a friend said the Bible is just old myths, how would you answer them?"
+        ],
+        "takeaways": [
+          "The Bible is God's inspired Word, and it is also real history.",
+          "Archaeologists date a find by the layer it sits in and the clues it holds.",
+          "Coins point to King David, and an inscription names Pontius Pilate."
+        ],
+        "challenges": [
+          "Ask someone older to show you a family keepsake and tell its story.",
+          "Notice clues in everyday objects that reveal when they were made.",
+          "Read a Bible story this week as an account of real people and places."
+        ]
+      }
+    },
+    "23": {
+      "title": "Unit 6, Lesson 3: Prophecy",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-6/journey-advocates-6-3-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Could Jesus fulfilling so many prophecies really be just coincidence?",
+          "What hard question about Jesus or the Bible have you been holding back?",
+          "Why was a spiritual kingdom so hard to accept for people expecting a ruler?"
+        ],
+        "takeaways": [
+          "If the Bible is trustworthy history, its prophecy deserves a serious look.",
+          "Many expected a political ruler, but Jesus brought a spiritual kingdom.",
+          "Following Jesus as Messiah can mean a whole shift in how you see the world."
+        ],
+        "challenges": [
+          "Write down your questions about prophecy and bring them to club next week.",
+          "Read Isaiah 52 and 53 and note what they say about the coming Messiah.",
+          "Ask yourself which of your expectations Jesus might turn upside down."
+        ]
+      }
+    },
+    "24": {
+      "title": "Unit 6, Lesson 4: Authority",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-6/journey-advocates-6-4-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "If the Bible really is all we've said it is, what changes for you now?",
+          "How would you answer \"men wrote the Bible, so how can it be God's word?\"",
+          "What from the last four weeks most changed how you see the Bible, and why?"
+        ],
+        "takeaways": [
+          "If the Bible is truly God's word, it has real authority over how we live.",
+          "As Jesus is fully man and fully God, the Bible is from men and from God.",
+          "The Bible shows who God really is, not just what people thought about him."
+        ],
+        "challenges": [
+          "Make time this week to read more of the Bible than you usually do.",
+          "Write down one thing the Bible teaches and actually follow it this week.",
+          "Practice explaining to a friend why you believe the Bible has authority."
+        ]
+      }
+    },
+    "25": {
+      "title": "Unit 7, Lesson 1: Evil",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-7/journey-advocates-7-1-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "When have you felt lost, and what finally helped you find your way?",
+          "Does calling evil the absence of good change how you see it? Why?",
+          "What question about suffering do you most wish you could ask God?"
+        ],
+        "takeaways": [
+          "Evil is not a thing God made; it is the absence of good, like darkness.",
+          "Evil entered the world when we chose to push God out of the picture.",
+          "The very existence of evil points to a real standard: God exists."
+        ],
+        "challenges": [
+          "Notice something you call evil this week and ask what good it lacks.",
+          "Write down one hard question about suffering to bring back next week.",
+          "Notice this week when you use yourself as your compass instead of God."
+        ]
+      }
+    },
+    "26": {
+      "title": "Unit 7, Lesson 2: Falsehood",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-7/journey-advocates-7-2-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "If God is all-powerful, is there anything He still cannot do?",
+          "Why doesn't a God who can speak a universe into being just stop all evil?",
+          "What good have you ever seen come out of something painful or hard?"
+        ],
+        "takeaways": [
+          "God did not create evil, and He is not responsible for it.",
+          "God cannot lie or contradict Himself, even though He is all-powerful.",
+          "God has good reasons for allowing evil for a time; we only see in part now."
+        ],
+        "challenges": [
+          "Write down a few things God cannot do and what each shows about who He is.",
+          "When you see evil this week, look to God for hope instead of doubting Him.",
+          "Think of a time a parent's hard rule turned out to be for your good."
+        ]
+      }
+    },
+    "27": {
+      "title": "Unit 7, Lesson 3: Suffering",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-7/journey-advocates-7-3-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "When you are hurting, which of the video's questions do you ask God most?",
+          "How did the lepers see Father Damien differently once he said \"we lepers\"?",
+          "Does knowing Jesus felt betrayal and physical pain change how you pray?"
+        ],
+        "takeaways": [
+          "God is not distant from our pain; in Jesus he came and suffered with us.",
+          "The cross is Christianity's symbol: a God who knows suffering firsthand.",
+          "Because Jesus is risen, suffering and death do not get the final word."
+        ],
+        "challenges": [
+          "Name one pain you carry and tell God honestly whether you will trust him.",
+          "Like Father Damien, step toward someone who is suffering this week.",
+          "Reread Joseph's story and notice how God turned evil into good."
+        ]
+      }
+    },
+    "28": {
+      "title": "Unit 7, Lesson 4: Hell",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-7/journey-advocates-7-4-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "If your favorite place lost every good thing, what would be left?",
+          "If God is good and allows suffering, how can hell fit with that?",
+          "Why does it matter whether God sends people to hell or we send ourselves?"
+        ],
+        "takeaways": [
+          "Hell is not God; it is the tragic consequence of rejecting Him.",
+          "Every breath, sunny day, and rainfall is God's common grace to everyone.",
+          "God invites us into relationship but never forces us; that is love."
+        ],
+        "challenges": [
+          "Take stock of where you stand with God now versus the start of the year.",
+          "Each day, notice one gift God gives you whether you choose Him or not.",
+          "Bring your honest questions about hell to small group; don't hide them."
+        ]
+      }
+    },
+    "29": {
+      "title": "Unit 8, Lesson 1: Love",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-8/journey-advocates-8-1-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "When you think of a time you truly felt loved, what did it feel like?",
+          "When you share your faith, do you want to be right or to love?",
+          "How could you show someone Jesus by the way you listen to them?"
+        ],
+        "takeaways": [
+          "Paul says all our knowledge is worth nothing without love.",
+          "Sharing your faith is about building relationships, not winning.",
+          "The way you love others may be the only way some ever see Jesus."
+        ],
+        "challenges": [
+          "Have one real conversation this week where you listen more than you talk.",
+          "Practice explaining what you believe with humility, not to win.",
+          "If a conversation goes badly, learn from it and try again next time."
+        ]
+      }
+    },
+    "30": {
+      "title": "Unit 8, Lesson 2: Questions",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-8/journey-advocates-8-2-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "What makes starting a spiritual conversation feel scary to you?",
+          "Why do we feel we need all the answers before sharing our faith?",
+          "Someone says there is too much evil for God to exist; what would you ask?"
+        ],
+        "takeaways": [
+          "You do not need every answer to have a real conversation about Jesus.",
+          "Asking 'What do you mean by that?' digs deeper and buys you time to think.",
+          "Good questions show love and build the relationship discipleship needs."
+        ],
+        "challenges": [
+          "Ask someone 'How did you come to that conclusion?' and really listen.",
+          "Notice when you reach for a quick comeback and ask a question instead.",
+          "Have a face-to-face conversation this week asking real why questions."
+        ]
+      }
+    },
+    "31": {
+      "title": "Unit 8, Lesson 3: Doubt",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-8/journey-advocates-8-3-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Have you ever been told to just believe when you wanted real answers?",
+          "Why might learning more about your faith lead to even more questions?",
+          "Does hearing that others have doubts too make it easier to share yours?"
+        ],
+        "takeaways": [
+          "Doubts that never get answered are one reason people walk away from faith.",
+          "Asking hard questions can actually make your faith stronger, not weaker.",
+          "God can handle any doubt; He has given you all you need to be confident."
+        ],
+        "challenges": [
+          "Write down one question you are wrestling with and bring it to your leader.",
+          "When a doubt comes up this week, talk about it instead of hiding it.",
+          "Ask someone older how they made it through a season of doubt."
+        ]
+      }
+    },
+    "32": {
+      "title": "Unit 8, Lesson 4: Challenges",
+      "deckUrl": "https://clubs.awana.org/wp-content/uploads/youth-ministry/Advocates/unit-8/journey-advocates-8-4-teaching-slides.pptx",
+      "slides": 4,
+      "notes": {
+        "questions": [
+          "Look back at your notes from lesson one: how has your thinking changed?",
+          "Which of your early questions about faith got answered, and which remain?",
+          "What part could you play in helping a friend come to know Jesus?"
+        ],
+        "takeaways": [
+          "It is not our job to save anyone; God alone causes the growth.",
+          "Falling flat while sharing the gospel often teaches more than success does.",
+          "God gifts each of us differently, so be faithful with what you were given."
+        ],
+        "challenges": [
+          "Reread your notes from the start of the year and write down what changed.",
+          "Write down one question you still have and decide where to seek the answer.",
+          "Take one step of sharing the truth this week, even if it goes badly."
+        ]
+      }
+    }
+  }
+}

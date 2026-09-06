@@ -641,6 +641,66 @@ directly):
   the kiosk never leaves the page; closing it detaches the iframe
   `src` (512MB-Pi memory hygiene).
 
+### Teaching slides after the video (owner-requested 2026-09-06)
+
+Every Advocates lesson also ships a 5-slide **Teaching Slides** `.pptx`
+on the course page (title, core verse, misconception, illumination, and
+a blank **TEMPLATE** — a heading over three empty bullets — for the
+leader to fill in). The kiosk shows them after any lesson video ends,
+scheduled show or picker preview, before falling back to whatever the
+video's ending used to do.
+
+- **Owner-approved licensing extension (2026-09-06):** slides 1-4 of
+  every deck are rendered to 1280x960 JPEGs in `public/slides/week-NN/`
+  (~15MB for the whole course), plus each deck's template background as
+  `template.jpg`. Same character as the re-encoded videos: kiosk-only
+  copies, never linked or advertised elsewhere. The owner chose
+  "all 32 weeks in the site itself" over nightly-current-week or a
+  Release, so the current week's slides pre-download with the bundle and
+  the picker can show any week offline-capable.
+- `scripts/render-teaching-slides.py` is the reproducible pipeline
+  (LibreOffice Impress → PDF → pypdfium2 → JPEG; extracts the template's
+  largest referenced image as the background). It refuses a deck that
+  isn't exactly 5 slides — all 32 were on 2026-09-06. Weeks 3 and 4
+  really do have a doubled `.pptx.pptx` extension on Awana's side.
+- `public/teaching-slides.json` — `{ version, sourceUrl, headings,
+  weeks: { "N": { title, deckUrl, slides, notes } } }`. `notes` is the
+  generated fill for the TEMPLATE slide, three kinds × three bullets:
+  `questions` ("Talk About It" — discussion questions addressed to the
+  students), `takeaways` ("Remember This"), `challenges` ("This Week").
+  Written from each week's **Leader Video transcript** (week 27, which
+  has no Leader Video, from the Student transcript), every bullet grounded
+  in what the video says, ≤80 characters, then adversarially re-checked
+  against the transcript by a second pass. Hand-edit the JSON to correct
+  wording; the kiosk renders these as HTML text over `template.jpg`
+  (`#slide-template` in style.css mirrors the deck: centered heading,
+  three left-aligned bullets, white on the texture) so they stay crisp
+  and editable — the only slide we *fill in*, never an image we copy.
+- **Playback** (`startTeachingSlides()` in schedule.js): the video is
+  released (same memory hygiene as `stopJourneyContent()`), the deck's
+  slides show in a 4:3 stage (pillarboxed on the TV), then whichever
+  generated slides Settings has ticked. Leader-driven: Space / → / Enter
+  next, ← back, tap the slide (left third = back), or the Prev/Next bar
+  (fades with the idle cursor like the video bar). "Finish" on the last
+  slide runs the old end-of-video behavior (Check-in Display for the
+  scheduled show, `endPreview()` for a preview). `stopJourneyContent()`
+  tears it down, so the ⇄ button and the 7:15 boundary work unchanged;
+  `showJourneyContent()` treats a running slideshow like a playing video
+  (no splash over it). A preview remembers its week (`previewWeek`) so a
+  Leader/Student preview shows *that* lesson's slides.
+- **Settings → "After the video: teaching slides"**: auto-advance
+  interval (off = manual, 15s–2min; any manual step resets the timer) and
+  three checkboxes for which generated slides to append. Persisted per
+  device in localStorage (`journey.slides.autoAdvanceSec`,
+  `journey.slides.extras`), like the caption choice. The splash hint now
+  reads "Space / → · S for settings" — **S** opens Settings from anywhere
+  (not while typing in a field), Escape closes it.
+- The current week's slide images + template are part of the prefetched
+  bundle (`cacheLessonBundle()`), and `teaching-slides.json` is
+  cache-first in `journey-assets-v1` like `lessons.json`, so the whole
+  post-video show works with the network dead. A slide image that fails
+  to load skips ahead (bounded) rather than sitting on black.
+
 ### Manual video preview (Settings panel)
 
 A third corner button (`#settings-btn`, top-right, same subtle style as

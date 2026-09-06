@@ -67,9 +67,31 @@ const captionYesBtn = document.getElementById('caption-yes');
 const captionNoBtn = document.getElementById('caption-no');
 const captionOverlay = document.getElementById('caption-overlay');
 const captionText = document.getElementById('caption-text');
+const slidesView = document.getElementById('slides-view');
+const slideStage = document.getElementById('slide-stage');
+const slideImage = document.getElementById('slide-image');
+const slideTemplate = document.getElementById('slide-template');
+const slideTemplateHeading = document.getElementById('slide-template-heading');
+const slideTemplateBullets = document.getElementById('slide-template-bullets');
+const slidePrevBtn = document.getElementById('slide-prev-btn');
+const slideNextBtn = document.getElementById('slide-next-btn');
+const slideCounter = document.getElementById('slide-counter');
+const slidesAutoAdvanceSelect = document.getElementById('slides-auto-advance');
+const slidesExtraInputs = {
+  questions: document.getElementById('slides-extra-questions'),
+  takeaways: document.getElementById('slides-extra-takeaways'),
+  challenges: document.getElementById('slides-extra-challenges'),
+};
 
 let currentLesson = null;
 let currentObjectUrl = null;
+// Teaching-slides state (see the "Teaching slides" section near the end).
+// Declared up here because stopJourneyContent() — reached from the startup
+// setView() call below — tears the slideshow down, and a `let` further down
+// the file would still be in its temporal dead zone at that moment.
+let teachingSlides = null; // parsed teaching-slides.json, once loaded
+let slideshow = null; // { week, items, index, onFinish, blobUrls: Map, errors }
+let slideAutoTimer = null;
 // Bumped on every showJourneyContent()/playCurrentLesson()/startPreview()
 // call so a slow, in-flight call (e.g. still awaiting a cache read) can
 // detect it's stale once it resolves and avoid clobbering state a newer
@@ -183,6 +205,11 @@ async function cacheLessonBundle(lesson) {
       { fetchUrl: captionUrlFor(lesson.week, 'student') },
       { fetchUrl: captionUrlFor(lesson.week, 'leader') },
       { fetchUrl: handoutUrl(lesson.week) },
+      // The teaching slides shown after the video (see startTeachingSlides).
+      ...Array.from({ length: deckSlideCount(lesson.week) }, (_, i) => ({
+        fetchUrl: slideImageUrl(lesson.week, i + 1),
+      })),
+      { fetchUrl: slideTemplateUrl(lesson.week) },
     ];
     for (const c of candidates) c.cacheKey = c.cacheKey || c.fetchUrl;
     const bundleUrls = new Set(candidates.map((c) => new URL(c.cacheKey, location.href).href));
@@ -283,7 +310,7 @@ async function showJourneyContent() {
   // Don't rip control away from a playback that's already started (or
   // in-flight) — e.g. the hourly lesson refresh firing while the video is
   // already playing mid-window.
-  if (!journeyVideo.classList.contains('hidden')) return;
+  if (!journeyVideo.classList.contains('hidden') || slideshowActive()) return;
   journeyPlaceholder.classList.add('hidden');
   // The splash owns the screen now — a loading overlay left up by an
   // in-flight playback request this call just invalidated would otherwise
@@ -300,6 +327,7 @@ async function showJourneyContent() {
 async function playCurrentLesson() {
   const token = ++journeyRequestToken;
   if (!currentLesson) return;
+  stopTeachingSlides();
   journeySplash.classList.add('hidden');
   journeyVideo.classList.remove('hidden');
   videoControls.classList.remove('hidden');
@@ -592,6 +620,7 @@ function answerCaptionPrompt(on) {
    waits forever on a question nobody can see). */
 async function requestPlayback(captionUrl, proceed) {
   const token = ++journeyRequestToken;
+  stopTeachingSlides(); // a slideshow left from the previous video must not sit over this one
   journeyView.classList.remove('hidden');
   checkinView.classList.add('hidden');
   journeyPlaceholder.classList.add('hidden');
@@ -757,6 +786,7 @@ function stopJourneyContent() {
   // once the operator has torn the view down, a slow caption probe or cache
   // read resolving later must not restart playback into a hidden layer.
   ++journeyRequestToken;
+  stopTeachingSlides();
   journeyVideo.pause();
   // Release the cached video's blob URL and detach the element while the
   // Journey view isn't showing — on a 512MB Pi Zero, a ~100-200MB decoded
@@ -882,6 +912,37 @@ document.addEventListener('keydown', (e) => {
     }
     return;
   }
+  const typing = e.target instanceof Element && e.target.closest('input, select, textarea');
+  // Teaching slides own Space/arrows while they're up (the video is hidden
+  // by then, so none of the playback shortcuts below can fire anyway).
+  if (slideshowActive() && settingsPanel.classList.contains('hidden')
+      && handoutView.classList.contains('hidden') && !typing) {
+    if (e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'Enter' || e.code === 'PageDown') {
+      e.preventDefault(); // (also stops Space from scrolling / clicking a focused button)
+      if (e.repeat) return; // a held key must not fly through the deck
+      audioUnlocked = true;
+      nextSlide();
+      return;
+    }
+    if (e.code === 'ArrowLeft' || e.code === 'PageUp' || e.code === 'Backspace') {
+      e.preventDefault();
+      if (e.repeat) return;
+      prevSlide();
+      return;
+    }
+  }
+  // S opens Settings from anywhere (the splash advertises it); Escape closes.
+  if (e.code === 'KeyS' && !e.repeat && !typing && settingsPanel.classList.contains('hidden')
+      && handoutView.classList.contains('hidden')) {
+    e.preventDefault();
+    audioUnlocked = true;
+    openSettingsPanel();
+    return;
+  }
+  if (e.code === 'Escape' && !settingsPanel.classList.contains('hidden')) {
+    closeSettingsPanel();
+    return;
+  }
   if (e.code !== 'Space' && e.code !== 'ArrowRight') return;
   if (isAwaitingPlay()) {
     e.preventDefault(); // stop Space from also "clicking" a focused button below
@@ -937,11 +998,19 @@ document.addEventListener('visibilitychange', () => {
 // lesson from frame zero, which is exactly the bug this comment is here to
 // prevent regressing.
 journeyVideo.addEventListener('ended', () => {
-  if (previewMode) {
-    endPreview();
-    return;
-  }
-  setView('checkin');
+  const finish = () => {
+    if (previewMode) {
+      endPreview();
+      return;
+    }
+    setView('checkin');
+  };
+  // Awana's teaching slides for this lesson come next (see
+  // startTeachingSlides); the fallback above runs only once they finish —
+  // or right away when there are none to show.
+  const week = previewMode ? previewWeek : currentLesson && currentLesson.week;
+  if (startTeachingSlides(week, finish)) return;
+  finish();
 });
 
 // A failed/unsupported video load, or a stall that never recovers, should
@@ -1021,6 +1090,9 @@ let pendingPreviewLesson = null;
 // Set alongside each preview: the lesson's original URL, tried once if the
 // transcoded release asset errors (missing, or the release was renamed).
 let previewFallbackUrl = null;
+// The week of the lesson being previewed — the teaching slides shown after
+// a preview video are that lesson's, not the scheduled one's.
+let previewWeek = null;
 
 // Every lesson (Student and Leader) has a Pi-playable 480p re-encode
 // uploaded as a GitHub Release asset by scripts/transcode-all-lessons.mjs —
@@ -1247,10 +1319,12 @@ function closeSettingsPanel() {
   settingsPanel.classList.add('hidden');
 }
 
-function startPreview(url, title, fallbackUrl = null) {
+function startPreview(url, title, fallbackUrl = null, week = null) {
   ++journeyRequestToken; // invalidate any in-flight showJourneyContent() call
+  stopTeachingSlides();
   previewMode = true;
   previewFallbackUrl = fallbackUrl;
+  previewWeek = week;
   journeyView.classList.remove('hidden');
   checkinView.classList.add('hidden');
   journeyPlaceholder.classList.add('hidden');
@@ -1278,6 +1352,7 @@ function endPreview() {
   if (!previewMode) return;
   previewMode = false;
   previewFallbackUrl = null;
+  previewWeek = null;
   // Tear the preview's video down before handing the view back. Without
   // this, ending a preview inside the 6:30-7:15 window left the finished
   // video element visible, which made showJourneyContent() early-return
@@ -1313,14 +1388,16 @@ settingsVariantStudentBtn.addEventListener('click', () => {
       startPreview(
         src,
         `${lesson.title} (Student Video)`,
-        transcodedPreviewUrl(lesson.week, 'student')
+        transcodedPreviewUrl(lesson.week, 'student'),
+        lesson.week
       );
       return;
     }
     startPreview(
       transcodedPreviewUrl(lesson.week, 'student'),
       `${lesson.title} (Student Video)`,
-      lesson.downloadUrl
+      lesson.downloadUrl,
+      lesson.week
     );
   });
 });
@@ -1343,7 +1420,8 @@ settingsLeaderVideoBtn.addEventListener('click', () => {
     startPreview(
       transcodedPreviewUrl(lesson.week, 'leader'),
       `${lesson.title} (Leader Video)`,
-      lesson.leaderDownloadUrl
+      lesson.leaderDownloadUrl,
+      lesson.week
     )
   );
 });
@@ -1359,9 +1437,376 @@ settingsLeaderBackBtn.addEventListener('click', () => {
   settingsVariantPicker.classList.remove('hidden');
 });
 
+/* ── Teaching slides (after the lesson video) ─────────────────────────
+   Each Advocates lesson ships a 5-slide "Teaching Slides" deck on the
+   course page: title, core verse, misconception, illumination, and a
+   blank TEMPLATE (heading + three empty bullets) for the leader to fill.
+   scripts/render-teaching-slides.py renders slides 1-4 of every week into
+   public/slides/week-NN/slide-N.jpg and extracts the template's bare
+   background as template.jpg; public/teaching-slides.json carries the deck
+   metadata plus, per week, the three generated "fills" for that template
+   (Talk About It / Remember This / This Week), written from the week's
+   Leader Video transcript and rendered here as HTML text over the
+   background so they stay crisp and editable.
+
+   When any lesson video ends — the scheduled show or a picker preview —
+   startTeachingSlides() takes over the Journey layer: the deck's slides,
+   then whichever generated slides Settings has ticked. A leader drives it
+   (Space / → / Enter next, ← back, tap the slide, or the Prev/Next bar);
+   an optional auto-advance interval from Settings ticks it along too, and
+   any manual step resets that timer. "Finish" on the last slide (or the
+   auto-advance running off the end) hands control to whatever the video's
+   own ending used to do: back to the Check-in Display for the scheduled
+   show, endPreview() for a preview. The ⇄ button and the 7:15 boundary tear
+   the slideshow down through stopJourneyContent() like everything else.
+
+   Preferences live in localStorage (per device, like the caption choice):
+   journey.slides.autoAdvanceSec (0 = manual) and journey.slides.extras
+   ({questions, takeaways, challenges} booleans, all on by default). */
+const TEACHING_SLIDES_URL = 'teaching-slides.json';
+const DECK_SLIDE_COUNT_DEFAULT = 4; // every Advocates deck has 4 slides + the template
+const SLIDES_AUTO_KEY = 'journey.slides.autoAdvanceSec';
+const SLIDES_EXTRAS_KEY = 'journey.slides.extras';
+const SLIDE_EXTRA_KINDS = ['questions', 'takeaways', 'challenges'];
+const SLIDE_HEADINGS_DEFAULT = {
+  questions: 'Talk About It',
+  takeaways: 'Remember This',
+  challenges: 'This Week',
+};
+
+
+function weekTag(week) {
+  return `week-${String(week).padStart(2, '0')}`;
+}
+
+function slideImageUrl(week, n) {
+  return `slides/${weekTag(week)}/slide-${n}.jpg`;
+}
+
+function slideTemplateUrl(week) {
+  return `slides/${weekTag(week)}/template.jpg`;
+}
+
+function teachingSlidesFor(week) {
+  const weeks = teachingSlides && teachingSlides.weeks;
+  return (weeks && weeks[String(week)]) || null;
+}
+
+function deckSlideCount(week) {
+  const w = teachingSlidesFor(week);
+  return w && Number.isInteger(w.slides) && w.slides > 0 ? w.slides : DECK_SLIDE_COUNT_DEFAULT;
+}
+
+// Same cache-first shape as lessons.json (see loadAllLessons): a good copy
+// is kept in the assets cache so the slide fills work with the network dead.
+function adoptTeachingSlides(data) {
+  if (!data || typeof data !== 'object' || !data.weeks || typeof data.weeks !== 'object') return false;
+  teachingSlides = data;
+  return true;
+}
+
+async function fetchTeachingSlidesJson() {
+  const res = await fetchWithTimeout(TEACHING_SLIDES_URL, {}, 5000);
+  if (!res.ok) throw new Error(`${TEACHING_SLIDES_URL} ${res.status}`);
+  const text = await res.text();
+  const data = JSON.parse(text);
+  if (!data || typeof data !== 'object' || !data.weeks) throw new Error(`${TEACHING_SLIDES_URL}: unexpected shape`);
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open(ASSET_CACHE_NAME);
+      await cache.put(TEACHING_SLIDES_URL, new Response(text, { headers: { 'content-type': 'application/json' } }));
+    } catch {
+      // Not storable right now — still usable live.
+    }
+  }
+  return data;
+}
+
+async function loadTeachingSlides() {
+  if (teachingSlides) return teachingSlides;
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open(ASSET_CACHE_NAME);
+      const hit = await cache.match(TEACHING_SLIDES_URL);
+      if (hit && adoptTeachingSlides(await hit.json())) {
+        fetchTeachingSlidesJson().then(adoptTeachingSlides, () => {});
+        return teachingSlides;
+      }
+    } catch {
+      // fall through to the network
+    }
+  }
+  try {
+    adoptTeachingSlides(await fetchTeachingSlidesJson());
+  } catch (err) {
+    console.warn('Journey: teaching-slides.json unavailable —', err);
+  }
+  return teachingSlides;
+}
+
+function slidesAutoAdvanceSec() {
+  try {
+    const v = Number(localStorage.getItem(SLIDES_AUTO_KEY));
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function slidesExtras() {
+  const extras = { questions: true, takeaways: true, challenges: true };
+  try {
+    const stored = JSON.parse(localStorage.getItem(SLIDES_EXTRAS_KEY) || 'null');
+    if (stored && typeof stored === 'object') {
+      for (const k of SLIDE_EXTRA_KINDS) if (typeof stored[k] === 'boolean') extras[k] = stored[k];
+    }
+  } catch {
+    // unreadable → defaults
+  }
+  return extras;
+}
+
+function storeSlidesPrefs() {
+  try {
+    localStorage.setItem(SLIDES_AUTO_KEY, String(Number(slidesAutoAdvanceSelect.value) || 0));
+    const extras = {};
+    for (const k of SLIDE_EXTRA_KINDS) extras[k] = slidesExtraInputs[k].checked;
+    localStorage.setItem(SLIDES_EXTRAS_KEY, JSON.stringify(extras));
+  } catch {
+    // Preference just won't survive a reload. Fine.
+  }
+}
+
+function syncSlidesPrefInputs() {
+  const sec = String(slidesAutoAdvanceSec());
+  slidesAutoAdvanceSelect.value = Array.from(slidesAutoAdvanceSelect.options).some((o) => o.value === sec) ? sec : '0';
+  const extras = slidesExtras();
+  for (const k of SLIDE_EXTRA_KINDS) slidesExtraInputs[k].checked = extras[k];
+}
+
+syncSlidesPrefInputs();
+slidesAutoAdvanceSelect.addEventListener('change', storeSlidesPrefs);
+for (const k of SLIDE_EXTRA_KINDS) slidesExtraInputs[k].addEventListener('change', storeSlidesPrefs);
+
+function buildSlideItems(week) {
+  if (!Number.isInteger(week) || week < 1) return [];
+  const items = [];
+  const count = deckSlideCount(week);
+  for (let n = 1; n <= count; n++) items.push({ type: 'image', url: slideImageUrl(week, n) });
+  const w = teachingSlidesFor(week);
+  const notes = w && w.notes;
+  const headings = Object.assign({}, SLIDE_HEADINGS_DEFAULT, (teachingSlides && teachingSlides.headings) || {});
+  const extras = slidesExtras();
+  for (const kind of SLIDE_EXTRA_KINDS) {
+    if (!extras[kind] || !notes || !Array.isArray(notes[kind]) || !notes[kind].length) continue;
+    items.push({
+      type: 'template',
+      heading: headings[kind],
+      bullets: notes[kind].map(String),
+      url: slideTemplateUrl(week),
+    });
+  }
+  return items;
+}
+
+
+function slideshowActive() {
+  return slideshow !== null;
+}
+
+/* Serve a prefetched slide from the cache as a blob URL (memoized per
+   slideshow, all revoked in stopTeachingSlides), else the plain URL. */
+function resolveSlideUrl(show, url) {
+  if (show.blobUrls.has(url)) return show.blobUrls.get(url);
+  const pending = (async () => {
+    if ('caches' in window) {
+      try {
+        const hit = await caches.match(url);
+        if (hit) {
+          const blobUrl = URL.createObjectURL(await hit.blob());
+          if (slideshow !== show) {
+            URL.revokeObjectURL(blobUrl); // torn down while reading
+            return url;
+          }
+          return blobUrl;
+        }
+      } catch {
+        // fall through to the live URL
+      }
+    }
+    return url;
+  })();
+  show.blobUrls.set(url, pending); // memoized as a promise: one blob per URL, ever
+  return pending;
+}
+
+function startTeachingSlides(week, onFinish) {
+  const items = buildSlideItems(week);
+  if (!items.length) return false;
+  stopTeachingSlides();
+  ++journeyRequestToken; // nothing in flight should touch the video now
+  slideshow = { week, items, index: 0, onFinish, blobUrls: new Map(), errors: 0 };
+  // Release the video the same way stopJourneyContent() does — a decoded
+  // ~17MB blob has no business staying resident behind a slideshow.
+  journeyVideo.pause();
+  journeyVideo.removeAttribute('src');
+  journeyVideo.load();
+  journeyVideo.classList.add('hidden');
+  videoControls.classList.add('hidden');
+  videoControls.classList.remove('force-visible');
+  hideVideoLoading();
+  removeCaptionTracks();
+  ccBtn.classList.add('hidden');
+  if (currentObjectUrl) {
+    URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = null;
+  }
+  journeySplash.classList.add('hidden');
+  journeyPlaceholder.classList.add('hidden');
+  journeyView.classList.remove('hidden');
+  checkinView.classList.add('hidden');
+  slidesView.classList.remove('hidden');
+  showSlide(0);
+  return true;
+}
+
+function showSlide(index) {
+  const show = slideshow;
+  if (!show) return;
+  show.index = index;
+  const item = show.items[index];
+  clearTimeout(slideAutoTimer);
+  slideAutoTimer = null;
+  slideCounter.textContent = `Slide ${index + 1} of ${show.items.length}`;
+  slidePrevBtn.disabled = index === 0;
+  slideNextBtn.textContent = index === show.items.length - 1 ? 'Finish ✓' : 'Next →';
+  if (item.type === 'image') {
+    slideTemplate.classList.add('hidden');
+    slideTemplate.style.backgroundImage = '';
+    slideImage.classList.remove('hidden');
+    resolveSlideUrl(show, item.url).then((src) => {
+      if (slideshow !== show || show.index !== index) return;
+      slideImage.src = src;
+    });
+  } else {
+    slideImage.classList.add('hidden');
+    slideImage.removeAttribute('src');
+    slideTemplateHeading.textContent = item.heading;
+    slideTemplateBullets.textContent = '';
+    for (const bullet of item.bullets) {
+      const li = document.createElement('li');
+      li.textContent = bullet;
+      slideTemplateBullets.appendChild(li);
+    }
+    slideTemplate.classList.remove('hidden');
+    fitTemplateText();
+    resolveSlideUrl(show, item.url).then((src) => {
+      if (slideshow !== show || show.index !== index) return;
+      slideTemplate.style.backgroundImage = `url("${src}")`;
+    });
+  }
+  // Warm the next slide so the step lands instantly.
+  const next = show.items[index + 1];
+  if (next) {
+    resolveSlideUrl(show, next.url).then((src) => {
+      if (slideshow !== show) return;
+      const img = new Image();
+      img.src = src;
+    });
+  }
+  const sec = slidesAutoAdvanceSec();
+  if (sec > 0) slideAutoTimer = setTimeout(nextSlide, sec * 1000);
+}
+
+/* Three long bullets can outgrow the 4:3 stage on a short screen; step the
+   list's type down until it fits rather than letting it spill off the
+   slide (each bullet is capped at 80 characters, so this rarely fires). */
+function fitTemplateText() {
+  slideTemplateBullets.style.fontSize = '';
+  const base = parseFloat(getComputedStyle(slideTemplateBullets).fontSize) || 24;
+  let size = base;
+  let guard = 12;
+  while (guard-- > 0 && slideTemplateBullets.scrollHeight > slideTemplateBullets.clientHeight + 1 && size > base * 0.55) {
+    size *= 0.92;
+    slideTemplateBullets.style.fontSize = `${size}px`;
+  }
+}
+
+window.addEventListener('resize', () => {
+  if (slideshow && !slideTemplate.classList.contains('hidden')) fitTemplateText();
+});
+
+function nextSlide() {
+  if (!slideshow) return;
+  if (slideshow.index >= slideshow.items.length - 1) {
+    finishTeachingSlides();
+    return;
+  }
+  showSlide(slideshow.index + 1);
+}
+
+function prevSlide() {
+  if (!slideshow || slideshow.index === 0) return;
+  showSlide(slideshow.index - 1);
+}
+
+function finishTeachingSlides() {
+  const show = slideshow;
+  stopTeachingSlides();
+  if (show && typeof show.onFinish === 'function') show.onFinish();
+}
+
+function stopTeachingSlides() {
+  clearTimeout(slideAutoTimer);
+  slideAutoTimer = null;
+  if (!slideshow) return;
+  const show = slideshow;
+  slideshow = null;
+  slidesView.classList.add('hidden');
+  slideImage.removeAttribute('src');
+  slideTemplate.classList.add('hidden');
+  slideTemplate.style.backgroundImage = '';
+  slideTemplateBullets.textContent = '';
+  slideTemplateBullets.style.fontSize = '';
+  for (const pending of show.blobUrls.values()) {
+    pending.then((u) => {
+      if (typeof u === 'string' && u.startsWith('blob:')) URL.revokeObjectURL(u);
+    }, () => {});
+  }
+}
+
+// A slide image that can't load (never rendered, storage evicted, offline
+// and uncached) skips ahead instead of leaving a black frame — bounded so a
+// deck with nothing loadable ends instead of spinning.
+slideImage.addEventListener('error', () => {
+  if (!slideshow || slideImage.classList.contains('hidden')) return;
+  const item = slideshow.items[slideshow.index];
+  if (!item || item.type !== 'image') return; // a stale error for a slide we already left
+  slideshow.errors += 1;
+  if (slideshow.errors > slideshow.items.length) {
+    finishTeachingSlides();
+    return;
+  }
+  nextSlide();
+});
+
+slidePrevBtn.addEventListener('click', prevSlide);
+slideNextBtn.addEventListener('click', () => {
+  audioUnlocked = true;
+  nextSlide();
+});
+// Tap/click the slide itself: left third steps back, the rest steps forward.
+slideStage.addEventListener('click', (e) => {
+  if (!slideshow) return;
+  const rect = slideStage.getBoundingClientRect();
+  if (e.clientX - rect.left < rect.width / 3) prevSlide();
+  else nextSlide();
+});
+
 // Warm the lesson list + captions manifest at startup rather than on the
 // first Settings press, and store lessons.json for offline use. Failure is
 // fine — openSettingsPanel() retries and shows its own error state. (Kept at
 // the very end of the script: it reads `allLessons`, a `let` that must be
 // past its declaration before any call runs.)
 loadAllLessons();
+loadTeachingSlides();
