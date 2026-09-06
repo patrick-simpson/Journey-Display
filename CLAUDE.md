@@ -492,14 +492,15 @@ a reboot during a total outage has no app shell to load).
     lower edge, so they don't float in the black band. It reads the
     bar's live `offsetHeight`, so captions lift automatically when the
     bar wraps to more rows on a narrow screen.
-  - **Cue length is a hard caption constraint.** The Leader transcripts
-    were whisper's own sentence segments, up to **202 characters** —
-    fine to read, unusable as a caption (a wall of text on a TV, six
-    wrapped lines on a phone). `scripts/resegment-vtt.py` split all 532
-    over-long cues at sentence/clause/word boundaries, apportioning
-    duration by character count; every cue is now <=84 chars. The
-    Student pipeline builds cues from real word timestamps and needs
-    none of this. Re-running the script is idempotent.
+  - **Cue length is a hard caption constraint.** Both caption sets are
+    now built from real word timestamps into cues of <=84 chars (see
+    "Leader transcripts" below for the 2026-09-06 leader redo). History
+    worth keeping: the first Leader transcripts were whisper's own
+    sentence segments, up to **202 characters** — fine to read, unusable
+    as a caption (a wall of text on a TV, six wrapped lines on a phone) —
+    and `scripts/resegment-vtt.py` split them at sentence/clause/word
+    boundaries, apportioning duration by character count. That script is
+    no longer part of the pipeline; it stays only as a record.
   - The control bar itself needed a `max-width: 760px` media query: three
     non-shrinking buttons plus scrubber and time cannot fit one row on a
     phone, and the CC button was being **clipped off the screen edge** —
@@ -593,11 +594,31 @@ leaders, never linked/advertised elsewhere; owner requested this
 directly):
 
 - **`public/transcripts/week-NN-leader.vtt`** — WebVTT transcript of
-  each Leader Video (31 files; week 27 has none to transcribe),
-  generated once with faster-whisper (model "small", segment-level
-  cues) from the 480p release copies. Same-origin, so they can later be
-  wired up as `<track>` captions without CORS issues. Regenerate only
-  if Awana revises a video.
+  each Leader Video (31 files; week 27 has none to transcribe). First
+  generated with faster-whisper "small" (sentence segments); **redone
+  2026-09-06 at large-v3** through the same pipeline as the Student
+  captions — `transcribe-student-captions.py leader` (word timestamps,
+  domain-vocabulary prompt, hallucination-hardened flags), a per-week
+  review pass writing `leader-corrections/week-NN.json` (mostly the
+  boundary-repeat words that `condition_on_previous_text=False`
+  produces, plus capitalisation and a handful of real mishearings), the
+  physics validator, an audio re-decode of every flagged cue, then
+  `build-student-captions.py leader`. Same-origin, so they work as
+  `<track>` captions without CORS issues. Regenerate only if Awana
+  revises a video. Measured against the old pass: ~2.5% of words sat in
+  a changed hunk; most hunks were filler, but the redo fixed real
+  meaning errors ("except Christ" → "accept Christ", "relative to this
+  day" → "relativistic", "the fairy" → "the Tooth Fairy", dropped
+  clauses like "The doctor told me") and cut cue counts by roughly a
+  third because cues now follow speech instead of split sentences.
+  **Re-transcribing renumbers every cue**, and `data/leader-transcript-
+  prose.json` addresses cues by number — run
+  `scripts/remap-transcript-prose-cues.py <dir-of-old-vtts>` before the
+  prose validator, which maps each paragraph boundary by time onto the
+  new numbering (keep a copy of the old VTTs for exactly this).
+  Two names both whisper passes garbled and the review pass now knows:
+  the Awana Youth Ministries site is **AwanaYM.org**, and the author of
+  *Questioning the Bible* is **Jonathan Morrow**.
 - **Captions must be verified against AUDIO, not by reading.** Whisper
   hallucinates, and this bit us: run with
   `condition_on_previous_text=True` (the library default) it repeats and
@@ -642,13 +663,20 @@ directly):
     `.vtt`, and there is no reason to serve a second copy.
   - The prose is *edited for reading* (the owner's choice over verbatim):
     spoken grammar repaired, filler and false starts removed, every point,
-    example and Scripture reference kept. Two rules exist because the leader
-    transcripts came from whisper's **small** model, not large-v3 like the
-    student ones — an error that flickers past in a caption is permanent in
-    print: an editor may repair a misheard word only when context makes the
-    intended one unambiguous, and must **never** guess at a proper noun or a
-    Scripture reference (leave the oddity instead). Every week was then
-    re-checked against its own VTT by a second pass.
+    example and Scripture reference kept. Two rules exist because an error
+    that flickers past in a caption is permanent in print: an editor may
+    repair a misheard word only when context makes the intended one
+    unambiguous, and must **never** guess at a proper noun or a Scripture
+    reference (leave the oddity instead). Every week was then re-checked
+    against its own VTT by a second pass. When the leader captions were
+    redone at large-v3 (2026-09-06) the prose, the page-1 summaries and the
+    teaching-slide notes were re-checked against a word-level diff of old
+    vs new transcript, week by week: 48 prose edits and one summary key
+    point changed, no slide bullet needed to. Two lessons from that pass:
+    the newer decode is not automatically right (where its wording was
+    itself odd — "green until my shirt is black" — the old reading was
+    kept), and drafting agents drift toward restyling; only edits traceable
+    to a specific diff hunk were accepted.
   - `scripts/validate-transcript-prose.py` gates it mechanically, because
     proofreading cannot catch these: paragraphs must **tile the cue numbers**
     1..lastCue with no gap (a dropped passage shows up as a gap), the edited

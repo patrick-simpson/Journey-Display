@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Build public/transcripts/week-NN-student.vtt from reviewed cue JSON.
+"""Build public/transcripts/week-NN-{student,leader}.vtt from reviewed cue JSON.
+
+Usage: build-student-captions.py [student|leader]   (default: student)
 
 NOTE ON PATHS: this reads its cue and correction JSON from a working directory
 that was scratch space during the original run (see SCRATCH below). Kept in the
@@ -15,9 +17,11 @@ Letting CSS wrap is what makes one transcript serve both a TV and a phone.
 """
 import json, os, sys, glob
 
+KIND = sys.argv[1] if len(sys.argv) > 1 else "student"
+assert KIND in ("student", "leader"), KIND
 SCRATCH = os.path.dirname(os.path.abspath(__file__))
-CUES = os.path.join(SCRATCH, "student-cues")
-CORR = os.path.join(SCRATCH, "student-corrections")
+CUES = os.path.join(SCRATCH, f"{KIND}-cues")
+CORR = os.path.join(SCRATCH, f"{KIND}-corrections")
 OUT = "/home/user/Journey-Display/public/transcripts"
 TARGET = 84  # what reviewers work to; anything longer is reported
 MAX = 90     # hard ceiling: beyond this a line is rejected, not warned
@@ -105,12 +109,12 @@ for path in sorted(glob.glob(os.path.join(CUES, "week-*.json"))):
         cues.pop(n - 1)
     if drop:
         print(f"week {week:02d}: deleted {len(drop)} spurious cue(s) {sorted(drop)}")
-    out_path = os.path.join(OUT, f"week-{week:02d}-student.vtt")
+    out_path = os.path.join(OUT, f"week-{week:02d}-{KIND}.vtt")
     with open(out_path, "w") as f:
         f.write("WEBVTT\n\n")
-        f.write(f"NOTE\nJourney: Advocates - Week {week} Student Video\n{d['title']}\n\n")
+        f.write(f"NOTE\nJourney: Advocates - Week {week} {KIND.title()} Video\n{d['title']}\n\n")
         for i, c in enumerate(cues, 1):
             f.write(f"{i}\n{ts(c['start'])} --> {ts(c['end'])}\n{c['text']}\n\n")
     built += 1
 
-print(f"built {built} student VTTs ({applied} corrections applied), {skipped} awaiting review, {overlong} over-long")
+print(f"built {built} {KIND} VTTs ({applied} corrections applied), {skipped} awaiting review, {overlong} over-long")

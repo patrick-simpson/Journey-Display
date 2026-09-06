@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""High-quality Student-video transcription for on-screen captions.
+"""High-quality lesson-video transcription for on-screen captions.
+
+Usage: transcribe-student-captions.py [student|leader]   (default: student)
 
 Differences from the Leader pass (transcribe-all.py), all in service of
 "near-perfect captions for students":
@@ -17,10 +19,17 @@ by build-student-vtt.py, so a review never has to touch timing lines.
 """
 import json, os, subprocess, sys, time
 
+# KIND selects which video of each lesson to transcribe. "leader" was added
+# 2026-09-06 when the Leader captions (originally whisper "small", sentence
+# segments) were redone at this same quality; it shares every setting below
+# so the two caption sets read identically on the kiosk.
+KIND = sys.argv[1] if len(sys.argv) > 1 else "student"
+assert KIND in ("student", "leader"), KIND
 SCRATCH = os.path.dirname(os.path.abspath(__file__))
 REPO = "/home/user/Journey-Display"
-CUE_DIR = os.path.join(SCRATCH, "student-cues")
-TXT_DIR = os.path.join(SCRATCH, "student-txt")
+CUE_DIR = os.path.join(SCRATCH, f"{KIND}-cues")
+TXT_DIR = os.path.join(SCRATCH, f"{KIND}-txt")
+MP4_DIR = os.path.join(SCRATCH, f"{KIND}-mp4")  # pre-downloaded copies are reused
 RELEASE = "https://github.com/patrick-simpson/Journey-Display/releases/download/transcoded-videos-v1"
 os.makedirs(CUE_DIR, exist_ok=True)
 os.makedirs(TXT_DIR, exist_ok=True)
@@ -70,16 +79,21 @@ def build_cues(words):
 
 for lesson in sorted(lessons, key=lambda l: l["week"]):
     week = lesson["week"]
+    if KIND == "leader" and not lesson.get("leaderDownloadUrl"):
+        print(f"week {week:02d}: no Leader Video - skipping", flush=True)
+        continue
     cue_path = os.path.join(CUE_DIR, f"week-{week:02d}.json")
     txt_path = os.path.join(TXT_DIR, f"week-{week:02d}.txt")
     if os.path.exists(cue_path) and os.path.exists(txt_path):
         print(f"week {week:02d}: already transcribed - skipping", flush=True)
         continue
-    mp4 = os.path.join(SCRATCH, f"student-{week:02d}.mp4")
+    mp4 = os.path.join(MP4_DIR, f"week-{week:02d}-{KIND}.mp4")
+    keep = os.path.exists(mp4)
     t0 = time.time()
     try:
-        if not os.path.exists(mp4):
-            subprocess.run(["curl", "-sSL", "-o", mp4, f"{RELEASE}/week-{week:02d}-student.mp4"], check=True)
+        if not keep:
+            os.makedirs(MP4_DIR, exist_ok=True)
+            subprocess.run(["curl", "-sSL", "-o", mp4, f"{RELEASE}/week-{week:02d}-{KIND}.mp4"], check=True)
         segments, info = model.transcribe(
             mp4, language="en", vad_filter=True, beam_size=5,
             initial_prompt=PROMPT, word_timestamps=True,
@@ -106,7 +120,7 @@ for lesson in sorted(lessons, key=lambda l: l["week"]):
             json.dump({"week": week, "title": lesson["title"],
                        "duration": info.duration, "cues": cues}, f, indent=1)
         with open(txt_path, "w") as f:
-            f.write(f"Week {week}: {lesson['title']} (Student Video, {info.duration:.0f}s)\n")
+            f.write(f"Week {week}: {lesson['title']} ({KIND.title()} Video, {info.duration:.0f}s)\n")
             f.write("Numbered cues - the review pass corrects these by number.\n\n")
             for i, c in enumerate(cues, 1):
                 f.write(f"{i}. {c['text']}\n")
@@ -114,7 +128,7 @@ for lesson in sorted(lessons, key=lambda l: l["week"]):
     except Exception as exc:
         print(f"week {week:02d}: ERROR {exc}", flush=True)
     finally:
-        if os.path.exists(mp4):
+        if not keep and os.path.exists(mp4):
             os.remove(mp4)
 
 print("ALL DONE", flush=True)

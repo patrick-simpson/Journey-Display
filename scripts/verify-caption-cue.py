@@ -2,7 +2,7 @@
 """Re-decode the audio around specific cues, so a reviewer can check what was
 actually said instead of judging plausibility from the transcript.
 
-  verify-cue.py <week> <cue> [<cue> ...]
+  verify-cue.py [student|leader] <week> <cue> [<cue> ...]
 
 For each cue it prints the current text next to a fresh, independent decode of
 that time window (large-v3, beam 10, no conditioning on previous text, so the
@@ -15,14 +15,20 @@ SCRATCH = os.path.dirname(os.path.abspath(__file__))
 RELEASE = "https://github.com/patrick-simpson/Journey-Display/releases/download/transcoded-videos-v1"
 PAD = 2.5  # seconds of context on each side
 
-week = int(sys.argv[1])
-cue_nums = [int(x) for x in sys.argv[2:]]
-cues = json.load(open(f"{SCRATCH}/student-cues/week-{week:02d}.json"))["cues"]
+args = sys.argv[1:]
+KIND = args.pop(0) if args and args[0] in ("student", "leader") else "student"
+week = int(args[0])
+cue_nums = [int(x) for x in args[1:]]
+cues = json.load(open(f"{SCRATCH}/{KIND}-cues/week-{week:02d}.json"))["cues"]
 
-mp4 = f"{SCRATCH}/verify-{week:02d}.mp4"
+# Reuse a pre-downloaded copy (the transcription pass keeps them in
+# <kind>-mp4/) before fetching one just for this check.
+mp4 = f"{SCRATCH}/{KIND}-mp4/week-{week:02d}-{KIND}.mp4"
 if not os.path.exists(mp4):
-    print(f"downloading week {week:02d} student video...", file=sys.stderr)
-    subprocess.run(["curl", "-sSL", "-o", mp4, f"{RELEASE}/week-{week:02d}-student.mp4"], check=True)
+    mp4 = f"{SCRATCH}/verify-{week:02d}-{KIND}.mp4"
+if not os.path.exists(mp4):
+    print(f"downloading week {week:02d} {KIND} video...", file=sys.stderr)
+    subprocess.run(["curl", "-sSL", "-o", mp4, f"{RELEASE}/week-{week:02d}-{KIND}.mp4"], check=True)
 
 from faster_whisper import WhisperModel
 from faster_whisper.audio import decode_audio
