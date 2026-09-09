@@ -29,10 +29,17 @@
         <span id="journey-splash-week"></span>
         <span id="journey-splash-title"></span>
       </div>
-      <button id="journey-splash-play-btn" type="button">
-        <span id="journey-splash-play-icon" aria-hidden="true">▶</span>
-        Begin Video
-      </button>
+      <div id="journey-splash-actions">
+        <button id="journey-splash-play-btn" type="button">
+          <span id="journey-splash-play-icon" aria-hidden="true">▶</span>
+          Begin Video
+        </button>
+        <button id="journey-splash-resume-btn" class="hidden" type="button">
+          <span class="journey-splash-play-icon" aria-hidden="true">▶</span>
+          <span id="journey-splash-resume-label">Resume</span>
+        </button>
+        <button id="journey-splash-startover-btn" class="hidden" type="button">Start over</button>
+      </div>
       <p id="journey-splash-prompt">or press <kbd>Space</kbd> / <kbd>→</kbd> &middot; <kbd>S</kbd> for settings</p>
     </div>
     <video id="journey-video" class="hidden" muted playsinline></video>

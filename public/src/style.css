@@ -142,8 +142,21 @@ html.cursor-hidden * {
   max-width: 90vw;
 }
 
-#journey-splash-play-btn {
+/* The splash's action row. Normally it holds one button ("Begin Video");
+   when an interrupted showing of this week's lesson was marked, schedule.js
+   swaps that for "Resume at M:SS" + "Start over" (see offerResume). Wraps on
+   a phone rather than pushing either button off the screen. */
+#journey-splash-actions {
   margin-top: 3vh;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.6rem, 2vw, 1.2rem);
+}
+
+#journey-splash-play-btn,
+#journey-splash-resume-btn {
   display: flex;
   align-items: center;
   gap: 0.6em;
@@ -161,11 +174,35 @@ html.cursor-hidden * {
 }
 
 #journey-splash-play-btn:hover,
-#journey-splash-play-btn:focus-visible {
+#journey-splash-play-btn:focus-visible,
+#journey-splash-resume-btn:hover,
+#journey-splash-resume-btn:focus-visible {
   background: #e8123a;
 }
 
-#journey-splash-play-icon {
+/* "Start over" is the secondary of the pair: same size to stay a fair
+   10-foot target, plainly not the primary colour. */
+#journey-splash-startover-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.9em 2em;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: clamp(1.05rem, 3.4vw, 1.4rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  touch-action: manipulation;
+}
+
+#journey-splash-startover-btn:hover,
+#journey-splash-startover-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+#journey-splash-play-icon,
+.journey-splash-play-icon {
   font-size: 1.2rem;
 }
 
@@ -845,8 +882,14 @@ html.cursor-hidden #video-controls:not(.force-visible) {
    very next paint instead of easing in; the release still eases out via
    each control's own base transition. These sit at the end of the sheet so
    they win the cascade over the hover/focus rules above. */
-#journey-splash-play-btn:active {
+#journey-splash-play-btn:active,
+#journey-splash-resume-btn:active {
   background: #a00d25;
+  transition: none;
+}
+
+#journey-splash-startover-btn:active {
+  background: rgba(255, 255, 255, 0.4);
   transition: none;
 }
 

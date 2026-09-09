@@ -403,6 +403,24 @@ a reboot during a total outage has no app shell to load).
   is unchanged** — `startPreview()` still plays immediately, bypassing
   the splash entirely; the splash-and-wait behavior only applies to
   the scheduled 6:30 show.
+- **An interrupted lesson can be resumed.** The scheduled show marks its
+  position in `localStorage` (`journey.resume`, `{week, t, d, at}`) about
+  every 5 seconds, and the splash then offers **"Resume at M:SS" + "Start
+  over"** in place of "Begin Video" (never all three — Begin Video and Start
+  over are the same action). Space/→ take whichever primary button is
+  showing, so a reflexive tap resumes rather than restarting the room at
+  0:00. The offer is deliberately narrow, because resuming into the *wrong*
+  video is worse than restarting: the mark must carry the same `week` as the
+  queued lesson, be at least 30s in, at least 10s from the end, and less
+  than 4 hours old — anything else falls back to plain "Begin Video". The
+  mark is written against the week actually attached to the `<video>`
+  (`playingWeek`), not `currentLesson.week`, which the hourly refresh can
+  swap mid-playback; manual previews never write one (`previewMode`), and
+  the `ended` handler and `finishTeachingSlides()` clear it (both skipping
+  previews). The seek itself is armed as `pendingSeek` and applied by ONE
+  permanent `loadedmetadata` listener that re-checks `journeyRequestToken`,
+  so a stale resolve can never seek a newer video. Reading the mark touches
+  only `localStorage`, so the splash still renders with nothing awaited.
 - On load, and hourly afterward, it fetches `current-lesson.json` and
   — regardless of what's currently on screen — pre-fetches that
   lesson's bundle (video + transcripts + handout, see

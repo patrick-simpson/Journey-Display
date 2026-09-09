@@ -33,6 +33,9 @@ const journeySplash = document.getElementById('journey-splash');
 const journeySplashWeek = document.getElementById('journey-splash-week');
 const journeySplashTitle = document.getElementById('journey-splash-title');
 const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
+const journeySplashResumeBtn = document.getElementById('journey-splash-resume-btn');
+const journeySplashResumeLabel = document.getElementById('journey-splash-resume-label');
+const journeySplashStartOverBtn = document.getElementById('journey-splash-startover-btn');
 const journeyVideo = document.getElementById('journey-video');
 const journeyLoading = document.getElementById('journey-loading');
 const journeyLoadingNote = document.getElementById('journey-loading-note');
@@ -286,6 +289,146 @@ async function resolveVideoSrc(lesson, token) {
   return lesson.downloadUrl;
 }
 
+/* ── Resume an interrupted lesson ─────────────────────────────────────
+   A Pi brownout, an accidental hard refresh, or a stray press of the ⇄
+   button used to cost the room the whole lesson so far: playCurrentLesson()
+   always attaches a fresh src and never seeks, and stopJourneyContent()
+   detaches it, so every restart began again at 0:00. The scheduled show now
+   marks its position in localStorage every few seconds, and the splash
+   offers to pick it back up.
+
+   Deliberately narrow, because resuming into the WRONG video would be worse
+   than restarting: the stored week must match the lesson actually queued
+   (a lesson change makes the mark meaningless, never "close enough"), the
+   position has to be far enough in to be worth keeping and far enough from
+   the end to be worth watching, and the mark has to be recent. Manual
+   previews never record one (previewMode), so a previewed week can never be
+   offered as the scheduled show's resume point.
+
+   Reading it costs no network — it is pure localStorage, so the splash
+   still renders synchronously (acknowledge first, network later). Every
+   access is wrapped, like storeCaptionPref(): Chromium in kiosk/private
+   modes can throw on localStorage rather than returning null. */
+const RESUME_KEY = 'journey.resume';
+const RESUME_WRITE_INTERVAL_MS = 5000; // one small write per 5s of playback
+const RESUME_MIN_SECONDS = 30; // below this, starting over costs nothing
+const RESUME_END_MARGIN_S = 10; // this close to the end, the lesson is over
+const RESUME_MAX_AGE_MS = 4 * 60 * 60 * 1000; // last night's mark is not this evening's
+
+let lastResumeWriteMs = 0;
+// The position the splash is currently offering (0 = not offering one), read
+// by the Resume button and by Space/→.
+let offeredResumeAt = 0;
+// The week of the lesson actually attached to the <video> right now, set by
+// playCurrentLesson() and cleared on every teardown. The mark is written
+// against THIS, not against currentLesson.week — the hourly refresh can
+// legitimately swap currentLesson while the old video is still playing, and a
+// mark carrying the new week with the old video's position would resume the
+// wrong lesson at an arbitrary point.
+let playingWeek = null;
+
+function clearResumePoint() {
+  lastResumeWriteMs = 0;
+  try {
+    localStorage.removeItem(RESUME_KEY);
+  } catch {
+    // Nothing to do — a mark that can't be cleared also can't have been written.
+  }
+}
+
+// Bound to the video's 'timeupdate' below (which fires ~4x/second), so this
+// throttles itself rather than writing on every tick.
+function recordResumePoint() {
+  if (previewMode || playingWeek === null) return;
+  if (journeyVideo.classList.contains('hidden')) return;
+  const t = journeyVideo.currentTime;
+  const d = journeyVideo.duration;
+  if (!Number.isFinite(t) || t < RESUME_MIN_SECONDS) return;
+  if (Number.isFinite(d) && d > 0 && d - t <= RESUME_END_MARGIN_S) return;
+  const now = Date.now();
+  if (now - lastResumeWriteMs < RESUME_WRITE_INTERVAL_MS) return;
+  lastResumeWriteMs = now;
+  try {
+    localStorage.setItem(
+      RESUME_KEY,
+      JSON.stringify({
+        week: playingWeek,
+        t: Math.floor(t),
+        d: Number.isFinite(d) && d > 0 ? Math.floor(d) : 0,
+        at: now,
+      })
+    );
+  } catch {
+    // Storage blocked/full — the lesson simply won't be resumable. Fine.
+  }
+}
+
+function storedResumePoint() {
+  try {
+    const raw = localStorage.getItem(RESUME_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (!p || typeof p !== 'object') return null;
+    if (typeof p.week !== 'number' || typeof p.t !== 'number' || typeof p.at !== 'number') {
+      return null;
+    }
+    if (!Number.isFinite(p.t) || !Number.isFinite(p.at)) return null;
+    return p;
+  } catch {
+    return null;
+  }
+}
+
+// The mark, but only if it still describes THIS lesson and is still worth
+// offering. Returns the seconds to resume at, or 0 for "just begin".
+function resumeSecondsFor(lesson) {
+  const p = storedResumePoint();
+  if (!lesson || !p) return 0;
+  if (p.week !== lesson.week) return 0;
+  if (p.t < RESUME_MIN_SECONDS) return 0;
+  if (Date.now() - p.at > RESUME_MAX_AGE_MS) return 0;
+  if (typeof p.d === 'number' && Number.isFinite(p.d) && p.d > 0 && p.d - p.t <= RESUME_END_MARGIN_S) {
+    return 0;
+  }
+  return p.t;
+}
+
+/* The splash shows EITHER "Begin Video" (nothing to resume) or the pair
+   "Resume at M:SS" + "Start over" — never all three, because "Begin Video"
+   and "Start over" are the same action and a third button on a screen read
+   from across a room is just one more thing to get wrong. */
+function offerResume(lesson) {
+  offeredResumeAt = resumeSecondsFor(lesson);
+  const offering = offeredResumeAt > 0;
+  if (offering) journeySplashResumeLabel.textContent = `Resume at ${formatTime(offeredResumeAt)}`;
+  journeySplashResumeBtn.classList.toggle('hidden', !offering);
+  journeySplashStartOverBtn.classList.toggle('hidden', !offering);
+  journeySplashPlayBtn.classList.toggle('hidden', offering);
+}
+
+/* currentTime can only be set once the media's duration is known, so the
+   resume seek waits for this src's own 'loadedmetadata'. One permanent
+   listener (rather than one added per play) so nothing accumulates, and the
+   journeyRequestToken snapshot means a mark from a request that has since
+   been superseded can never seek a newer video. */
+let pendingSeek = null;
+journeyVideo.addEventListener('loadedmetadata', () => {
+  const seek = pendingSeek;
+  pendingSeek = null;
+  if (!seek || seek.token !== journeyRequestToken) return;
+  const d = journeyVideo.duration;
+  let t = seek.t;
+  if (Number.isFinite(d) && d > 0) t = Math.min(t, Math.max(0, d - 1));
+  if (!(t > 0)) return;
+  try {
+    journeyVideo.currentTime = t;
+  } catch {
+    // Some sources refuse a seek before they are seekable — play from the
+    // top rather than not at all.
+  }
+  syncScrubber();
+});
+
 // Entering the journey window no longer autoplays anything: it shows a
 // branded "Large Group Time" splash naming this week's lesson, and waits
 // for the operator to actually start the video (Space / → / the on-screen
@@ -305,6 +448,7 @@ async function showJourneyContent() {
     videoControls.classList.add('hidden');
     journeySplash.classList.add('hidden');
     journeyPlaceholder.classList.remove('hidden');
+    offerResume(null);
     return;
   }
   // Don't rip control away from a playback that's already started (or
@@ -318,13 +462,16 @@ async function showJourneyContent() {
   hideVideoLoading();
   journeySplashWeek.textContent = `Week ${currentLesson.week}`;
   journeySplashTitle.textContent = currentLesson.title;
+  // Decided from localStorage alone — no fetch stands between the splash
+  // appearing and the operator seeing which buttons it offers.
+  offerResume(currentLesson);
   journeySplash.classList.remove('hidden');
 }
 
 // Actually starts the queued lesson playing — called only from a genuine
 // user action (keypress or the on-screen button), which is also what makes
 // unmuted autoplay reliable (see audioUnlocked below).
-async function playCurrentLesson() {
+async function playCurrentLesson(resumeAt = 0) {
   const token = ++journeyRequestToken;
   if (!currentLesson) return;
   stopTeachingSlides();
@@ -337,6 +484,14 @@ async function playCurrentLesson() {
   const src = await resolveVideoSrc(currentLesson, token);
   if (!src || token !== journeyRequestToken) return; // a newer call has since taken over
   journeyVideo.src = src;
+  // The seek is armed only after the token check above, so a stale resolve
+  // can never drop a resume position onto a newer video.
+  playingWeek = currentLesson.week;
+  pendingSeek = resumeAt > 0 ? { token, t: resumeAt } : null;
+  // Starting from the top invalidates the old mark immediately, so a restart
+  // that is then interrupted in its first 30 seconds (before the first write)
+  // can't be offered last time's position.
+  if (!(resumeAt > 0)) clearResumePoint();
   applyCaptions();
   journeyVideo.play().catch(() => {
     // Autoplay-with-sound can still be rejected in edge cases (e.g. the
@@ -771,6 +926,7 @@ function togglePause() {
 journeyVideo.addEventListener('play', syncPlaybackUI);
 journeyVideo.addEventListener('pause', syncPlaybackUI);
 journeyVideo.addEventListener('timeupdate', syncScrubber);
+journeyVideo.addEventListener('timeupdate', recordResumePoint);
 journeyVideo.addEventListener('durationchange', syncScrubber);
 journeyVideo.addEventListener('click', togglePause);
 pauseBtn.addEventListener('click', togglePause);
@@ -788,6 +944,7 @@ videoScrubber.addEventListener('change', () => {
 });
 
 function stopJourneyContent() {
+  playingWeek = null; // nothing attached — stop marking a position
   // Invalidate any still-awaiting requestPlayback()/playCurrentLesson() call:
   // once the operator has torn the view down, a slow caption probe or cache
   // read resolving later must not restart playback into a hidden layer.
@@ -890,12 +1047,28 @@ journeySplashPlayBtn.addEventListener('click', () => {
   beginScheduledPlay();
 });
 
+// Shown in place of "Begin Video" when an interrupted showing of THIS week's
+// lesson was marked (see offerResume) — picks it back up a few seconds shy of
+// where it stopped.
+journeySplashResumeBtn.addEventListener('click', () => {
+  if (!isAwaitingPlay()) return;
+  audioUnlocked = true;
+  beginScheduledPlay(offeredResumeAt);
+});
+
+journeySplashStartOverBtn.addEventListener('click', () => {
+  if (!isAwaitingPlay()) return;
+  audioUnlocked = true;
+  clearResumePoint();
+  beginScheduledPlay(0);
+});
+
 // The scheduled show plays the Student Video, so that's the transcript to
 // offer. requestPlayback() asks about captions only if this device has never
 // answered, then starts playback either way.
-function beginScheduledPlay() {
+function beginScheduledPlay(resumeAt = 0) {
   if (!currentLesson) return;
-  requestPlayback(captionUrlFor(currentLesson.week, 'student'), playCurrentLesson);
+  requestPlayback(captionUrlFor(currentLesson.week, 'student'), () => playCurrentLesson(resumeAt));
 }
 
 document.addEventListener('keydown', (e) => {
@@ -953,7 +1126,9 @@ document.addEventListener('keydown', (e) => {
   if (isAwaitingPlay()) {
     e.preventDefault(); // stop Space from also "clicking" a focused button below
     audioUnlocked = true;
-    beginScheduledPlay();
+    // Whatever the splash's primary button says: Resume when one is offered,
+    // otherwise plain Begin Video. "Start over" stays a deliberate press.
+    beginScheduledPlay(offeredResumeAt);
     return;
   }
   // → moves the show on while a lesson video is up — playing, paused, or
@@ -1040,6 +1215,13 @@ function endOfLessonHandoff() {
   return false;
 }
 
+// The lesson played out — there is nothing left to resume. (Cleared here
+// rather than in endOfLessonHandoff(), which also runs for a → skip and for
+// a stall/error, where the mark is still the best guess at where the room
+// got to.)
+journeyVideo.addEventListener('ended', () => {
+  if (!previewMode) clearResumePoint();
+});
 journeyVideo.addEventListener('ended', endOfLessonHandoff);
 
 /* A video that stalls within a few seconds of its end has, for the room's
@@ -1367,6 +1549,7 @@ function startPreview(url, title, fallbackUrl = null, week = null) {
   ++journeyRequestToken; // invalidate any in-flight showJourneyContent() call
   stopTeachingSlides();
   previewMode = true;
+  playingWeek = null; // a preview is never the scheduled show's resume point
   previewFallbackUrl = fallbackUrl;
   previewWeek = week;
   journeyView.classList.remove('hidden');
@@ -1797,6 +1980,10 @@ function prevSlide() {
 function finishTeachingSlides() {
   const show = slideshow;
   stopTeachingSlides();
+  // The whole showing (video + slides) is done. Not for a preview: its
+  // slides say nothing about where the scheduled lesson got to, and
+  // previewMode is still set until onFinish() runs endPreview().
+  if (!previewMode) clearResumePoint();
   if (show && typeof show.onFinish === 'function') show.onFinish();
 }
 
