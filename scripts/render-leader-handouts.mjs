@@ -14,8 +14,13 @@
 //
 // Week 27 has no Leader Video, so it has no handout at all.
 //
+// It also refreshes public/leader-prep.json (the same page-1 summary as data
+// the kiosk renders itself — see scripts/build-leader-prep.mjs), so the served
+// copy cannot drift from the handouts it was generated beside.
+//
 // Usage: node scripts/render-leader-handouts.mjs [week ...]   (default: all)
 import { chromium } from 'playwright-core';
+import { writeLeaderPrep } from './build-leader-prep.mjs';
 import { readFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -177,6 +182,10 @@ const weeks = Object.keys(SUMMARIES)
   .map(Number)
   .filter((w) => wanted.length === 0 || wanted.includes(w))
   .sort((a, b) => a - b);
+
+// Always the whole file, whichever weeks were asked for: it is one small
+// write, and a partial refresh would be a way for it to drift.
+writeLeaderPrep();
 
 mkdirSync(OUT_DIR, { recursive: true });
 // PLAYWRIGHT_CHROMIUM override for machines that keep Chromium elsewhere.

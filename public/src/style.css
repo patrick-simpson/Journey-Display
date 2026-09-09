@@ -899,6 +899,124 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   background: #444444;
 }
 
+/* ── Leader prep: the handout's page-1 summary as text we lay out ─────
+   Same full-screen overlay shape as the handout viewer, but the content is
+   real DOM, so it reflows: a leader reads this on a phone as often as on
+   the TV. One measure (~62ch) keeps the lines readable at either size. */
+#prep-view {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: #121212;
+  color: #ffffff;
+  font-family: system-ui, sans-serif;
+}
+
+#prep-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+#prep-title {
+  font-size: clamp(1.05rem, 2.4vw, 1.6rem);
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#prep-close-btn {
+  flex: none;
+  min-height: 56px;
+  padding: 0 1.6rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#prep-close-btn:hover,
+#prep-close-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+#prep-close-btn:active {
+  background: rgba(255, 255, 255, 0.45);
+  transition: none;
+}
+
+/* The body text size is set HERE, not on the paragraphs, so the `em`
+   measure below is relative to the text it is actually measuring. Sized like
+   the rest of this kiosk's UI: read on a phone up close AND on the TV from
+   across the room, so the ceiling is generous. */
+#prep-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  font-size: clamp(1.05rem, 1.9vw, 2rem);
+}
+
+#prep-body > section,
+#prep-body > p {
+  max-width: 34em; /* ~65 characters at any of those sizes */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#prep-body > section {
+  margin-bottom: clamp(1.25rem, 3vh, 2rem);
+}
+
+#prep-body h3 {
+  font-size: 1.15em;
+  font-weight: 700;
+  color: #ff6b83;
+  margin-bottom: 0.4em;
+}
+
+#prep-body p,
+#prep-body li {
+  font-size: 1em;
+  line-height: 1.5;
+}
+
+#prep-body ul,
+#prep-body ol {
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+#prep-body .prep-scripture {
+  font-weight: 600;
+}
+
+#prep-body .prep-note,
+#prep-body .prep-footer {
+  opacity: 0.7;
+  font-size: 0.8em;
+}
+
+#prep-body .prep-footer {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 /* Status/error line inside the settings lesson list (loading, or the
    list couldn't be fetched) — same 10-foot sizing as the rows it stands
    in for. */
@@ -1388,6 +1506,13 @@ html.cursor-hidden #slide-controls {
   .settings-check input {
     margin-top: 0.15em;
     flex: none;
+  }
+
+  /* Watch Video / View Handout / Read Prep: three of these squeezed onto one
+     phone row leaves each too narrow to read. */
+  #settings-variant-buttons,
+  #settings-leader-buttons {
+    flex-direction: column;
   }
 
   #notes-edit-toggle {

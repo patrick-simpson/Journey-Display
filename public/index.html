@@ -109,6 +109,7 @@
         <div id="settings-leader-buttons">
           <button id="settings-leader-video" type="button">Watch Video</button>
           <button id="settings-leader-handout" type="button">View Handout</button>
+          <button id="settings-leader-prep" type="button">Read Prep</button>
         </div>
         <button id="settings-leader-back" type="button">← Back</button>
       </div>
@@ -174,6 +175,14 @@
       <button id="handout-close-btn" type="button">✕ Close</button>
     </div>
     <iframe id="handout-frame" title="Leader handout PDF"></iframe>
+  </div>
+
+  <div id="prep-view" class="hidden" role="dialog" aria-modal="true" aria-label="Leader prep">
+    <div id="prep-header">
+      <span id="prep-title"></span>
+      <button id="prep-close-btn" type="button">&#10005; Close</button>
+    </div>
+    <div id="prep-body" tabindex="0"></div>
   </div>
 
   <script src="src/schedule.js"></script>

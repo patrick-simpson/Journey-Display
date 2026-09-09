@@ -744,11 +744,31 @@ directly):
   tagged, titled, and language-marked before committing. Content is
   written from the transcript, not invented — scripture references only
   where the video actually cites them.
+- **`public/leader-prep.json` — the same page-1 summary as *text*** (the
+  "Read Prep" overlay, `#prep-view`). A PDF in an iframe is right on the TV
+  and wrong on a phone, which is where a leader actually preps; this renders
+  Big Idea / Key Points / Scripture / Discussion Questions as real DOM, so it
+  reflows on any screen and — being one ~58KB same-origin file, loaded
+  cache-first out of `journey-assets-v1` and warmed at startup like
+  `lessons.json` and `teaching-slides.json` — it opens with the network dead,
+  which the streamed PDF cannot do for a non-current week.
+  `scripts/build-leader-prep.mjs` GENERATES it (`npm run build-leader-prep`);
+  `render-leader-handouts.mjs` calls the same writer, so the served copy
+  can't drift from the handouts. `data/leader-handout-summaries.json` remains
+  the single hand-edited source and stays a build input — only the summaries
+  travel, because those are this church's own writing about each video; the
+  transcript prose stays out of `public/` (the spoken transcript is already
+  published as the caption `.vtt`). Week 27 has no Leader Video, so it has no
+  entry, and the overlay says exactly that rather than showing a blank panel.
 - **Picker flow:** lesson → Student/Leader → (Leader only)
-  Watch Video / View Handout. The handout opens in a full-screen
+  Watch Video / View Handout / Read Prep. The handout opens in a full-screen
   iframe overlay (`#handout-view`, Chromium's built-in PDF viewer) so
   the kiosk never leaves the page; closing it detaches the iframe
-  `src` (512MB-Pi memory hygiene).
+  `src` (512MB-Pi memory hygiene). `#prep-view` is the same shape with our
+  own DOM (emptied on close for the same reason, and Escape closes it).
+  Both count as "a reading overlay is up" via `readerOverlayOpen()`, which
+  is what keeps the playback and Settings keyboard shortcuts inert while
+  either is covering the screen.
 
 ### Teaching slides after the video (owner-requested 2026-09-06)
 

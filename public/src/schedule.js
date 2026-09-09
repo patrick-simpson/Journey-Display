@@ -61,11 +61,16 @@ const settingsLeaderPicker = document.getElementById('settings-leader-picker');
 const settingsLeaderPrompt = document.getElementById('settings-leader-prompt');
 const settingsLeaderVideoBtn = document.getElementById('settings-leader-video');
 const settingsLeaderHandoutBtn = document.getElementById('settings-leader-handout');
+const settingsLeaderPrepBtn = document.getElementById('settings-leader-prep');
 const settingsLeaderBackBtn = document.getElementById('settings-leader-back');
 const handoutView = document.getElementById('handout-view');
 const handoutTitle = document.getElementById('handout-title');
 const handoutCloseBtn = document.getElementById('handout-close-btn');
 const handoutFrame = document.getElementById('handout-frame');
+const prepView = document.getElementById('prep-view');
+const prepTitle = document.getElementById('prep-title');
+const prepBody = document.getElementById('prep-body');
+const prepCloseBtn = document.getElementById('prep-close-btn');
 const ccBtn = document.getElementById('cc-btn');
 const captionPrompt = document.getElementById('caption-prompt');
 const captionYesBtn = document.getElementById('caption-yes');
@@ -1199,7 +1204,7 @@ document.addEventListener('keydown', (e) => {
   // Teaching slides own Space/arrows while they're up (the video is hidden
   // by then, so none of the playback shortcuts below can fire anyway).
   if (slideshowActive() && settingsPanel.classList.contains('hidden')
-      && handoutView.classList.contains('hidden') && !typing) {
+      && !readerOverlayOpen() && !typing) {
     if (e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'Enter' || e.code === 'PageDown') {
       e.preventDefault(); // (also stops Space from scrolling / clicking a focused button)
       if (e.repeat) return; // a held key must not fly through the deck
@@ -1216,10 +1221,14 @@ document.addEventListener('keydown', (e) => {
   }
   // S opens Settings from anywhere (the splash advertises it); Escape closes.
   if (e.code === 'KeyS' && !e.repeat && !typing && settingsPanel.classList.contains('hidden')
-      && handoutView.classList.contains('hidden')) {
+      && !readerOverlayOpen()) {
     e.preventDefault();
     audioUnlocked = true;
     openSettingsPanel();
+    return;
+  }
+  if (e.code === 'Escape' && !prepView.classList.contains('hidden')) {
+    closePrep();
     return;
   }
   if (e.code === 'Escape' && !settingsPanel.classList.contains('hidden')) {
@@ -1240,7 +1249,7 @@ document.addEventListener('keydown', (e) => {
       !typing &&
       !journeyVideo.classList.contains('hidden') &&
       settingsPanel.classList.contains('hidden') &&
-      handoutView.classList.contains('hidden')
+      !readerOverlayOpen()
     ) {
       e.preventDefault();
       const back = e.code === 'Comma' || e.code === 'BracketLeft';
@@ -1268,7 +1277,7 @@ document.addEventListener('keydown', (e) => {
     e.code === 'ArrowRight' &&
     !journeyVideo.classList.contains('hidden') &&
     settingsPanel.classList.contains('hidden') &&
-    handoutView.classList.contains('hidden')
+    !readerOverlayOpen()
   ) {
     e.preventDefault();
     audioUnlocked = true;
@@ -1640,6 +1649,193 @@ function closeHandout() {
 
 handoutCloseBtn.addEventListener('click', closeHandout);
 
+/* ── Leader prep: the handout's summary as text, not a PDF ────────────
+   "View Handout" is the right thing on the TV and the wrong thing on a
+   phone — a Letter-sized PDF page in Chromium's viewer, pinch-zoomed, is
+   the worst reading experience a leader preparing on the way to church
+   could be handed. "Read Prep" renders the same page-1 content (Big Idea,
+   Key Points, Scripture, Discussion Questions) as plain text this page
+   lays out itself, so it reflows on any screen.
+
+   public/leader-prep.json is GENERATED from data/leader-handout-summaries
+   .json by scripts/build-leader-prep.mjs (which render-leader-handouts.mjs
+   also runs) — that data file stays the single hand-edited source and stays
+   a build input. Only the summaries travel: they are this church's own
+   writing about each video, not Awana's material, and the spoken transcript
+   is already published as the caption .vtt.
+
+   Loaded cache-first out of ASSET_CACHE_NAME exactly like lessons.json and
+   teaching-slides.json, and warmed at startup, so after one successful load
+   the prep opens with the network dead. */
+const LEADER_PREP_URL = 'leader-prep.json';
+let leaderPrep = null;
+// Set once a load has been tried and produced nothing usable, so the panel
+// can tell "not fetched yet" from "we tried and there is no data".
+let leaderPrepFailed = false;
+
+function adoptLeaderPrep(data) {
+  if (!data || typeof data !== 'object' || !data.weeks || typeof data.weeks !== 'object') return false;
+  leaderPrep = data;
+  return true;
+}
+
+async function fetchLeaderPrepJson() {
+  const res = await fetchWithTimeout(LEADER_PREP_URL, {}, 5000);
+  if (!res.ok) throw new Error(`${LEADER_PREP_URL} ${res.status}`);
+  // Parse and shape-check BEFORE caching: a 200 carrying a truncated deploy
+  // must never replace a known-good offline copy.
+  const text = await res.text();
+  const data = JSON.parse(text);
+  if (!data || typeof data !== 'object' || !data.weeks) throw new Error(`${LEADER_PREP_URL}: unexpected shape`);
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open(ASSET_CACHE_NAME);
+      await cache.put(LEADER_PREP_URL, new Response(text, { headers: { 'content-type': 'application/json' } }));
+    } catch {
+      // Not storable right now — still usable live.
+    }
+  }
+  return data;
+}
+
+async function loadLeaderPrep() {
+  if (leaderPrep) return leaderPrep;
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open(ASSET_CACHE_NAME);
+      const hit = await cache.match(LEADER_PREP_URL);
+      if (hit && adoptLeaderPrep(await hit.json())) {
+        fetchLeaderPrepJson().then(adoptLeaderPrep, () => {});
+        return leaderPrep;
+      }
+    } catch {
+      // fall through to the network
+    }
+  }
+  try {
+    adoptLeaderPrep(await fetchLeaderPrepJson());
+  } catch (err) {
+    console.warn('Journey: leader-prep.json unavailable —', err);
+  }
+  if (!leaderPrep) leaderPrepFailed = true;
+  return leaderPrep;
+}
+
+function leaderPrepFor(week) {
+  const weeks = leaderPrep && leaderPrep.weeks;
+  const entry = weeks && weeks[String(week)];
+  return entry && typeof entry === 'object' ? entry : null;
+}
+
+// Identity of the latest open, same reason as handoutRequestId: a slow load
+// for week A must not paint into an overlay showing week B.
+let prepRequestId = 0;
+
+function prepNote(message) {
+  prepBody.textContent = '';
+  const p = document.createElement('p');
+  p.className = 'prep-note';
+  p.textContent = message;
+  prepBody.appendChild(p);
+}
+
+function prepSection(heading, build) {
+  const section = document.createElement('section');
+  const h = document.createElement('h3');
+  h.textContent = heading;
+  section.appendChild(h);
+  section.appendChild(build());
+  prepBody.appendChild(section);
+}
+
+function renderPrep(lesson) {
+  const entry = leaderPrepFor(lesson.week);
+  if (!entry) {
+    prepNote(
+      leaderPrepFailed
+        ? 'The leader prep hasn’t downloaded to this device yet — check the kiosk’s internet connection, then try again.'
+        : `There’s no leader prep for week ${lesson.week}. (Week 27 has no Leader Video, so it has no summary.)`
+    );
+    return;
+  }
+  prepBody.textContent = '';
+  if (entry.bigIdea) {
+    prepSection('Big Idea', () => {
+      const p = document.createElement('p');
+      p.textContent = entry.bigIdea;
+      return p;
+    });
+  }
+  if (Array.isArray(entry.keyPoints) && entry.keyPoints.length) {
+    prepSection('Key Points from the Leader Video', () => {
+      const ul = document.createElement('ul');
+      for (const point of entry.keyPoints) {
+        const li = document.createElement('li');
+        li.textContent = point;
+        ul.appendChild(li);
+      }
+      return ul;
+    });
+  }
+  if (Array.isArray(entry.scriptures) && entry.scriptures.length) {
+    prepSection('Scripture', () => {
+      const p = document.createElement('p');
+      p.className = 'prep-scripture';
+      p.textContent = entry.scriptures.join(' • ');
+      return p;
+    });
+  }
+  if (Array.isArray(entry.questions) && entry.questions.length) {
+    prepSection('Discussion Questions', () => {
+      const ol = document.createElement('ol');
+      for (const question of entry.questions) {
+        const li = document.createElement('li');
+        li.textContent = question;
+        ol.appendChild(li);
+      }
+      return ol;
+    });
+  }
+  const footer = document.createElement('p');
+  footer.className = 'prep-footer';
+  footer.textContent =
+    'Summary of this week’s Leader Video, for this church’s Awana® leaders — internal ministry use only.';
+  prepBody.appendChild(footer);
+}
+
+function openPrep(lesson) {
+  const requestId = ++prepRequestId;
+  // Everything visible happens now; the JSON (if it isn't in memory yet) is
+  // waited on behind an on-screen note, never in front of the overlay.
+  prepTitle.textContent = `Week ${lesson.week} — ${lesson.title} (Leader Prep)`;
+  prepView.classList.remove('hidden');
+  prepCloseBtn.focus();
+  if (leaderPrep) {
+    renderPrep(lesson);
+    return;
+  }
+  prepNote('Loading the leader prep…');
+  loadLeaderPrep().then(() => {
+    if (requestId !== prepRequestId) return; // closed, or reopened on another week
+    renderPrep(lesson);
+  });
+}
+
+function closePrep() {
+  ++prepRequestId; // abandon any still-resolving open
+  prepView.classList.add('hidden');
+  prepBody.textContent = ''; // don't keep a screen of DOM around for the other 23 hours
+  prepBody.scrollTop = 0;
+}
+
+prepCloseBtn.addEventListener('click', closePrep);
+
+// Both full-screen reading overlays sit above everything else, so the
+// playback and settings shortcuts must stay inert while either is up.
+function readerOverlayOpen() {
+  return !handoutView.classList.contains('hidden') || !prepView.classList.contains('hidden');
+}
+
 function openSettingsPanel() {
   audioUnlocked = true;
   resetSettingsPanelToList();
@@ -1773,7 +1969,7 @@ settingsVariantStudentBtn.addEventListener('click', () => {
 // transcript).
 settingsVariantLeaderBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson || !pendingPreviewLesson.leaderDownloadUrl) return;
-  settingsLeaderPrompt.textContent = `"${pendingPreviewLesson.title}" (Leader) — video or handout?`;
+  settingsLeaderPrompt.textContent = `"${pendingPreviewLesson.title}" (Leader) — video, handout, or prep?`;
   settingsVariantPicker.classList.add('hidden');
   settingsLeaderPicker.classList.remove('hidden');
 });
@@ -1795,6 +1991,12 @@ settingsLeaderVideoBtn.addEventListener('click', () => {
 settingsLeaderHandoutBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson) return;
   openHandout(pendingPreviewLesson);
+  closeSettingsPanel();
+});
+
+settingsLeaderPrepBtn.addEventListener('click', () => {
+  if (!pendingPreviewLesson) return;
+  openPrep(pendingPreviewLesson);
   closeSettingsPanel();
 });
 
@@ -2429,3 +2631,6 @@ slideStage.addEventListener('click', (e) => {
 // past its declaration before any call runs.)
 loadAllLessons();
 loadTeachingSlides();
+// Small (~58KB) and only read when a leader presses "Read Prep" — but warmed
+// here, because the whole point is that it opens on a dead connection.
+loadLeaderPrep();
