@@ -519,6 +519,19 @@ a reboot during a total outage has no app shell to load).
     and `scripts/resegment-vtt.py` split them at sentence/clause/word
     boundaries, apportioning duration by character count. That script is
     no longer part of the pipeline; it stays only as a record.
+  - **Size and backdrop are per-device settings** (Settings → Captions):
+    a size choice (Small 0.8 / Normal 1 / Large 1.3 / Extra large 1.6,
+    `journey.captions.size`) and a solid dark backdrop for bright frames
+    (`journey.captions.backdrop`), read with the same try/catch shape as
+    the slide preferences. The size **multiplies** the existing
+    `clamp(18px, 4.5vmin, 56px)` through a `--caption-scale` custom
+    property rather than replacing it, so every option keeps the same
+    responsive behaviour on every screen — note this scales the clamp's
+    floor too, so "Small" really is ~14px on a phone, which is the point of
+    choosing it. `applyCaptionDisplayPrefs()` re-runs `positionCaptions()`
+    after any change, because the band's height feeds the letterbox and
+    control-bar clearance maths. The **CC button remains the only on/off
+    control** — these settings only govern how captions look.
   - The control bar itself needed a `max-width: 760px` media query: three
     non-shrinking buttons plus scrubber and time cannot fit one row on a
     phone, and the CC button was being **clipped off the screen edge** —

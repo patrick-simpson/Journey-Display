@@ -110,6 +110,23 @@
         </div>
         <button id="settings-leader-back" type="button">← Back</button>
       </div>
+      <div id="settings-captions">
+        <h3>Captions</h3>
+        <p class="settings-hint">
+          How captions look while they&rsquo;re on &mdash; the <kbd>CC</kbd> button
+          on the video is what turns them on and off.
+        </p>
+        <label class="settings-field" for="captions-size">
+          <span>Text size</span>
+          <select id="captions-size">
+            <option value="0.8">Small</option>
+            <option value="1">Normal</option>
+            <option value="1.3">Large</option>
+            <option value="1.6">Extra large</option>
+          </select>
+        </label>
+        <label class="settings-check"><input type="checkbox" id="captions-backdrop" /> <span><strong>Dark backdrop</strong> &mdash; a solid band behind the text, for bright video</span></label>
+      </div>
       <div id="settings-slides">
         <h3>After the video: teaching slides</h3>
         <p class="settings-slides-hint">
