@@ -89,6 +89,13 @@ const slidesExtraInputs = {
   takeaways: document.getElementById('slides-extra-takeaways'),
   challenges: document.getElementById('slides-extra-challenges'),
 };
+const notesEditToggle = document.getElementById('notes-edit-toggle');
+const notesEditBody = document.getElementById('notes-edit-body');
+const notesEditWeek = document.getElementById('notes-edit-week');
+const notesEditGroups = document.getElementById('notes-edit-groups');
+const notesEditStatus = document.getElementById('notes-edit-status');
+const notesEditedBadge = document.getElementById('notes-edited-badge');
+const notesResetBtn = document.getElementById('notes-reset-btn');
 
 let currentLesson = null;
 let currentObjectUrl = null;
@@ -1242,7 +1249,10 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (e.code !== 'Space' && e.code !== 'ArrowRight') return;
-  if (isAwaitingPlay()) {
+  // ...but not while the operator is typing (the Settings panel's bullet
+  // editor has real text fields): a space between two words must stay a
+  // space, not start the lesson behind the panel.
+  if (isAwaitingPlay() && !typing && settingsPanel.classList.contains('hidden')) {
     e.preventDefault(); // stop Space from also "clicking" a focused button below
     audioUnlocked = true;
     // Whatever the splash's primary button says: Resume when one is offered,
@@ -1637,6 +1647,12 @@ function openSettingsPanel() {
   // awaited lessons.json first, so on a hung request the gear looked broken
   // (nothing on screen, ever). The list fills in when the data arrives, from
   // the Cache API when the network can't answer.
+  // The bullet editor starts collapsed on every open (it is a rarely-used
+  // detour, not the panel's main job), but its badge is refreshed so an
+  // override on this device is visible without opening anything.
+  notesEditBody.classList.add('hidden');
+  notesEditToggle.setAttribute('aria-expanded', 'false');
+  updateNotesEditedBadge();
   settingsPanel.classList.remove('hidden');
   if (allLessons) {
     renderLessonList(allLessons);
@@ -1661,6 +1677,10 @@ function openSettingsPanel() {
 }
 
 function closeSettingsPanel() {
+  // Commit anything typed into the bullet editor first: the panel closes on
+  // Escape or a backdrop click without the textarea ever blurring, so the
+  // debounced save may still be pending.
+  if (!notesEditBody.classList.contains('hidden')) saveNotesEditor();
   settingsPanel.classList.add('hidden');
 }
 
@@ -1932,15 +1952,264 @@ function syncSlidesPrefInputs() {
 
 syncSlidesPrefInputs();
 slidesAutoAdvanceSelect.addEventListener('change', storeSlidesPrefs);
-for (const k of SLIDE_EXTRA_KINDS) slidesExtraInputs[k].addEventListener('change', storeSlidesPrefs);
+for (const k of SLIDE_EXTRA_KINDS) {
+  slidesExtraInputs[k].addEventListener('change', storeSlidesPrefs);
+  // The bullet editor labels each kind with whether it's actually shown.
+  slidesExtraInputs[k].addEventListener('change', () => {
+    if (!notesEditBody.classList.contains('hidden')) renderNotesEditor();
+  });
+}
+
+/* ── Tonight's bullets, editable on the kiosk ─────────────────────────
+   The three generated slides (Talk About It / Remember This / This Week)
+   are written from the Leader Video's transcript into
+   public/teaching-slides.json, so changing one word costs a repo edit, a
+   deploy, and the ten-minute Pages cache. A leader who wants to ask a
+   different question tonight — or who spots an awkward line five minutes
+   before club — has neither.
+
+   So: a per-device override, stored under journey.slides.notesOverride and
+   keyed by week and kind, which buildSlideItems() prefers over the written
+   text. public/teaching-slides.json is never touched and stays the
+   canonical, hand-edited source; an override is this device's own copy of
+   tonight's bullets, exactly like the caption and auto-advance
+   preferences. Only kinds that actually DIFFER from the written bullets
+   are stored, so a later correction to the JSON still reaches every kind
+   the leader left alone. Nothing marks an override on the slide itself
+   (the wall must look the same either way), so Settings carries an
+   "Edited on this device" badge and a Reset instead — an override that
+   nobody can see is worse than no override at all. */
+const SLIDE_NOTES_OVERRIDE_KEY = 'journey.slides.notesOverride';
+const SLIDE_BULLET_MAX_CHARS = 80; // the deck's own limit, which fitTemplateText() assumes
+const SLIDE_BULLETS_PER_KIND = 3;
+
+// One slide bullet is one line: a textarea's newlines would otherwise turn
+// into an unpredictable wrap on a 4:3 stage read from across a room.
+function cleanBullet(value) {
+  return String(value == null ? '' : value)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, SLIDE_BULLET_MAX_CHARS);
+}
+
+// The whole override blob, shape-checked on the way out and capped on both
+// axes: this is device storage, which a browser (or a person with devtools)
+// can leave in any state at all.
+function slideNotesOverrides() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SLIDE_NOTES_OVERRIDE_KEY) || 'null');
+    if (!raw || typeof raw !== 'object') return {};
+    const out = {};
+    for (const week of Object.keys(raw)) {
+      const byKind = raw[week];
+      if (!/^\d+$/.test(week) || !byKind || typeof byKind !== 'object') continue;
+      const kinds = {};
+      for (const kind of SLIDE_EXTRA_KINDS) {
+        if (!Array.isArray(byKind[kind])) continue;
+        const bullets = byKind[kind]
+          .map(cleanBullet)
+          .filter(Boolean)
+          .slice(0, SLIDE_BULLETS_PER_KIND);
+        if (bullets.length) kinds[kind] = bullets;
+      }
+      if (Object.keys(kinds).length) out[week] = kinds;
+    }
+    return out;
+  } catch {
+    return {}; // unreadable/blocked storage → the written bullets, as if never edited
+  }
+}
+
+function slideNotesOverrideFor(week) {
+  return slideNotesOverrides()[String(week)] || null;
+}
+
+/* Replaces one week's whole override (a falsy/empty `kinds` clears it).
+   Returns whether anything is stored for that week afterward — or null if
+   the write itself failed, which the editor has to say out loud: the
+   slideshow reads these back out of storage, so an edit that could not be
+   stored did not take at all. */
+function storeSlideNotesOverride(week, kinds) {
+  const all = slideNotesOverrides();
+  const key = String(week);
+  if (kinds && Object.keys(kinds).length) all[key] = kinds;
+  else delete all[key];
+  try {
+    if (Object.keys(all).length) {
+      localStorage.setItem(SLIDE_NOTES_OVERRIDE_KEY, JSON.stringify(all));
+    } else {
+      localStorage.removeItem(SLIDE_NOTES_OVERRIDE_KEY);
+    }
+  } catch {
+    return null; // storage blocked (kiosk/private mode) or full
+  }
+  return !!all[key];
+}
+
+// The written bullets for a week, normalised the same way a typed one is so
+// the two can be compared honestly.
+function writtenSlideNotesFor(week) {
+  const w = teachingSlidesFor(week);
+  const notes = w && w.notes && typeof w.notes === 'object' ? w.notes : {};
+  const out = {};
+  for (const kind of SLIDE_EXTRA_KINDS) {
+    if (!Array.isArray(notes[kind])) continue;
+    out[kind] = notes[kind].map(cleanBullet).filter(Boolean).slice(0, SLIDE_BULLETS_PER_KIND);
+  }
+  return out;
+}
+
+/* What buildSlideItems() should actually show: the written bullets, with any
+   kind this device has overridden replacing that kind wholesale. Pure — it
+   reads storage but never writes it. */
+function slideNotesFor(week) {
+  const w = teachingSlidesFor(week);
+  const written = w && w.notes && typeof w.notes === 'object' ? w.notes : {};
+  const override = slideNotesOverrideFor(week);
+  const notes = {};
+  for (const kind of SLIDE_EXTRA_KINDS) {
+    if (override && override[kind]) notes[kind] = override[kind];
+    else if (Array.isArray(written[kind])) notes[kind] = written[kind].map(String);
+  }
+  return notes;
+}
+
+/* Only tonight's lesson is editable. It is the one that will be on the wall
+   in a few minutes, and naming a single week keeps the panel honest about
+   what "Edited on this device" and Reset actually refer to. */
+function editableNotesWeek() {
+  return currentLesson && Number.isInteger(currentLesson.week) ? currentLesson.week : null;
+}
+
+let notesEditSaveTimer = null;
+
+function updateNotesEditedBadge() {
+  const week = editableNotesWeek();
+  const edited = week !== null && !!slideNotesOverrideFor(week);
+  notesEditedBadge.classList.toggle('hidden', !edited);
+  notesResetBtn.classList.toggle('hidden', !edited);
+}
+
+function renderNotesEditor() {
+  notesEditGroups.textContent = '';
+  notesEditStatus.textContent = '';
+  const week = editableNotesWeek();
+  if (week === null) {
+    notesEditWeek.textContent =
+      'Tonight’s lesson hasn’t loaded yet, so there are no bullets to edit.';
+    updateNotesEditedBadge();
+    return;
+  }
+  if (!teachingSlides) {
+    // Nothing is awaited before the editor renders — it says so and fills
+    // itself in if teaching-slides.json turns up.
+    notesEditWeek.textContent = `Week ${week} — loading the written bullets…`;
+    loadTeachingSlides().then(() => {
+      if (!settingsPanel.classList.contains('hidden') && !notesEditBody.classList.contains('hidden')) {
+        renderNotesEditor();
+      }
+    });
+    updateNotesEditedBadge();
+    return;
+  }
+  const title = currentLesson && currentLesson.title ? ` — ${currentLesson.title}` : '';
+  notesEditWeek.textContent =
+    `Week ${week}${title}. Saved on this kiosk only; the written bullets are left alone. ` +
+    `Clear a line to drop it, or clear all three to go back to what was written.`;
+  const headings = Object.assign({}, SLIDE_HEADINGS_DEFAULT, (teachingSlides && teachingSlides.headings) || {});
+  const notes = slideNotesFor(week);
+  const extras = slidesExtras();
+  for (const kind of SLIDE_EXTRA_KINDS) {
+    const group = document.createElement('div');
+    group.className = 'notes-edit-group';
+    const heading = document.createElement('p');
+    heading.className = 'notes-edit-heading';
+    heading.textContent = extras[kind]
+      ? headings[kind]
+      : `${headings[kind]} (not ticked — this slide isn’t shown)`;
+    group.appendChild(heading);
+    const existing = Array.isArray(notes[kind]) ? notes[kind] : [];
+    for (let i = 0; i < SLIDE_BULLETS_PER_KIND; i++) {
+      const field = document.createElement('textarea');
+      field.className = 'notes-edit-input';
+      field.rows = 2;
+      field.maxLength = SLIDE_BULLET_MAX_CHARS;
+      field.dataset.kind = kind;
+      field.value = existing[i] || ''; // a value, never innerHTML
+      field.setAttribute('aria-label', `${headings[kind]} — bullet ${i + 1}`);
+      field.addEventListener('input', scheduleNotesSave);
+      group.appendChild(field);
+    }
+    notesEditGroups.appendChild(group);
+  }
+  updateNotesEditedBadge();
+}
+
+function saveNotesEditor() {
+  clearTimeout(notesEditSaveTimer);
+  notesEditSaveTimer = null;
+  const week = editableNotesWeek();
+  const fields = notesEditGroups.querySelectorAll('textarea');
+  if (week === null || !fields.length) return; // never rendered — nothing to commit
+  const typed = {};
+  for (const field of fields) {
+    const bullet = cleanBullet(field.value);
+    if (!bullet) continue; // a blank line is simply one fewer bullet
+    const kind = field.dataset.kind;
+    (typed[kind] || (typed[kind] = [])).push(bullet);
+  }
+  const written = writtenSlideNotesFor(week);
+  const kinds = {};
+  for (const kind of SLIDE_EXTRA_KINDS) {
+    const bullets = (typed[kind] || []).slice(0, SLIDE_BULLETS_PER_KIND);
+    if (!bullets.length) continue; // all three cleared → back to the written bullets
+    if ((written[kind] || []).join('\n') === bullets.join('\n')) continue; // unchanged
+    kinds[kind] = bullets;
+  }
+  const stored = storeSlideNotesOverride(week, kinds);
+  notesEditStatus.textContent =
+    stored === null
+      ? 'This kiosk’s browser won’t store settings, so the edit didn’t take.'
+      : stored
+        ? 'Saved on this device'
+        : 'Using the written bullets';
+  updateNotesEditedBadge();
+}
+
+// Typing writes through a short debounce rather than on every keystroke —
+// this is a single-core Pi, and JSON.stringify per character is silly.
+function scheduleNotesSave() {
+  clearTimeout(notesEditSaveTimer);
+  notesEditSaveTimer = setTimeout(saveNotesEditor, 500);
+}
+
+notesEditToggle.addEventListener('click', () => {
+  const opening = notesEditBody.classList.contains('hidden');
+  notesEditToggle.setAttribute('aria-expanded', String(opening));
+  if (opening) renderNotesEditor(); // built from memory + localStorage; nothing awaited
+  else saveNotesEditor(); // collapsing commits whatever is in the boxes
+  notesEditBody.classList.toggle('hidden', !opening);
+});
+
+notesResetBtn.addEventListener('click', () => {
+  const week = editableNotesWeek();
+  if (week === null) return;
+  clearTimeout(notesEditSaveTimer);
+  notesEditSaveTimer = null;
+  storeSlideNotesOverride(week, null);
+  renderNotesEditor();
+  notesEditStatus.textContent = 'Reset to the written bullets';
+});
 
 function buildSlideItems(week) {
   if (!Number.isInteger(week) || week < 1) return [];
   const items = [];
   const count = deckSlideCount(week);
   for (let n = 1; n <= count; n++) items.push({ type: 'image', url: slideImageUrl(week, n) });
-  const w = teachingSlidesFor(week);
-  const notes = w && w.notes;
+  // slideNotesFor() is the written bullets with this device's own edits
+  // layered on top (see the block above) — teaching-slides.json itself is
+  // never modified.
+  const notes = slideNotesFor(week);
   const headings = Object.assign({}, SLIDE_HEADINGS_DEFAULT, (teachingSlides && teachingSlides.headings) || {});
   const extras = slidesExtras();
   for (const kind of SLIDE_EXTRA_KINDS) {

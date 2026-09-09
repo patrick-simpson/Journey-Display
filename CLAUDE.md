@@ -785,6 +785,29 @@ video's ending used to do.
   (`#slide-template` in style.css mirrors the deck: centered heading,
   three left-aligned bullets, white on the texture) so they stay crisp
   and editable — the only slide we *fill in*, never an image we copy.
+- **A leader can rewrite tonight's three bullets on the kiosk itself**
+  (Settings → "Edit tonight's bullets"): nine textareas, prefilled from
+  `teaching-slides.json`, stored per device under
+  `journey.slides.notesOverride` as `{ "<week>": { questions|takeaways|
+  challenges: […] } }` and preferred by `slideNotesFor()`, which
+  `buildSlideItems()` now reads instead of `notes` directly. Rules that
+  matter: `public/teaching-slides.json` is never written — it stays the
+  canonical hand-edited source, and only the kinds that actually **differ**
+  from it are stored, so a later JSON correction still reaches every kind the
+  leader left alone. Clearing all three lines of a kind falls back to the
+  written bullets (the tick boxes are how you drop a slide). Bullets are
+  capped at 80 characters and 3 per kind, on the way in *and* on the way out
+  of storage. Only the currently-resolved week is editable, and the editor
+  names it, because "tonight's" has to be unambiguous about what Reset
+  undoes. Nothing marks an override **on the slide** (the wall must look the
+  same either way), so Settings carries an "Edited on this device" badge
+  — visible without opening the disclosure — plus a Reset; and a write
+  that *fails* (kiosk storage blocked) says so rather than claiming "Saved",
+  because the slideshow reads the override back out of storage, so an edit
+  that could not be stored did not take. The Space/→ "begin the lesson"
+  shortcut now also requires the Settings panel closed and no text field
+  focused: with real textareas on the page, a space between two words must
+  stay a space.
 - **Four ways in, never just `ended`** (`endOfLessonHandoff()`): the
   video's own `ended` event, the near-end stall watchdog, a manual → , and
   a fatal video error all funnel through one handoff. Hanging the slides off

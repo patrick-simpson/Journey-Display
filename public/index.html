@@ -150,6 +150,20 @@
         <label class="settings-slides-check"><input type="checkbox" id="slides-extra-questions" /> <span><strong>Talk About It</strong> &mdash; discussion questions</span></label>
         <label class="settings-slides-check"><input type="checkbox" id="slides-extra-takeaways" /> <span><strong>Remember This</strong> &mdash; key takeaways</span></label>
         <label class="settings-slides-check"><input type="checkbox" id="slides-extra-challenges" /> <span><strong>This Week</strong> &mdash; challenges to try</span></label>
+        <div id="settings-notes-edit">
+          <button id="notes-edit-toggle" type="button" aria-expanded="false" aria-controls="notes-edit-body">
+            <span id="notes-edit-toggle-label">Edit tonight&rsquo;s bullets</span>
+            <span id="notes-edited-badge" class="hidden">Edited on this device</span>
+          </button>
+          <div id="notes-edit-body" class="hidden">
+            <p id="notes-edit-week" class="settings-hint"></p>
+            <div id="notes-edit-groups"></div>
+            <div id="notes-edit-actions">
+              <button id="notes-reset-btn" type="button" class="hidden">Reset to the written bullets</button>
+              <span id="notes-edit-status" role="status"></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
