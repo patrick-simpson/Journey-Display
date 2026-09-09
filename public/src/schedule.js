@@ -41,6 +41,8 @@ const journeyLoading = document.getElementById('journey-loading');
 const journeyLoadingNote = document.getElementById('journey-loading-note');
 const videoControls = document.getElementById('video-controls');
 const pauseBtn = document.getElementById('pause-btn');
+const back15Btn = document.getElementById('back15-btn');
+const fwd15Btn = document.getElementById('fwd15-btn');
 const unmuteBtn = document.getElementById('unmute-btn');
 const videoScrubber = document.getElementById('video-scrubber');
 const videoTime = document.getElementById('video-time');
@@ -990,6 +992,34 @@ function togglePause() {
   else journeyVideo.pause();
 }
 
+/* ± 15 seconds. A leader who wants the room to hear one sentence again was
+   otherwise left dragging a finger-sized scrubber on a projected screen and
+   overshooting; a fixed jump is the control that actually gets used mid-
+   teaching. Purely local seeking on an already-attached source — no fetch,
+   nothing to await — so it costs the Pi one decoder re-seek and nothing else.
+   Clamped a quarter-second shy of the end so "skip" can never trip the
+   'ended' handoff by accident: → is the deliberate way on to the slides. */
+const SEEK_STEP_S = 15;
+
+function seekBy(delta) {
+  if (journeyVideo.classList.contains('hidden')) return;
+  audioUnlocked = true; // seeking is itself a genuine gesture
+  const from = journeyVideo.currentTime;
+  if (!Number.isFinite(from)) return;
+  const d = journeyVideo.duration;
+  let t = Math.max(0, from + delta);
+  if (Number.isFinite(d) && d > 0) t = Math.min(t, Math.max(0, d - 0.25));
+  try {
+    journeyVideo.currentTime = t;
+  } catch {
+    return; // not seekable yet (still loading) — leave playback alone
+  }
+  syncScrubber(); // the readout must move on the same paint as the press
+}
+
+back15Btn.addEventListener('click', () => seekBy(-SEEK_STEP_S));
+fwd15Btn.addEventListener('click', () => seekBy(SEEK_STEP_S));
+
 journeyVideo.addEventListener('play', syncPlaybackUI);
 journeyVideo.addEventListener('pause', syncPlaybackUI);
 journeyVideo.addEventListener('timeupdate', syncScrubber);
@@ -1187,6 +1217,28 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.code === 'Escape' && !settingsPanel.classList.contains('hidden')) {
     closeSettingsPanel();
+    return;
+  }
+  /* , and . (the keys marked < and >), with [ and ] as aliases, jump the
+     lesson back/forward 15 seconds. Guarded exactly like the Space branch
+     below: only while a video is actually on screen, never with the settings
+     panel or the handout overlay open, never while typing. ArrowLeft is
+     deliberately left alone — it means "previous slide" once the teaching
+     slides are up — and ArrowRight stays the handoff to those slides.
+     Repeats are ignored: a held key would queue seeks faster than the Pi's
+     decoder can serve them. */
+  if (e.code === 'Comma' || e.code === 'Period' || e.code === 'BracketLeft' || e.code === 'BracketRight') {
+    if (
+      !e.repeat &&
+      !typing &&
+      !journeyVideo.classList.contains('hidden') &&
+      settingsPanel.classList.contains('hidden') &&
+      handoutView.classList.contains('hidden')
+    ) {
+      e.preventDefault();
+      const back = e.code === 'Comma' || e.code === 'BracketLeft';
+      seekBy(back ? -SEEK_STEP_S : SEEK_STEP_S);
+    }
     return;
   }
   if (e.code !== 'Space' && e.code !== 'ArrowRight') return;

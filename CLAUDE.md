@@ -539,9 +539,25 @@ a reboot during a total outage has no app shell to load).
     query must sit *after* the base control rules in the stylesheet; an
     earlier copy placed before them lost the cascade to
     `#video-scrubber { flex: 1 }` and the scrubber never got its own row.
-- **Playback control bar** (`#video-controls`): pause/play, the unmute
-  button, a finger-sized scrubber, and an elapsed/total time readout,
-  along the bottom whenever a video is active. It fades out with the
+- **Playback control bar** (`#video-controls`): **Back 15s**, pause/play,
+  **Skip 15s**, the unmute button, a finger-sized scrubber, and an
+  elapsed/total time readout, along the bottom whenever a video is active.
+  The two 15-second jumps (also **`,`** / **`.`**, with **`[`** / **`]`** as
+  aliases) exist because dragging a finger-sized scrubber on a projected
+  screen to replay one sentence always overshoots; they seek an
+  already-attached source, so nothing is fetched and nothing is awaited.
+  They clamp to `duration - 0.25` so a skip can never trip the `ended`
+  handoff by accident — **→ stays the deliberate way on to the slides, and
+  ← is left alone** because it means "previous slide" once those are up.
+  Key repeats are ignored: a held key would queue seeks faster than the
+  Pi's decoder can serve them. Five pills no longer fit one row alongside a
+  usable scrubber below ~1100px, so **the bar's wrap media query is
+  `max-width: 1100px`**, not the 760px it was with three — below that the
+  scrubber was being squeezed to zero width (`flex: 1` with `min-width: 0`
+  shrinks silently rather than overflowing; measured at 844x390). In that
+  block the scrubber's basis is `calc(100% - 8rem)` so it and the time
+  readout fill the first row exactly and the pills wrap together beneath
+  them, rather than two or three tagging along on the scrubber's row. It fades out with the
   same `cursor-hidden` idle mechanism as the mouse cursor (touches
   count as activity too — phones have no mousemove) and is pinned
   visible while paused (`.force-visible`), since a frozen frame with no

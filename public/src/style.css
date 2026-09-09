@@ -307,6 +307,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #pause-btn,
+#back15-btn,
+#fwd15-btn,
 #unmute-btn {
   flex: none;
   padding: 10px 18px;
@@ -325,7 +327,11 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #pause-btn:hover,
-#pause-btn:focus-visible {
+#pause-btn:focus-visible,
+#back15-btn:hover,
+#back15-btn:focus-visible,
+#fwd15-btn:hover,
+#fwd15-btn:focus-visible {
   background: rgba(255, 255, 255, 0.85);
 }
 
@@ -545,27 +551,44 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   white-space: nowrap;
 }
 
-/* Narrow screens: the bar's contents (three non-shrinking buttons, scrubber,
-   time readout) cannot fit one row on a phone — the CC button was being
-   clipped off the screen edge entirely, which made captions impossible to
-   toggle on mobile. This wraps into two tidy rows: scrubber + elapsed time
-   first (both ordered ahead), then the buttons. It must come AFTER the base
-   rules above: an earlier copy of this block lost the cascade to
+/* Narrow screens: the bar's contents (five non-shrinking buttons, scrubber,
+   time readout) cannot fit one row — the CC button was once being clipped
+   off the screen edge entirely, which made captions impossible to toggle on
+   mobile. This wraps into two tidy rows: scrubber + elapsed time first (both
+   ordered ahead), then the buttons. It must come AFTER the base rules above:
+   an earlier copy of this block lost the cascade to
    `#video-scrubber { flex: 1 }` and the scrubber never got its own row.
    positionCaptions() reads the bar's real offsetHeight, so captions lift
-   automatically as it grows taller. */
-@media (max-width: 760px) {
+   automatically as it grows taller.
+
+   The breakpoint is 1100px, not the 760px it was when the bar held three
+   buttons: with the 15-second jumps added, one row of pills plus a usable
+   scrubber needs about that much. Below it the scrubber was being squeezed
+   to literally zero width (measured at 844x390, a phone held sideways) —
+   flex: 1 with min-width: 0 shrinks silently rather than overflowing. */
+@media (max-width: 1100px) {
   #video-controls {
     flex-wrap: wrap;
     justify-content: center;
     row-gap: 8px;
-    column-gap: 8px;
-    padding: 10px 12px;
+    column-gap: 6px;
+    padding: 10px 10px;
+    /* Five pills, not three, since the 15-second jumps landed here: claw
+       back the inset that reserved room for the view-toggle button, leaving
+       just enough clearance beside it, so the buttons wrap into two tidy
+       rows instead of three. */
+    right: calc(max(3vw, 24px) + 60px);
   }
 
+  /* The scrubber's basis is "the whole row bar the time readout", so those
+     two exactly fill the first row and every pill wraps below them together.
+     With a plain percentage basis, two or three pills tagged along on the
+     scrubber's row and the rest dropped below — a button bar split across a
+     line break is much harder to hit at a glance. 8rem comfortably clears
+     the widest readout the time can render. */
   #video-scrubber {
-    flex: 1 1 55%;
-    order: -1;
+    flex: 1 1 calc(100% - 8rem);
+    order: -2;
   }
 
   #video-time {
@@ -574,10 +597,12 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   }
 
   #pause-btn,
+  #back15-btn,
+  #fwd15-btn,
   #unmute-btn,
   #cc-btn {
-    padding: 8px 12px;
-    font-size: 0.9rem;
+    padding: 8px 10px;
+    font-size: 0.85rem;
   }
 }
 
@@ -905,6 +930,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #pause-btn:active,
+#back15-btn:active,
+#fwd15-btn:active,
 #unmute-btn:active,
 #cc-btn:active {
   background: rgba(255, 255, 255, 0.95);
