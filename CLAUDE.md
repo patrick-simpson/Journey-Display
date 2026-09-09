@@ -105,6 +105,41 @@ setting has regressed.
   boundaries) — this is what lets the manual toggle button override
   the view in between without being fought by the poller.
 
+### Is the Pi's clock right? (`checkClockDrift()`)
+
+The whole schedule is a comparison against the Pi's local clock, and a Pi
+Zero has no real-time clock: after a power cut it comes up at whatever time
+it last knew until NTP over a flaky church connection catches up. Every
+symptom of that ("the lesson never started", "it started at 3 AM") looks
+exactly like a bug in `schedule.js`. So the kiosk measures the drift and
+**reports** it — an amber note top-left (`#clock-warning`) plus the same
+words on the splash (`#journey-splash-clock`), over ±120s.
+
+- **It never corrects the schedule from server time.** A silently corrected
+  clock would hide a real Pi problem that also breaks log timestamps and TLS
+  certificate validity. `scheduledPhase()` is untouched, and the note says so
+  out loud ("the schedule still follows the kiosk's own clock").
+- One `HEAD` through `fetchWithTimeout` (4s), fired-and-forgotten at the top
+  of `refreshLesson()` so it still runs on evenings when the lesson fetch
+  fails; rate-limited to once per 5 minutes because `online` fires in bursts.
+  Nothing awaits it and it only ever writes text into a note, so the
+  acknowledge-first rule is never in play.
+- **A stale `Date` is the one way this can cry wolf**, so it's guarded twice:
+  the probe URL carries a unique query string (nothing has that key cached)
+  *and* the `Date` header is corrected by `Age`. Without either, GitHub
+  Pages' `max-age=600` means a CDN hit's `Date` can be ten minutes old and
+  read as ten minutes of drift on a perfectly good clock.
+- The offset lives in memory only — a persisted "your clock was wrong an
+  hour ago" would be its own lie.
+- The corner note stands down whenever `#journey-view` is showing (a plain
+  sibling CSS rule, `#journey-view:not(.hidden) ~ #clock-warning`): the
+  splash carries the message itself, and a banner has no business over a
+  lesson playing to a room.
+- **Known limit:** this catches a wrong clock, not a wrong **time zone**.
+  Both readings are absolute epoch times, so a Pi set to the wrong zone
+  measures zero drift while still switching an hour out. PI_SETUP.md's
+  troubleshooting says so.
+
 ## The Journey page itself
 
 `#journey-view` plays the current week's "Journey: Advocates" lesson

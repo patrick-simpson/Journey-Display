@@ -240,6 +240,55 @@ html.cursor-hidden * {
   }
 }
 
+/* ── Clock-drift notice ───────────────────────────────────────────────
+   The Pi Zero has no real-time clock, and the whole schedule is a
+   comparison against its local time (see checkClockDrift() in
+   schedule.js). When the two disagree the kiosk says so, in the one
+   corner nothing else uses: the ⇄ / ⚙ buttons and the playback bar all
+   live along the right-hand side and the bottom. Amber, not red — this is
+   a real problem to fix but nothing is broken right now. It sits above
+   both views and the corner buttons, and below the settings panel (20)
+   and the reading overlays (40), which are modal. */
+#clock-warning {
+  position: fixed;
+  top: max(2vh, 12px);
+  left: max(2vw, 12px);
+  z-index: 12;
+  max-width: min(46ch, calc(100vw - 8rem));
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  border-left: 4px solid #f0b429;
+  background: rgba(0, 0, 0, 0.82);
+  color: #ffe9b8;
+  font-family: system-ui, sans-serif;
+  font-size: clamp(0.85rem, 1.4vw, 1.15rem);
+  line-height: 1.35;
+}
+
+/* While the Journey layer owns the screen, the splash carries this message
+   itself (below) and a playing lesson must not have a banner over it — so
+   the corner note stands down. #clock-warning is a following sibling of
+   #journey-view, which is what makes this a plain CSS rule rather than
+   another thing for the script to remember to toggle. */
+#journey-view:not(.hidden) ~ #clock-warning {
+  display: none;
+}
+
+/* The same words on the splash, where the operator is already looking at
+   6:30 — the corner note is easy to miss on a wall-sized screen. */
+#journey-splash-clock {
+  margin-top: 2vh;
+  max-width: min(52ch, 88vw);
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  border-left: 4px solid #f0b429;
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffe9b8;
+  font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+  line-height: 1.4;
+  text-align: left;
+}
+
 /* Loading indicator — shown while a lesson video is fetching/buffering, so a
    slow start (especially a manual preview streaming a full-size original)
    reads as "working on it" rather than a dead black screen. Same cheap

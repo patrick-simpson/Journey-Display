@@ -41,6 +41,7 @@
         <button id="journey-splash-startover-btn" class="hidden" type="button">Start over</button>
       </div>
       <p id="journey-splash-prompt">or press <kbd>Space</kbd> / <kbd>→</kbd> &middot; <kbd>S</kbd> for settings</p>
+      <p id="journey-splash-clock" class="hidden" role="status"></p>
     </div>
     <video id="journey-video" class="hidden" muted playsinline></video>
     <div id="caption-prompt" class="hidden" role="dialog" aria-modal="true" aria-labelledby="caption-prompt-q">
@@ -80,6 +81,8 @@
       </div>
     </div>
   </div>
+
+  <p id="clock-warning" class="hidden" role="status"></p>
 
   <button id="toggle-btn" type="button" aria-label="Switch display">⇄</button>
   <button id="settings-btn" type="button" aria-label="Video settings">⚙</button>

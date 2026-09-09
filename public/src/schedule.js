@@ -36,6 +36,8 @@ const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
 const journeySplashResumeBtn = document.getElementById('journey-splash-resume-btn');
 const journeySplashResumeLabel = document.getElementById('journey-splash-resume-label');
 const journeySplashStartOverBtn = document.getElementById('journey-splash-startover-btn');
+const journeySplashClock = document.getElementById('journey-splash-clock');
+const clockWarning = document.getElementById('clock-warning');
 const journeyVideo = document.getElementById('journey-video');
 const journeyLoading = document.getElementById('journey-loading');
 const journeyLoadingNote = document.getElementById('journey-loading-note');
@@ -1408,11 +1410,125 @@ journeyVideo.addEventListener('error', () => {
   }
 });
 
+/* ── Is the kiosk's clock right? ──────────────────────────────────────
+   The whole schedule is a comparison against the Pi's local system clock
+   (scheduledPhase()), and a Raspberry Pi Zero has no real-time clock at
+   all: after a power cut it comes up at whatever time it last knew, and
+   only NTP over a flaky church connection fixes that. When it doesn't, the
+   symptom is "the lesson never started" or "it started at 3 AM", which
+   reads exactly like a bug in this file.
+
+   So: measure the drift and SAY SO. The schedule is deliberately NOT
+   corrected from server time — a silently corrected clock would hide a real
+   Pi problem that also breaks logs, TLS certificate validity and every
+   other timestamp on the box. Report, never patch.
+
+   Mechanics:
+   - One cheap HEAD to a same-origin file, bounded by fetchWithTimeout, on
+     the hourly refresh (and at startup). Nothing awaits it — it is
+     fire-and-forget and only ever writes text into a corner note.
+   - The probe URL carries a unique query string, and the Date header is
+     then ALSO corrected by Age. Both, because a stale Date is the one way
+     this check can cry wolf: GitHub Pages serves the site through a CDN
+     with max-age=600, so a cache hit's Date can be ten minutes old — which
+     would read as a ten-minute drift on a perfectly good clock. The unique
+     URL forces a fresh response (nobody has that key cached); Age covers
+     any intermediate proxy that answers it from somewhere anyway.
+   - Only the last measurement is kept, in memory. Nothing is persisted:
+     a stale "your clock was wrong an hour ago" note would be its own lie.
+
+   Known limit, worth not rediscovering: this catches a wrong CLOCK, not a
+   wrong TIME ZONE. Both readings are absolute epoch times, so a Pi set to
+   the wrong zone measures zero drift while scheduledPhase() still fires an
+   hour out. See PI_SETUP.md for setting the zone. */
+const CLOCK_PROBE_URL = 'current-lesson.json'; // small, always deployed
+const CLOCK_PROBE_TIMEOUT_MS = 4000;
+const CLOCK_DRIFT_WARN_MS = 120 * 1000; // below this, a slow NTP sync isn't news
+const CLOCK_RECHECK_MIN_MS = 5 * 60 * 1000; // 'online' can fire in bursts
+// Anything claiming to be older than this is a broken header, not a clock.
+const CLOCK_SANE_AFTER_MS = Date.UTC(2024, 0, 1);
+
+let clockProbeInFlight = false;
+let lastClockProbeMs = 0;
+
+function wallClock(ms) {
+  const d = new Date(ms);
+  const hours = d.getHours();
+  const h12 = hours % 12 || 12;
+  return `${h12}:${String(d.getMinutes()).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+}
+
+// "about 12 minutes fast" — the operator's words, not "offset +720s".
+function describeDrift(offsetMs) {
+  const fast = offsetMs > 0;
+  const minutes = Math.round(Math.abs(offsetMs) / 60000);
+  const amount =
+    minutes < 120
+      ? `${minutes} minute${minutes === 1 ? '' : 's'}`
+      : `${(Math.abs(offsetMs) / 3600000).toFixed(1)} hours`;
+  return `about ${amount} ${fast ? 'fast' : 'slow'}`;
+}
+
+function showClockWarning(text) {
+  clockWarning.textContent = text;
+  clockWarning.classList.toggle('hidden', !text);
+  journeySplashClock.textContent = text;
+  journeySplashClock.classList.toggle('hidden', !text);
+}
+
+async function checkClockDrift() {
+  if (clockProbeInFlight) return;
+  const now = Date.now();
+  if (lastClockProbeMs && now - lastClockProbeMs < CLOCK_RECHECK_MIN_MS) return;
+  clockProbeInFlight = true;
+  try {
+    const before = Date.now();
+    // Unique per probe, so no cache anywhere can answer with an old Date.
+    // Random as well as time-based: a stuck clock repeats Date.now().
+    const url = `${CLOCK_PROBE_URL}?clock=${before}-${Math.random().toString(36).slice(2, 8)}`;
+    const res = await fetchWithTimeout(
+      url,
+      { method: 'HEAD', cache: 'no-store' },
+      CLOCK_PROBE_TIMEOUT_MS
+    );
+    const local = (before + Date.now()) / 2; // midpoint: the round trip isn't the drift
+    lastClockProbeMs = Date.now();
+    if (!res.ok) return;
+    const served = Date.parse(res.headers.get('date') || '');
+    if (!Number.isFinite(served) || served < CLOCK_SANE_AFTER_MS) return;
+    // A CDN hit's Date is the age of the cached response, not now.
+    const age = Number(res.headers.get('age'));
+    const serverNow = served + (Number.isFinite(age) && age > 0 ? age * 1000 : 0);
+    const offset = local - serverNow;
+    if (Math.abs(offset) < CLOCK_DRIFT_WARN_MS) {
+      showClockWarning('');
+      return;
+    }
+    console.warn(
+      `Journey: kiosk clock is ${describeDrift(offset)} (kiosk ${new Date(local).toISOString()}, internet ${new Date(serverNow).toISOString()})`
+    );
+    showClockWarning(
+      `This kiosk’s clock is ${describeDrift(offset)}, so the 6:30 switch may be wrong. ` +
+        `Kiosk says ${wallClock(local)}, the internet says ${wallClock(serverNow)}. ` +
+        `The schedule still follows the kiosk’s own clock.`
+    );
+  } catch {
+    // Offline or timed out: the clock is unmeasurable right now, which is
+    // not evidence either way — leave whatever the last measurement said.
+  } finally {
+    clockProbeInFlight = false;
+  }
+}
+
 /* ── Lesson refresh: pulled well ahead of the evening window so the
       video is already cached locally by 6:30, regardless of how the
       network is behaving right then. ──────────────────────────────── */
 
 async function refreshLesson() {
+  // Fire-and-forget, and first in the function so it still runs on the
+  // evenings when the lesson fetch itself fails: nothing here waits on it,
+  // and all it can ever do is write text into a corner note.
+  checkClockDrift();
   const lesson = await loadCurrentLesson();
   // A failed fetch (the exact flaky-network case this refresh exists to be
   // resilient against) must never blank out a lesson we already have —
