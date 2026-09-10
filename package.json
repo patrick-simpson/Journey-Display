@@ -8,7 +8,8 @@
     "fetch-lesson": "node scripts/fetch-current-lesson.mjs",
     "transcode-lesson": "node scripts/transcode-lesson-video.mjs",
     "transcode-all": "node scripts/transcode-all-lessons.mjs",
-    "render-handouts": "node scripts/render-leader-handouts.mjs"
+    "render-handouts": "node scripts/render-leader-handouts.mjs",
+    "build-leader-prep": "node scripts/build-leader-prep.mjs"
   },
   "devDependencies": {
     "jsdom": "^29.1.1",

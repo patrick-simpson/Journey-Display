@@ -105,6 +105,41 @@ setting has regressed.
   boundaries) — this is what lets the manual toggle button override
   the view in between without being fought by the poller.
 
+### Is the Pi's clock right? (`checkClockDrift()`)
+
+The whole schedule is a comparison against the Pi's local clock, and a Pi
+Zero has no real-time clock: after a power cut it comes up at whatever time
+it last knew until NTP over a flaky church connection catches up. Every
+symptom of that ("the lesson never started", "it started at 3 AM") looks
+exactly like a bug in `schedule.js`. So the kiosk measures the drift and
+**reports** it — an amber note top-left (`#clock-warning`) plus the same
+words on the splash (`#journey-splash-clock`), over ±120s.
+
+- **It never corrects the schedule from server time.** A silently corrected
+  clock would hide a real Pi problem that also breaks log timestamps and TLS
+  certificate validity. `scheduledPhase()` is untouched, and the note says so
+  out loud ("the schedule still follows the kiosk's own clock").
+- One `HEAD` through `fetchWithTimeout` (4s), fired-and-forgotten at the top
+  of `refreshLesson()` so it still runs on evenings when the lesson fetch
+  fails; rate-limited to once per 5 minutes because `online` fires in bursts.
+  Nothing awaits it and it only ever writes text into a note, so the
+  acknowledge-first rule is never in play.
+- **A stale `Date` is the one way this can cry wolf**, so it's guarded twice:
+  the probe URL carries a unique query string (nothing has that key cached)
+  *and* the `Date` header is corrected by `Age`. Without either, GitHub
+  Pages' `max-age=600` means a CDN hit's `Date` can be ten minutes old and
+  read as ten minutes of drift on a perfectly good clock.
+- The offset lives in memory only — a persisted "your clock was wrong an
+  hour ago" would be its own lie.
+- The corner note stands down whenever `#journey-view` is showing (a plain
+  sibling CSS rule, `#journey-view:not(.hidden) ~ #clock-warning`): the
+  splash carries the message itself, and a banner has no business over a
+  lesson playing to a room.
+- **Known limit:** this catches a wrong clock, not a wrong **time zone**.
+  Both readings are absolute epoch times, so a Pi set to the wrong zone
+  measures zero drift while still switching an hour out. PI_SETUP.md's
+  troubleshooting says so.
+
 ## The Journey page itself
 
 `#journey-view` plays the current week's "Journey: Advocates" lesson
@@ -403,6 +438,24 @@ a reboot during a total outage has no app shell to load).
   is unchanged** — `startPreview()` still plays immediately, bypassing
   the splash entirely; the splash-and-wait behavior only applies to
   the scheduled 6:30 show.
+- **An interrupted lesson can be resumed.** The scheduled show marks its
+  position in `localStorage` (`journey.resume`, `{week, t, d, at}`) about
+  every 5 seconds, and the splash then offers **"Resume at M:SS" + "Start
+  over"** in place of "Begin Video" (never all three — Begin Video and Start
+  over are the same action). Space/→ take whichever primary button is
+  showing, so a reflexive tap resumes rather than restarting the room at
+  0:00. The offer is deliberately narrow, because resuming into the *wrong*
+  video is worse than restarting: the mark must carry the same `week` as the
+  queued lesson, be at least 30s in, at least 10s from the end, and less
+  than 4 hours old — anything else falls back to plain "Begin Video". The
+  mark is written against the week actually attached to the `<video>`
+  (`playingWeek`), not `currentLesson.week`, which the hourly refresh can
+  swap mid-playback; manual previews never write one (`previewMode`), and
+  the `ended` handler and `finishTeachingSlides()` clear it (both skipping
+  previews). The seek itself is armed as `pendingSeek` and applied by ONE
+  permanent `loadedmetadata` listener that re-checks `journeyRequestToken`,
+  so a stale resolve can never seek a newer video. Reading the mark touches
+  only `localStorage`, so the splash still renders with nothing awaited.
 - On load, and hourly afterward, it fetches `current-lesson.json` and
   — regardless of what's currently on screen — pre-fetches that
   lesson's bundle (video + transcripts + handout, see
@@ -501,6 +554,19 @@ a reboot during a total outage has no app shell to load).
     and `scripts/resegment-vtt.py` split them at sentence/clause/word
     boundaries, apportioning duration by character count. That script is
     no longer part of the pipeline; it stays only as a record.
+  - **Size and backdrop are per-device settings** (Settings → Captions):
+    a size choice (Small 0.8 / Normal 1 / Large 1.3 / Extra large 1.6,
+    `journey.captions.size`) and a solid dark backdrop for bright frames
+    (`journey.captions.backdrop`), read with the same try/catch shape as
+    the slide preferences. The size **multiplies** the existing
+    `clamp(18px, 4.5vmin, 56px)` through a `--caption-scale` custom
+    property rather than replacing it, so every option keeps the same
+    responsive behaviour on every screen — note this scales the clamp's
+    floor too, so "Small" really is ~14px on a phone, which is the point of
+    choosing it. `applyCaptionDisplayPrefs()` re-runs `positionCaptions()`
+    after any change, because the band's height feeds the letterbox and
+    control-bar clearance maths. The **CC button remains the only on/off
+    control** — these settings only govern how captions look.
   - The control bar itself needed a `max-width: 760px` media query: three
     non-shrinking buttons plus scrubber and time cannot fit one row on a
     phone, and the CC button was being **clipped off the screen edge** —
@@ -508,9 +574,25 @@ a reboot during a total outage has no app shell to load).
     query must sit *after* the base control rules in the stylesheet; an
     earlier copy placed before them lost the cascade to
     `#video-scrubber { flex: 1 }` and the scrubber never got its own row.
-- **Playback control bar** (`#video-controls`): pause/play, the unmute
-  button, a finger-sized scrubber, and an elapsed/total time readout,
-  along the bottom whenever a video is active. It fades out with the
+- **Playback control bar** (`#video-controls`): **Back 15s**, pause/play,
+  **Skip 15s**, the unmute button, a finger-sized scrubber, and an
+  elapsed/total time readout, along the bottom whenever a video is active.
+  The two 15-second jumps (also **`,`** / **`.`**, with **`[`** / **`]`** as
+  aliases) exist because dragging a finger-sized scrubber on a projected
+  screen to replay one sentence always overshoots; they seek an
+  already-attached source, so nothing is fetched and nothing is awaited.
+  They clamp to `duration - 0.25` so a skip can never trip the `ended`
+  handoff by accident — **→ stays the deliberate way on to the slides, and
+  ← is left alone** because it means "previous slide" once those are up.
+  Key repeats are ignored: a held key would queue seeks faster than the
+  Pi's decoder can serve them. Five pills no longer fit one row alongside a
+  usable scrubber below ~1100px, so **the bar's wrap media query is
+  `max-width: 1100px`**, not the 760px it was with three — below that the
+  scrubber was being squeezed to zero width (`flex: 1` with `min-width: 0`
+  shrinks silently rather than overflowing; measured at 844x390). In that
+  block the scrubber's basis is `calc(100% - 8rem)` so it and the time
+  readout fill the first row exactly and the pills wrap together beneath
+  them, rather than two or three tagging along on the scrubber's row. It fades out with the
   same `cursor-hidden` idle mechanism as the mouse cursor (touches
   count as activity too — phones have no mousemove) and is pinned
   visible while paused (`.force-visible`), since a frozen frame with no
@@ -697,11 +779,31 @@ directly):
   tagged, titled, and language-marked before committing. Content is
   written from the transcript, not invented — scripture references only
   where the video actually cites them.
+- **`public/leader-prep.json` — the same page-1 summary as *text*** (the
+  "Read Prep" overlay, `#prep-view`). A PDF in an iframe is right on the TV
+  and wrong on a phone, which is where a leader actually preps; this renders
+  Big Idea / Key Points / Scripture / Discussion Questions as real DOM, so it
+  reflows on any screen and — being one ~58KB same-origin file, loaded
+  cache-first out of `journey-assets-v1` and warmed at startup like
+  `lessons.json` and `teaching-slides.json` — it opens with the network dead,
+  which the streamed PDF cannot do for a non-current week.
+  `scripts/build-leader-prep.mjs` GENERATES it (`npm run build-leader-prep`);
+  `render-leader-handouts.mjs` calls the same writer, so the served copy
+  can't drift from the handouts. `data/leader-handout-summaries.json` remains
+  the single hand-edited source and stays a build input — only the summaries
+  travel, because those are this church's own writing about each video; the
+  transcript prose stays out of `public/` (the spoken transcript is already
+  published as the caption `.vtt`). Week 27 has no Leader Video, so it has no
+  entry, and the overlay says exactly that rather than showing a blank panel.
 - **Picker flow:** lesson → Student/Leader → (Leader only)
-  Watch Video / View Handout. The handout opens in a full-screen
+  Watch Video / View Handout / Read Prep. The handout opens in a full-screen
   iframe overlay (`#handout-view`, Chromium's built-in PDF viewer) so
   the kiosk never leaves the page; closing it detaches the iframe
-  `src` (512MB-Pi memory hygiene).
+  `src` (512MB-Pi memory hygiene). `#prep-view` is the same shape with our
+  own DOM (emptied on close for the same reason, and Escape closes it).
+  Both count as "a reading overlay is up" via `readerOverlayOpen()`, which
+  is what keeps the playback and Settings keyboard shortcuts inert while
+  either is covering the screen.
 
 ### Teaching slides after the video (owner-requested 2026-09-06)
 
@@ -738,6 +840,29 @@ video's ending used to do.
   (`#slide-template` in style.css mirrors the deck: centered heading,
   three left-aligned bullets, white on the texture) so they stay crisp
   and editable — the only slide we *fill in*, never an image we copy.
+- **A leader can rewrite tonight's three bullets on the kiosk itself**
+  (Settings → "Edit tonight's bullets"): nine textareas, prefilled from
+  `teaching-slides.json`, stored per device under
+  `journey.slides.notesOverride` as `{ "<week>": { questions|takeaways|
+  challenges: […] } }` and preferred by `slideNotesFor()`, which
+  `buildSlideItems()` now reads instead of `notes` directly. Rules that
+  matter: `public/teaching-slides.json` is never written — it stays the
+  canonical hand-edited source, and only the kinds that actually **differ**
+  from it are stored, so a later JSON correction still reaches every kind the
+  leader left alone. Clearing all three lines of a kind falls back to the
+  written bullets (the tick boxes are how you drop a slide). Bullets are
+  capped at 80 characters and 3 per kind, on the way in *and* on the way out
+  of storage. Only the currently-resolved week is editable, and the editor
+  names it, because "tonight's" has to be unambiguous about what Reset
+  undoes. Nothing marks an override **on the slide** (the wall must look the
+  same either way), so Settings carries an "Edited on this device" badge
+  — visible without opening the disclosure — plus a Reset; and a write
+  that *fails* (kiosk storage blocked) says so rather than claiming "Saved",
+  because the slideshow reads the override back out of storage, so an edit
+  that could not be stored did not take. The Space/→ "begin the lesson"
+  shortcut now also requires the Settings panel closed and no text field
+  focused: with real textareas on the page, a space between two words must
+  stay a space.
 - **Four ways in, never just `ended`** (`endOfLessonHandoff()`): the
   video's own `ended` event, the near-end stall watchdog, a manual → , and
   a fatal video error all funnel through one handoff. Hanging the slides off

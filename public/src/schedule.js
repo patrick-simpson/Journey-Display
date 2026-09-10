@@ -33,11 +33,18 @@ const journeySplash = document.getElementById('journey-splash');
 const journeySplashWeek = document.getElementById('journey-splash-week');
 const journeySplashTitle = document.getElementById('journey-splash-title');
 const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
+const journeySplashResumeBtn = document.getElementById('journey-splash-resume-btn');
+const journeySplashResumeLabel = document.getElementById('journey-splash-resume-label');
+const journeySplashStartOverBtn = document.getElementById('journey-splash-startover-btn');
+const journeySplashClock = document.getElementById('journey-splash-clock');
+const clockWarning = document.getElementById('clock-warning');
 const journeyVideo = document.getElementById('journey-video');
 const journeyLoading = document.getElementById('journey-loading');
 const journeyLoadingNote = document.getElementById('journey-loading-note');
 const videoControls = document.getElementById('video-controls');
 const pauseBtn = document.getElementById('pause-btn');
+const back15Btn = document.getElementById('back15-btn');
+const fwd15Btn = document.getElementById('fwd15-btn');
 const unmuteBtn = document.getElementById('unmute-btn');
 const videoScrubber = document.getElementById('video-scrubber');
 const videoTime = document.getElementById('video-time');
@@ -56,17 +63,24 @@ const settingsLeaderPicker = document.getElementById('settings-leader-picker');
 const settingsLeaderPrompt = document.getElementById('settings-leader-prompt');
 const settingsLeaderVideoBtn = document.getElementById('settings-leader-video');
 const settingsLeaderHandoutBtn = document.getElementById('settings-leader-handout');
+const settingsLeaderPrepBtn = document.getElementById('settings-leader-prep');
 const settingsLeaderBackBtn = document.getElementById('settings-leader-back');
 const handoutView = document.getElementById('handout-view');
 const handoutTitle = document.getElementById('handout-title');
 const handoutCloseBtn = document.getElementById('handout-close-btn');
 const handoutFrame = document.getElementById('handout-frame');
+const prepView = document.getElementById('prep-view');
+const prepTitle = document.getElementById('prep-title');
+const prepBody = document.getElementById('prep-body');
+const prepCloseBtn = document.getElementById('prep-close-btn');
 const ccBtn = document.getElementById('cc-btn');
 const captionPrompt = document.getElementById('caption-prompt');
 const captionYesBtn = document.getElementById('caption-yes');
 const captionNoBtn = document.getElementById('caption-no');
 const captionOverlay = document.getElementById('caption-overlay');
 const captionText = document.getElementById('caption-text');
+const captionsSizeSelect = document.getElementById('captions-size');
+const captionsBackdropInput = document.getElementById('captions-backdrop');
 const slidesView = document.getElementById('slides-view');
 const slideStage = document.getElementById('slide-stage');
 const slideImage = document.getElementById('slide-image');
@@ -82,6 +96,13 @@ const slidesExtraInputs = {
   takeaways: document.getElementById('slides-extra-takeaways'),
   challenges: document.getElementById('slides-extra-challenges'),
 };
+const notesEditToggle = document.getElementById('notes-edit-toggle');
+const notesEditBody = document.getElementById('notes-edit-body');
+const notesEditWeek = document.getElementById('notes-edit-week');
+const notesEditGroups = document.getElementById('notes-edit-groups');
+const notesEditStatus = document.getElementById('notes-edit-status');
+const notesEditedBadge = document.getElementById('notes-edited-badge');
+const notesResetBtn = document.getElementById('notes-reset-btn');
 
 let currentLesson = null;
 let currentObjectUrl = null;
@@ -286,6 +307,146 @@ async function resolveVideoSrc(lesson, token) {
   return lesson.downloadUrl;
 }
 
+/* ── Resume an interrupted lesson ─────────────────────────────────────
+   A Pi brownout, an accidental hard refresh, or a stray press of the ⇄
+   button used to cost the room the whole lesson so far: playCurrentLesson()
+   always attaches a fresh src and never seeks, and stopJourneyContent()
+   detaches it, so every restart began again at 0:00. The scheduled show now
+   marks its position in localStorage every few seconds, and the splash
+   offers to pick it back up.
+
+   Deliberately narrow, because resuming into the WRONG video would be worse
+   than restarting: the stored week must match the lesson actually queued
+   (a lesson change makes the mark meaningless, never "close enough"), the
+   position has to be far enough in to be worth keeping and far enough from
+   the end to be worth watching, and the mark has to be recent. Manual
+   previews never record one (previewMode), so a previewed week can never be
+   offered as the scheduled show's resume point.
+
+   Reading it costs no network — it is pure localStorage, so the splash
+   still renders synchronously (acknowledge first, network later). Every
+   access is wrapped, like storeCaptionPref(): Chromium in kiosk/private
+   modes can throw on localStorage rather than returning null. */
+const RESUME_KEY = 'journey.resume';
+const RESUME_WRITE_INTERVAL_MS = 5000; // one small write per 5s of playback
+const RESUME_MIN_SECONDS = 30; // below this, starting over costs nothing
+const RESUME_END_MARGIN_S = 10; // this close to the end, the lesson is over
+const RESUME_MAX_AGE_MS = 4 * 60 * 60 * 1000; // last night's mark is not this evening's
+
+let lastResumeWriteMs = 0;
+// The position the splash is currently offering (0 = not offering one), read
+// by the Resume button and by Space/→.
+let offeredResumeAt = 0;
+// The week of the lesson actually attached to the <video> right now, set by
+// playCurrentLesson() and cleared on every teardown. The mark is written
+// against THIS, not against currentLesson.week — the hourly refresh can
+// legitimately swap currentLesson while the old video is still playing, and a
+// mark carrying the new week with the old video's position would resume the
+// wrong lesson at an arbitrary point.
+let playingWeek = null;
+
+function clearResumePoint() {
+  lastResumeWriteMs = 0;
+  try {
+    localStorage.removeItem(RESUME_KEY);
+  } catch {
+    // Nothing to do — a mark that can't be cleared also can't have been written.
+  }
+}
+
+// Bound to the video's 'timeupdate' below (which fires ~4x/second), so this
+// throttles itself rather than writing on every tick.
+function recordResumePoint() {
+  if (previewMode || playingWeek === null) return;
+  if (journeyVideo.classList.contains('hidden')) return;
+  const t = journeyVideo.currentTime;
+  const d = journeyVideo.duration;
+  if (!Number.isFinite(t) || t < RESUME_MIN_SECONDS) return;
+  if (Number.isFinite(d) && d > 0 && d - t <= RESUME_END_MARGIN_S) return;
+  const now = Date.now();
+  if (now - lastResumeWriteMs < RESUME_WRITE_INTERVAL_MS) return;
+  lastResumeWriteMs = now;
+  try {
+    localStorage.setItem(
+      RESUME_KEY,
+      JSON.stringify({
+        week: playingWeek,
+        t: Math.floor(t),
+        d: Number.isFinite(d) && d > 0 ? Math.floor(d) : 0,
+        at: now,
+      })
+    );
+  } catch {
+    // Storage blocked/full — the lesson simply won't be resumable. Fine.
+  }
+}
+
+function storedResumePoint() {
+  try {
+    const raw = localStorage.getItem(RESUME_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (!p || typeof p !== 'object') return null;
+    if (typeof p.week !== 'number' || typeof p.t !== 'number' || typeof p.at !== 'number') {
+      return null;
+    }
+    if (!Number.isFinite(p.t) || !Number.isFinite(p.at)) return null;
+    return p;
+  } catch {
+    return null;
+  }
+}
+
+// The mark, but only if it still describes THIS lesson and is still worth
+// offering. Returns the seconds to resume at, or 0 for "just begin".
+function resumeSecondsFor(lesson) {
+  const p = storedResumePoint();
+  if (!lesson || !p) return 0;
+  if (p.week !== lesson.week) return 0;
+  if (p.t < RESUME_MIN_SECONDS) return 0;
+  if (Date.now() - p.at > RESUME_MAX_AGE_MS) return 0;
+  if (typeof p.d === 'number' && Number.isFinite(p.d) && p.d > 0 && p.d - p.t <= RESUME_END_MARGIN_S) {
+    return 0;
+  }
+  return p.t;
+}
+
+/* The splash shows EITHER "Begin Video" (nothing to resume) or the pair
+   "Resume at M:SS" + "Start over" — never all three, because "Begin Video"
+   and "Start over" are the same action and a third button on a screen read
+   from across a room is just one more thing to get wrong. */
+function offerResume(lesson) {
+  offeredResumeAt = resumeSecondsFor(lesson);
+  const offering = offeredResumeAt > 0;
+  if (offering) journeySplashResumeLabel.textContent = `Resume at ${formatTime(offeredResumeAt)}`;
+  journeySplashResumeBtn.classList.toggle('hidden', !offering);
+  journeySplashStartOverBtn.classList.toggle('hidden', !offering);
+  journeySplashPlayBtn.classList.toggle('hidden', offering);
+}
+
+/* currentTime can only be set once the media's duration is known, so the
+   resume seek waits for this src's own 'loadedmetadata'. One permanent
+   listener (rather than one added per play) so nothing accumulates, and the
+   journeyRequestToken snapshot means a mark from a request that has since
+   been superseded can never seek a newer video. */
+let pendingSeek = null;
+journeyVideo.addEventListener('loadedmetadata', () => {
+  const seek = pendingSeek;
+  pendingSeek = null;
+  if (!seek || seek.token !== journeyRequestToken) return;
+  const d = journeyVideo.duration;
+  let t = seek.t;
+  if (Number.isFinite(d) && d > 0) t = Math.min(t, Math.max(0, d - 1));
+  if (!(t > 0)) return;
+  try {
+    journeyVideo.currentTime = t;
+  } catch {
+    // Some sources refuse a seek before they are seekable — play from the
+    // top rather than not at all.
+  }
+  syncScrubber();
+});
+
 // Entering the journey window no longer autoplays anything: it shows a
 // branded "Large Group Time" splash naming this week's lesson, and waits
 // for the operator to actually start the video (Space / → / the on-screen
@@ -305,6 +466,7 @@ async function showJourneyContent() {
     videoControls.classList.add('hidden');
     journeySplash.classList.add('hidden');
     journeyPlaceholder.classList.remove('hidden');
+    offerResume(null);
     return;
   }
   // Don't rip control away from a playback that's already started (or
@@ -318,13 +480,16 @@ async function showJourneyContent() {
   hideVideoLoading();
   journeySplashWeek.textContent = `Week ${currentLesson.week}`;
   journeySplashTitle.textContent = currentLesson.title;
+  // Decided from localStorage alone — no fetch stands between the splash
+  // appearing and the operator seeing which buttons it offers.
+  offerResume(currentLesson);
   journeySplash.classList.remove('hidden');
 }
 
 // Actually starts the queued lesson playing — called only from a genuine
 // user action (keypress or the on-screen button), which is also what makes
 // unmuted autoplay reliable (see audioUnlocked below).
-async function playCurrentLesson() {
+async function playCurrentLesson(resumeAt = 0) {
   const token = ++journeyRequestToken;
   if (!currentLesson) return;
   stopTeachingSlides();
@@ -337,6 +502,14 @@ async function playCurrentLesson() {
   const src = await resolveVideoSrc(currentLesson, token);
   if (!src || token !== journeyRequestToken) return; // a newer call has since taken over
   journeyVideo.src = src;
+  // The seek is armed only after the token check above, so a stale resolve
+  // can never drop a resume position onto a newer video.
+  playingWeek = currentLesson.week;
+  pendingSeek = resumeAt > 0 ? { token, t: resumeAt } : null;
+  // Starting from the top invalidates the old mark immediately, so a restart
+  // that is then interrupted in its first 30 seconds (before the first write)
+  // can't be offered last time's position.
+  if (!(resumeAt > 0)) clearResumePoint();
   applyCaptions();
   journeyVideo.play().catch(() => {
     // Autoplay-with-sound can still be rejected in edge cases (e.g. the
@@ -548,6 +721,71 @@ function positionCaptions() {
 journeyVideo.addEventListener('loadedmetadata', positionCaptions);
 window.addEventListener('resize', positionCaptions);
 window.addEventListener('orientationchange', positionCaptions);
+
+/* ── Caption appearance (Settings → Captions) ─────────────────────────
+   One fixed type size cannot serve both readers this page has: a leader in
+   the back row of a room reading a projected TV, and someone holding a
+   phone. So the size is a per-device choice, stored like the on/off answer
+   and the slide preferences.
+
+   It MULTIPLIES the responsive clamp in style.css through --caption-scale
+   rather than replacing it, so "Large" is still capped on a huge screen and
+   still legible on a small one. The dark-backdrop option swaps the
+   translucent band for a solid one, which is what a bright lesson frame
+   needs. Both are pure CSS + localStorage: nothing is fetched, so none of
+   this can delay a control that has just been pressed. */
+const CAPTION_SIZE_KEY = 'journey.captions.size';
+const CAPTION_BACKDROP_KEY = 'journey.captions.backdrop';
+const CAPTION_SIZES = ['0.8', '1', '1.3', '1.6'];
+const CAPTION_SIZE_DEFAULT = '1';
+
+function storedCaptionSize() {
+  try {
+    const v = localStorage.getItem(CAPTION_SIZE_KEY);
+    return CAPTION_SIZES.includes(v) ? v : CAPTION_SIZE_DEFAULT;
+  } catch {
+    return CAPTION_SIZE_DEFAULT;
+  }
+}
+
+function storedCaptionBackdrop() {
+  try {
+    return localStorage.getItem(CAPTION_BACKDROP_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
+
+// Takes the values explicitly so a change can still be APPLIED on a device
+// where storage is blocked and the write above just failed — reading them
+// back would hand out the defaults and the control would look inert.
+function applyCaptionDisplayPrefs(size = storedCaptionSize(), backdrop = storedCaptionBackdrop()) {
+  document.documentElement.style.setProperty('--caption-scale', size);
+  captionOverlay.classList.toggle('caption-backdrop', backdrop);
+  // The band's height changed, so the letterbox/control-bar clearance the
+  // caption sits above has to be worked out again.
+  positionCaptions();
+}
+
+function storeCaptionDisplayPrefs() {
+  try {
+    localStorage.setItem(CAPTION_SIZE_KEY, captionsSizeSelect.value);
+    localStorage.setItem(CAPTION_BACKDROP_KEY, captionsBackdropInput.checked ? 'on' : 'off');
+  } catch {
+    // Won't survive a reload — the live change below still applies now.
+  }
+  applyCaptionDisplayPrefs(captionsSizeSelect.value, captionsBackdropInput.checked);
+}
+
+function syncCaptionPrefInputs() {
+  captionsSizeSelect.value = storedCaptionSize();
+  captionsBackdropInput.checked = storedCaptionBackdrop();
+}
+
+syncCaptionPrefInputs();
+applyCaptionDisplayPrefs();
+captionsSizeSelect.addEventListener('change', storeCaptionDisplayPrefs);
+captionsBackdropInput.addEventListener('change', storeCaptionDisplayPrefs);
 
 function applyCaptions() {
   removeCaptionTracks();
@@ -768,9 +1006,38 @@ function togglePause() {
   else journeyVideo.pause();
 }
 
+/* ± 15 seconds. A leader who wants the room to hear one sentence again was
+   otherwise left dragging a finger-sized scrubber on a projected screen and
+   overshooting; a fixed jump is the control that actually gets used mid-
+   teaching. Purely local seeking on an already-attached source — no fetch,
+   nothing to await — so it costs the Pi one decoder re-seek and nothing else.
+   Clamped a quarter-second shy of the end so "skip" can never trip the
+   'ended' handoff by accident: → is the deliberate way on to the slides. */
+const SEEK_STEP_S = 15;
+
+function seekBy(delta) {
+  if (journeyVideo.classList.contains('hidden')) return;
+  audioUnlocked = true; // seeking is itself a genuine gesture
+  const from = journeyVideo.currentTime;
+  if (!Number.isFinite(from)) return;
+  const d = journeyVideo.duration;
+  let t = Math.max(0, from + delta);
+  if (Number.isFinite(d) && d > 0) t = Math.min(t, Math.max(0, d - 0.25));
+  try {
+    journeyVideo.currentTime = t;
+  } catch {
+    return; // not seekable yet (still loading) — leave playback alone
+  }
+  syncScrubber(); // the readout must move on the same paint as the press
+}
+
+back15Btn.addEventListener('click', () => seekBy(-SEEK_STEP_S));
+fwd15Btn.addEventListener('click', () => seekBy(SEEK_STEP_S));
+
 journeyVideo.addEventListener('play', syncPlaybackUI);
 journeyVideo.addEventListener('pause', syncPlaybackUI);
 journeyVideo.addEventListener('timeupdate', syncScrubber);
+journeyVideo.addEventListener('timeupdate', recordResumePoint);
 journeyVideo.addEventListener('durationchange', syncScrubber);
 journeyVideo.addEventListener('click', togglePause);
 pauseBtn.addEventListener('click', togglePause);
@@ -788,6 +1055,7 @@ videoScrubber.addEventListener('change', () => {
 });
 
 function stopJourneyContent() {
+  playingWeek = null; // nothing attached — stop marking a position
   // Invalidate any still-awaiting requestPlayback()/playCurrentLesson() call:
   // once the operator has torn the view down, a slow caption probe or cache
   // read resolving later must not restart playback into a hidden layer.
@@ -890,12 +1158,28 @@ journeySplashPlayBtn.addEventListener('click', () => {
   beginScheduledPlay();
 });
 
+// Shown in place of "Begin Video" when an interrupted showing of THIS week's
+// lesson was marked (see offerResume) — picks it back up a few seconds shy of
+// where it stopped.
+journeySplashResumeBtn.addEventListener('click', () => {
+  if (!isAwaitingPlay()) return;
+  audioUnlocked = true;
+  beginScheduledPlay(offeredResumeAt);
+});
+
+journeySplashStartOverBtn.addEventListener('click', () => {
+  if (!isAwaitingPlay()) return;
+  audioUnlocked = true;
+  clearResumePoint();
+  beginScheduledPlay(0);
+});
+
 // The scheduled show plays the Student Video, so that's the transcript to
 // offer. requestPlayback() asks about captions only if this device has never
 // answered, then starts playback either way.
-function beginScheduledPlay() {
+function beginScheduledPlay(resumeAt = 0) {
   if (!currentLesson) return;
-  requestPlayback(captionUrlFor(currentLesson.week, 'student'), playCurrentLesson);
+  requestPlayback(captionUrlFor(currentLesson.week, 'student'), () => playCurrentLesson(resumeAt));
 }
 
 document.addEventListener('keydown', (e) => {
@@ -922,7 +1206,7 @@ document.addEventListener('keydown', (e) => {
   // Teaching slides own Space/arrows while they're up (the video is hidden
   // by then, so none of the playback shortcuts below can fire anyway).
   if (slideshowActive() && settingsPanel.classList.contains('hidden')
-      && handoutView.classList.contains('hidden') && !typing) {
+      && !readerOverlayOpen() && !typing) {
     if (e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'Enter' || e.code === 'PageDown') {
       e.preventDefault(); // (also stops Space from scrolling / clicking a focused button)
       if (e.repeat) return; // a held key must not fly through the deck
@@ -939,21 +1223,52 @@ document.addEventListener('keydown', (e) => {
   }
   // S opens Settings from anywhere (the splash advertises it); Escape closes.
   if (e.code === 'KeyS' && !e.repeat && !typing && settingsPanel.classList.contains('hidden')
-      && handoutView.classList.contains('hidden')) {
+      && !readerOverlayOpen()) {
     e.preventDefault();
     audioUnlocked = true;
     openSettingsPanel();
+    return;
+  }
+  if (e.code === 'Escape' && !prepView.classList.contains('hidden')) {
+    closePrep();
     return;
   }
   if (e.code === 'Escape' && !settingsPanel.classList.contains('hidden')) {
     closeSettingsPanel();
     return;
   }
+  /* , and . (the keys marked < and >), with [ and ] as aliases, jump the
+     lesson back/forward 15 seconds. Guarded exactly like the Space branch
+     below: only while a video is actually on screen, never with the settings
+     panel or the handout overlay open, never while typing. ArrowLeft is
+     deliberately left alone — it means "previous slide" once the teaching
+     slides are up — and ArrowRight stays the handoff to those slides.
+     Repeats are ignored: a held key would queue seeks faster than the Pi's
+     decoder can serve them. */
+  if (e.code === 'Comma' || e.code === 'Period' || e.code === 'BracketLeft' || e.code === 'BracketRight') {
+    if (
+      !e.repeat &&
+      !typing &&
+      !journeyVideo.classList.contains('hidden') &&
+      settingsPanel.classList.contains('hidden') &&
+      !readerOverlayOpen()
+    ) {
+      e.preventDefault();
+      const back = e.code === 'Comma' || e.code === 'BracketLeft';
+      seekBy(back ? -SEEK_STEP_S : SEEK_STEP_S);
+    }
+    return;
+  }
   if (e.code !== 'Space' && e.code !== 'ArrowRight') return;
-  if (isAwaitingPlay()) {
+  // ...but not while the operator is typing (the Settings panel's bullet
+  // editor has real text fields): a space between two words must stay a
+  // space, not start the lesson behind the panel.
+  if (isAwaitingPlay() && !typing && settingsPanel.classList.contains('hidden')) {
     e.preventDefault(); // stop Space from also "clicking" a focused button below
     audioUnlocked = true;
-    beginScheduledPlay();
+    // Whatever the splash's primary button says: Resume when one is offered,
+    // otherwise plain Begin Video. "Start over" stays a deliberate press.
+    beginScheduledPlay(offeredResumeAt);
     return;
   }
   // → moves the show on while a lesson video is up — playing, paused, or
@@ -964,7 +1279,7 @@ document.addEventListener('keydown', (e) => {
     e.code === 'ArrowRight' &&
     !journeyVideo.classList.contains('hidden') &&
     settingsPanel.classList.contains('hidden') &&
-    handoutView.classList.contains('hidden')
+    !readerOverlayOpen()
   ) {
     e.preventDefault();
     audioUnlocked = true;
@@ -1040,6 +1355,13 @@ function endOfLessonHandoff() {
   return false;
 }
 
+// The lesson played out — there is nothing left to resume. (Cleared here
+// rather than in endOfLessonHandoff(), which also runs for a → skip and for
+// a stall/error, where the mark is still the best guess at where the room
+// got to.)
+journeyVideo.addEventListener('ended', () => {
+  if (!previewMode) clearResumePoint();
+});
 journeyVideo.addEventListener('ended', endOfLessonHandoff);
 
 /* A video that stalls within a few seconds of its end has, for the room's
@@ -1088,11 +1410,125 @@ journeyVideo.addEventListener('error', () => {
   }
 });
 
+/* ── Is the kiosk's clock right? ──────────────────────────────────────
+   The whole schedule is a comparison against the Pi's local system clock
+   (scheduledPhase()), and a Raspberry Pi Zero has no real-time clock at
+   all: after a power cut it comes up at whatever time it last knew, and
+   only NTP over a flaky church connection fixes that. When it doesn't, the
+   symptom is "the lesson never started" or "it started at 3 AM", which
+   reads exactly like a bug in this file.
+
+   So: measure the drift and SAY SO. The schedule is deliberately NOT
+   corrected from server time — a silently corrected clock would hide a real
+   Pi problem that also breaks logs, TLS certificate validity and every
+   other timestamp on the box. Report, never patch.
+
+   Mechanics:
+   - One cheap HEAD to a same-origin file, bounded by fetchWithTimeout, on
+     the hourly refresh (and at startup). Nothing awaits it — it is
+     fire-and-forget and only ever writes text into a corner note.
+   - The probe URL carries a unique query string, and the Date header is
+     then ALSO corrected by Age. Both, because a stale Date is the one way
+     this check can cry wolf: GitHub Pages serves the site through a CDN
+     with max-age=600, so a cache hit's Date can be ten minutes old — which
+     would read as a ten-minute drift on a perfectly good clock. The unique
+     URL forces a fresh response (nobody has that key cached); Age covers
+     any intermediate proxy that answers it from somewhere anyway.
+   - Only the last measurement is kept, in memory. Nothing is persisted:
+     a stale "your clock was wrong an hour ago" note would be its own lie.
+
+   Known limit, worth not rediscovering: this catches a wrong CLOCK, not a
+   wrong TIME ZONE. Both readings are absolute epoch times, so a Pi set to
+   the wrong zone measures zero drift while scheduledPhase() still fires an
+   hour out. See PI_SETUP.md for setting the zone. */
+const CLOCK_PROBE_URL = 'current-lesson.json'; // small, always deployed
+const CLOCK_PROBE_TIMEOUT_MS = 4000;
+const CLOCK_DRIFT_WARN_MS = 120 * 1000; // below this, a slow NTP sync isn't news
+const CLOCK_RECHECK_MIN_MS = 5 * 60 * 1000; // 'online' can fire in bursts
+// Anything claiming to be older than this is a broken header, not a clock.
+const CLOCK_SANE_AFTER_MS = Date.UTC(2024, 0, 1);
+
+let clockProbeInFlight = false;
+let lastClockProbeMs = 0;
+
+function wallClock(ms) {
+  const d = new Date(ms);
+  const hours = d.getHours();
+  const h12 = hours % 12 || 12;
+  return `${h12}:${String(d.getMinutes()).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+}
+
+// "about 12 minutes fast" — the operator's words, not "offset +720s".
+function describeDrift(offsetMs) {
+  const fast = offsetMs > 0;
+  const minutes = Math.round(Math.abs(offsetMs) / 60000);
+  const amount =
+    minutes < 120
+      ? `${minutes} minute${minutes === 1 ? '' : 's'}`
+      : `${(Math.abs(offsetMs) / 3600000).toFixed(1)} hours`;
+  return `about ${amount} ${fast ? 'fast' : 'slow'}`;
+}
+
+function showClockWarning(text) {
+  clockWarning.textContent = text;
+  clockWarning.classList.toggle('hidden', !text);
+  journeySplashClock.textContent = text;
+  journeySplashClock.classList.toggle('hidden', !text);
+}
+
+async function checkClockDrift() {
+  if (clockProbeInFlight) return;
+  const now = Date.now();
+  if (lastClockProbeMs && now - lastClockProbeMs < CLOCK_RECHECK_MIN_MS) return;
+  clockProbeInFlight = true;
+  try {
+    const before = Date.now();
+    // Unique per probe, so no cache anywhere can answer with an old Date.
+    // Random as well as time-based: a stuck clock repeats Date.now().
+    const url = `${CLOCK_PROBE_URL}?clock=${before}-${Math.random().toString(36).slice(2, 8)}`;
+    const res = await fetchWithTimeout(
+      url,
+      { method: 'HEAD', cache: 'no-store' },
+      CLOCK_PROBE_TIMEOUT_MS
+    );
+    const local = (before + Date.now()) / 2; // midpoint: the round trip isn't the drift
+    lastClockProbeMs = Date.now();
+    if (!res.ok) return;
+    const served = Date.parse(res.headers.get('date') || '');
+    if (!Number.isFinite(served) || served < CLOCK_SANE_AFTER_MS) return;
+    // A CDN hit's Date is the age of the cached response, not now.
+    const age = Number(res.headers.get('age'));
+    const serverNow = served + (Number.isFinite(age) && age > 0 ? age * 1000 : 0);
+    const offset = local - serverNow;
+    if (Math.abs(offset) < CLOCK_DRIFT_WARN_MS) {
+      showClockWarning('');
+      return;
+    }
+    console.warn(
+      `Journey: kiosk clock is ${describeDrift(offset)} (kiosk ${new Date(local).toISOString()}, internet ${new Date(serverNow).toISOString()})`
+    );
+    showClockWarning(
+      `This kiosk’s clock is ${describeDrift(offset)}, so the 6:30 switch may be wrong. ` +
+        `Kiosk says ${wallClock(local)}, the internet says ${wallClock(serverNow)}. ` +
+        `The schedule still follows the kiosk’s own clock.`
+    );
+  } catch {
+    // Offline or timed out: the clock is unmeasurable right now, which is
+    // not evidence either way — leave whatever the last measurement said.
+  } finally {
+    clockProbeInFlight = false;
+  }
+}
+
 /* ── Lesson refresh: pulled well ahead of the evening window so the
       video is already cached locally by 6:30, regardless of how the
       network is behaving right then. ──────────────────────────────── */
 
 async function refreshLesson() {
+  // Fire-and-forget, and first in the function so it still runs on the
+  // evenings when the lesson fetch itself fails: nothing here waits on it,
+  // and all it can ever do is write text into a corner note.
+  checkClockDrift();
   const lesson = await loadCurrentLesson();
   // A failed fetch (the exact flaky-network case this refresh exists to be
   // resilient against) must never blank out a lesson we already have —
@@ -1329,6 +1765,193 @@ function closeHandout() {
 
 handoutCloseBtn.addEventListener('click', closeHandout);
 
+/* ── Leader prep: the handout's summary as text, not a PDF ────────────
+   "View Handout" is the right thing on the TV and the wrong thing on a
+   phone — a Letter-sized PDF page in Chromium's viewer, pinch-zoomed, is
+   the worst reading experience a leader preparing on the way to church
+   could be handed. "Read Prep" renders the same page-1 content (Big Idea,
+   Key Points, Scripture, Discussion Questions) as plain text this page
+   lays out itself, so it reflows on any screen.
+
+   public/leader-prep.json is GENERATED from data/leader-handout-summaries
+   .json by scripts/build-leader-prep.mjs (which render-leader-handouts.mjs
+   also runs) — that data file stays the single hand-edited source and stays
+   a build input. Only the summaries travel: they are this church's own
+   writing about each video, not Awana's material, and the spoken transcript
+   is already published as the caption .vtt.
+
+   Loaded cache-first out of ASSET_CACHE_NAME exactly like lessons.json and
+   teaching-slides.json, and warmed at startup, so after one successful load
+   the prep opens with the network dead. */
+const LEADER_PREP_URL = 'leader-prep.json';
+let leaderPrep = null;
+// Set once a load has been tried and produced nothing usable, so the panel
+// can tell "not fetched yet" from "we tried and there is no data".
+let leaderPrepFailed = false;
+
+function adoptLeaderPrep(data) {
+  if (!data || typeof data !== 'object' || !data.weeks || typeof data.weeks !== 'object') return false;
+  leaderPrep = data;
+  return true;
+}
+
+async function fetchLeaderPrepJson() {
+  const res = await fetchWithTimeout(LEADER_PREP_URL, {}, 5000);
+  if (!res.ok) throw new Error(`${LEADER_PREP_URL} ${res.status}`);
+  // Parse and shape-check BEFORE caching: a 200 carrying a truncated deploy
+  // must never replace a known-good offline copy.
+  const text = await res.text();
+  const data = JSON.parse(text);
+  if (!data || typeof data !== 'object' || !data.weeks) throw new Error(`${LEADER_PREP_URL}: unexpected shape`);
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open(ASSET_CACHE_NAME);
+      await cache.put(LEADER_PREP_URL, new Response(text, { headers: { 'content-type': 'application/json' } }));
+    } catch {
+      // Not storable right now — still usable live.
+    }
+  }
+  return data;
+}
+
+async function loadLeaderPrep() {
+  if (leaderPrep) return leaderPrep;
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open(ASSET_CACHE_NAME);
+      const hit = await cache.match(LEADER_PREP_URL);
+      if (hit && adoptLeaderPrep(await hit.json())) {
+        fetchLeaderPrepJson().then(adoptLeaderPrep, () => {});
+        return leaderPrep;
+      }
+    } catch {
+      // fall through to the network
+    }
+  }
+  try {
+    adoptLeaderPrep(await fetchLeaderPrepJson());
+  } catch (err) {
+    console.warn('Journey: leader-prep.json unavailable —', err);
+  }
+  if (!leaderPrep) leaderPrepFailed = true;
+  return leaderPrep;
+}
+
+function leaderPrepFor(week) {
+  const weeks = leaderPrep && leaderPrep.weeks;
+  const entry = weeks && weeks[String(week)];
+  return entry && typeof entry === 'object' ? entry : null;
+}
+
+// Identity of the latest open, same reason as handoutRequestId: a slow load
+// for week A must not paint into an overlay showing week B.
+let prepRequestId = 0;
+
+function prepNote(message) {
+  prepBody.textContent = '';
+  const p = document.createElement('p');
+  p.className = 'prep-note';
+  p.textContent = message;
+  prepBody.appendChild(p);
+}
+
+function prepSection(heading, build) {
+  const section = document.createElement('section');
+  const h = document.createElement('h3');
+  h.textContent = heading;
+  section.appendChild(h);
+  section.appendChild(build());
+  prepBody.appendChild(section);
+}
+
+function renderPrep(lesson) {
+  const entry = leaderPrepFor(lesson.week);
+  if (!entry) {
+    prepNote(
+      leaderPrepFailed
+        ? 'The leader prep hasn’t downloaded to this device yet — check the kiosk’s internet connection, then try again.'
+        : `There’s no leader prep for week ${lesson.week}. (Week 27 has no Leader Video, so it has no summary.)`
+    );
+    return;
+  }
+  prepBody.textContent = '';
+  if (entry.bigIdea) {
+    prepSection('Big Idea', () => {
+      const p = document.createElement('p');
+      p.textContent = entry.bigIdea;
+      return p;
+    });
+  }
+  if (Array.isArray(entry.keyPoints) && entry.keyPoints.length) {
+    prepSection('Key Points from the Leader Video', () => {
+      const ul = document.createElement('ul');
+      for (const point of entry.keyPoints) {
+        const li = document.createElement('li');
+        li.textContent = point;
+        ul.appendChild(li);
+      }
+      return ul;
+    });
+  }
+  if (Array.isArray(entry.scriptures) && entry.scriptures.length) {
+    prepSection('Scripture', () => {
+      const p = document.createElement('p');
+      p.className = 'prep-scripture';
+      p.textContent = entry.scriptures.join(' • ');
+      return p;
+    });
+  }
+  if (Array.isArray(entry.questions) && entry.questions.length) {
+    prepSection('Discussion Questions', () => {
+      const ol = document.createElement('ol');
+      for (const question of entry.questions) {
+        const li = document.createElement('li');
+        li.textContent = question;
+        ol.appendChild(li);
+      }
+      return ol;
+    });
+  }
+  const footer = document.createElement('p');
+  footer.className = 'prep-footer';
+  footer.textContent =
+    'Summary of this week’s Leader Video, for this church’s Awana® leaders — internal ministry use only.';
+  prepBody.appendChild(footer);
+}
+
+function openPrep(lesson) {
+  const requestId = ++prepRequestId;
+  // Everything visible happens now; the JSON (if it isn't in memory yet) is
+  // waited on behind an on-screen note, never in front of the overlay.
+  prepTitle.textContent = `Week ${lesson.week} — ${lesson.title} (Leader Prep)`;
+  prepView.classList.remove('hidden');
+  prepCloseBtn.focus();
+  if (leaderPrep) {
+    renderPrep(lesson);
+    return;
+  }
+  prepNote('Loading the leader prep…');
+  loadLeaderPrep().then(() => {
+    if (requestId !== prepRequestId) return; // closed, or reopened on another week
+    renderPrep(lesson);
+  });
+}
+
+function closePrep() {
+  ++prepRequestId; // abandon any still-resolving open
+  prepView.classList.add('hidden');
+  prepBody.textContent = ''; // don't keep a screen of DOM around for the other 23 hours
+  prepBody.scrollTop = 0;
+}
+
+prepCloseBtn.addEventListener('click', closePrep);
+
+// Both full-screen reading overlays sit above everything else, so the
+// playback and settings shortcuts must stay inert while either is up.
+function readerOverlayOpen() {
+  return !handoutView.classList.contains('hidden') || !prepView.classList.contains('hidden');
+}
+
 function openSettingsPanel() {
   audioUnlocked = true;
   resetSettingsPanelToList();
@@ -1336,6 +1959,12 @@ function openSettingsPanel() {
   // awaited lessons.json first, so on a hung request the gear looked broken
   // (nothing on screen, ever). The list fills in when the data arrives, from
   // the Cache API when the network can't answer.
+  // The bullet editor starts collapsed on every open (it is a rarely-used
+  // detour, not the panel's main job), but its badge is refreshed so an
+  // override on this device is visible without opening anything.
+  notesEditBody.classList.add('hidden');
+  notesEditToggle.setAttribute('aria-expanded', 'false');
+  updateNotesEditedBadge();
   settingsPanel.classList.remove('hidden');
   if (allLessons) {
     renderLessonList(allLessons);
@@ -1360,6 +1989,10 @@ function openSettingsPanel() {
 }
 
 function closeSettingsPanel() {
+  // Commit anything typed into the bullet editor first: the panel closes on
+  // Escape or a backdrop click without the textarea ever blurring, so the
+  // debounced save may still be pending.
+  if (!notesEditBody.classList.contains('hidden')) saveNotesEditor();
   settingsPanel.classList.add('hidden');
 }
 
@@ -1367,6 +2000,7 @@ function startPreview(url, title, fallbackUrl = null, week = null) {
   ++journeyRequestToken; // invalidate any in-flight showJourneyContent() call
   stopTeachingSlides();
   previewMode = true;
+  playingWeek = null; // a preview is never the scheduled show's resume point
   previewFallbackUrl = fallbackUrl;
   previewWeek = week;
   journeyView.classList.remove('hidden');
@@ -1451,7 +2085,7 @@ settingsVariantStudentBtn.addEventListener('click', () => {
 // transcript).
 settingsVariantLeaderBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson || !pendingPreviewLesson.leaderDownloadUrl) return;
-  settingsLeaderPrompt.textContent = `"${pendingPreviewLesson.title}" (Leader) — video or handout?`;
+  settingsLeaderPrompt.textContent = `"${pendingPreviewLesson.title}" (Leader) — video, handout, or prep?`;
   settingsVariantPicker.classList.add('hidden');
   settingsLeaderPicker.classList.remove('hidden');
 });
@@ -1473,6 +2107,12 @@ settingsLeaderVideoBtn.addEventListener('click', () => {
 settingsLeaderHandoutBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson) return;
   openHandout(pendingPreviewLesson);
+  closeSettingsPanel();
+});
+
+settingsLeaderPrepBtn.addEventListener('click', () => {
+  if (!pendingPreviewLesson) return;
+  openPrep(pendingPreviewLesson);
   closeSettingsPanel();
 });
 
@@ -1630,15 +2270,264 @@ function syncSlidesPrefInputs() {
 
 syncSlidesPrefInputs();
 slidesAutoAdvanceSelect.addEventListener('change', storeSlidesPrefs);
-for (const k of SLIDE_EXTRA_KINDS) slidesExtraInputs[k].addEventListener('change', storeSlidesPrefs);
+for (const k of SLIDE_EXTRA_KINDS) {
+  slidesExtraInputs[k].addEventListener('change', storeSlidesPrefs);
+  // The bullet editor labels each kind with whether it's actually shown.
+  slidesExtraInputs[k].addEventListener('change', () => {
+    if (!notesEditBody.classList.contains('hidden')) renderNotesEditor();
+  });
+}
+
+/* ── Tonight's bullets, editable on the kiosk ─────────────────────────
+   The three generated slides (Talk About It / Remember This / This Week)
+   are written from the Leader Video's transcript into
+   public/teaching-slides.json, so changing one word costs a repo edit, a
+   deploy, and the ten-minute Pages cache. A leader who wants to ask a
+   different question tonight — or who spots an awkward line five minutes
+   before club — has neither.
+
+   So: a per-device override, stored under journey.slides.notesOverride and
+   keyed by week and kind, which buildSlideItems() prefers over the written
+   text. public/teaching-slides.json is never touched and stays the
+   canonical, hand-edited source; an override is this device's own copy of
+   tonight's bullets, exactly like the caption and auto-advance
+   preferences. Only kinds that actually DIFFER from the written bullets
+   are stored, so a later correction to the JSON still reaches every kind
+   the leader left alone. Nothing marks an override on the slide itself
+   (the wall must look the same either way), so Settings carries an
+   "Edited on this device" badge and a Reset instead — an override that
+   nobody can see is worse than no override at all. */
+const SLIDE_NOTES_OVERRIDE_KEY = 'journey.slides.notesOverride';
+const SLIDE_BULLET_MAX_CHARS = 80; // the deck's own limit, which fitTemplateText() assumes
+const SLIDE_BULLETS_PER_KIND = 3;
+
+// One slide bullet is one line: a textarea's newlines would otherwise turn
+// into an unpredictable wrap on a 4:3 stage read from across a room.
+function cleanBullet(value) {
+  return String(value == null ? '' : value)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, SLIDE_BULLET_MAX_CHARS);
+}
+
+// The whole override blob, shape-checked on the way out and capped on both
+// axes: this is device storage, which a browser (or a person with devtools)
+// can leave in any state at all.
+function slideNotesOverrides() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SLIDE_NOTES_OVERRIDE_KEY) || 'null');
+    if (!raw || typeof raw !== 'object') return {};
+    const out = {};
+    for (const week of Object.keys(raw)) {
+      const byKind = raw[week];
+      if (!/^\d+$/.test(week) || !byKind || typeof byKind !== 'object') continue;
+      const kinds = {};
+      for (const kind of SLIDE_EXTRA_KINDS) {
+        if (!Array.isArray(byKind[kind])) continue;
+        const bullets = byKind[kind]
+          .map(cleanBullet)
+          .filter(Boolean)
+          .slice(0, SLIDE_BULLETS_PER_KIND);
+        if (bullets.length) kinds[kind] = bullets;
+      }
+      if (Object.keys(kinds).length) out[week] = kinds;
+    }
+    return out;
+  } catch {
+    return {}; // unreadable/blocked storage → the written bullets, as if never edited
+  }
+}
+
+function slideNotesOverrideFor(week) {
+  return slideNotesOverrides()[String(week)] || null;
+}
+
+/* Replaces one week's whole override (a falsy/empty `kinds` clears it).
+   Returns whether anything is stored for that week afterward — or null if
+   the write itself failed, which the editor has to say out loud: the
+   slideshow reads these back out of storage, so an edit that could not be
+   stored did not take at all. */
+function storeSlideNotesOverride(week, kinds) {
+  const all = slideNotesOverrides();
+  const key = String(week);
+  if (kinds && Object.keys(kinds).length) all[key] = kinds;
+  else delete all[key];
+  try {
+    if (Object.keys(all).length) {
+      localStorage.setItem(SLIDE_NOTES_OVERRIDE_KEY, JSON.stringify(all));
+    } else {
+      localStorage.removeItem(SLIDE_NOTES_OVERRIDE_KEY);
+    }
+  } catch {
+    return null; // storage blocked (kiosk/private mode) or full
+  }
+  return !!all[key];
+}
+
+// The written bullets for a week, normalised the same way a typed one is so
+// the two can be compared honestly.
+function writtenSlideNotesFor(week) {
+  const w = teachingSlidesFor(week);
+  const notes = w && w.notes && typeof w.notes === 'object' ? w.notes : {};
+  const out = {};
+  for (const kind of SLIDE_EXTRA_KINDS) {
+    if (!Array.isArray(notes[kind])) continue;
+    out[kind] = notes[kind].map(cleanBullet).filter(Boolean).slice(0, SLIDE_BULLETS_PER_KIND);
+  }
+  return out;
+}
+
+/* What buildSlideItems() should actually show: the written bullets, with any
+   kind this device has overridden replacing that kind wholesale. Pure — it
+   reads storage but never writes it. */
+function slideNotesFor(week) {
+  const w = teachingSlidesFor(week);
+  const written = w && w.notes && typeof w.notes === 'object' ? w.notes : {};
+  const override = slideNotesOverrideFor(week);
+  const notes = {};
+  for (const kind of SLIDE_EXTRA_KINDS) {
+    if (override && override[kind]) notes[kind] = override[kind];
+    else if (Array.isArray(written[kind])) notes[kind] = written[kind].map(String);
+  }
+  return notes;
+}
+
+/* Only tonight's lesson is editable. It is the one that will be on the wall
+   in a few minutes, and naming a single week keeps the panel honest about
+   what "Edited on this device" and Reset actually refer to. */
+function editableNotesWeek() {
+  return currentLesson && Number.isInteger(currentLesson.week) ? currentLesson.week : null;
+}
+
+let notesEditSaveTimer = null;
+
+function updateNotesEditedBadge() {
+  const week = editableNotesWeek();
+  const edited = week !== null && !!slideNotesOverrideFor(week);
+  notesEditedBadge.classList.toggle('hidden', !edited);
+  notesResetBtn.classList.toggle('hidden', !edited);
+}
+
+function renderNotesEditor() {
+  notesEditGroups.textContent = '';
+  notesEditStatus.textContent = '';
+  const week = editableNotesWeek();
+  if (week === null) {
+    notesEditWeek.textContent =
+      'Tonight’s lesson hasn’t loaded yet, so there are no bullets to edit.';
+    updateNotesEditedBadge();
+    return;
+  }
+  if (!teachingSlides) {
+    // Nothing is awaited before the editor renders — it says so and fills
+    // itself in if teaching-slides.json turns up.
+    notesEditWeek.textContent = `Week ${week} — loading the written bullets…`;
+    loadTeachingSlides().then(() => {
+      if (!settingsPanel.classList.contains('hidden') && !notesEditBody.classList.contains('hidden')) {
+        renderNotesEditor();
+      }
+    });
+    updateNotesEditedBadge();
+    return;
+  }
+  const title = currentLesson && currentLesson.title ? ` — ${currentLesson.title}` : '';
+  notesEditWeek.textContent =
+    `Week ${week}${title}. Saved on this kiosk only; the written bullets are left alone. ` +
+    `Clear a line to drop it, or clear all three to go back to what was written.`;
+  const headings = Object.assign({}, SLIDE_HEADINGS_DEFAULT, (teachingSlides && teachingSlides.headings) || {});
+  const notes = slideNotesFor(week);
+  const extras = slidesExtras();
+  for (const kind of SLIDE_EXTRA_KINDS) {
+    const group = document.createElement('div');
+    group.className = 'notes-edit-group';
+    const heading = document.createElement('p');
+    heading.className = 'notes-edit-heading';
+    heading.textContent = extras[kind]
+      ? headings[kind]
+      : `${headings[kind]} (not ticked — this slide isn’t shown)`;
+    group.appendChild(heading);
+    const existing = Array.isArray(notes[kind]) ? notes[kind] : [];
+    for (let i = 0; i < SLIDE_BULLETS_PER_KIND; i++) {
+      const field = document.createElement('textarea');
+      field.className = 'notes-edit-input';
+      field.rows = 2;
+      field.maxLength = SLIDE_BULLET_MAX_CHARS;
+      field.dataset.kind = kind;
+      field.value = existing[i] || ''; // a value, never innerHTML
+      field.setAttribute('aria-label', `${headings[kind]} — bullet ${i + 1}`);
+      field.addEventListener('input', scheduleNotesSave);
+      group.appendChild(field);
+    }
+    notesEditGroups.appendChild(group);
+  }
+  updateNotesEditedBadge();
+}
+
+function saveNotesEditor() {
+  clearTimeout(notesEditSaveTimer);
+  notesEditSaveTimer = null;
+  const week = editableNotesWeek();
+  const fields = notesEditGroups.querySelectorAll('textarea');
+  if (week === null || !fields.length) return; // never rendered — nothing to commit
+  const typed = {};
+  for (const field of fields) {
+    const bullet = cleanBullet(field.value);
+    if (!bullet) continue; // a blank line is simply one fewer bullet
+    const kind = field.dataset.kind;
+    (typed[kind] || (typed[kind] = [])).push(bullet);
+  }
+  const written = writtenSlideNotesFor(week);
+  const kinds = {};
+  for (const kind of SLIDE_EXTRA_KINDS) {
+    const bullets = (typed[kind] || []).slice(0, SLIDE_BULLETS_PER_KIND);
+    if (!bullets.length) continue; // all three cleared → back to the written bullets
+    if ((written[kind] || []).join('\n') === bullets.join('\n')) continue; // unchanged
+    kinds[kind] = bullets;
+  }
+  const stored = storeSlideNotesOverride(week, kinds);
+  notesEditStatus.textContent =
+    stored === null
+      ? 'This kiosk’s browser won’t store settings, so the edit didn’t take.'
+      : stored
+        ? 'Saved on this device'
+        : 'Using the written bullets';
+  updateNotesEditedBadge();
+}
+
+// Typing writes through a short debounce rather than on every keystroke —
+// this is a single-core Pi, and JSON.stringify per character is silly.
+function scheduleNotesSave() {
+  clearTimeout(notesEditSaveTimer);
+  notesEditSaveTimer = setTimeout(saveNotesEditor, 500);
+}
+
+notesEditToggle.addEventListener('click', () => {
+  const opening = notesEditBody.classList.contains('hidden');
+  notesEditToggle.setAttribute('aria-expanded', String(opening));
+  if (opening) renderNotesEditor(); // built from memory + localStorage; nothing awaited
+  else saveNotesEditor(); // collapsing commits whatever is in the boxes
+  notesEditBody.classList.toggle('hidden', !opening);
+});
+
+notesResetBtn.addEventListener('click', () => {
+  const week = editableNotesWeek();
+  if (week === null) return;
+  clearTimeout(notesEditSaveTimer);
+  notesEditSaveTimer = null;
+  storeSlideNotesOverride(week, null);
+  renderNotesEditor();
+  notesEditStatus.textContent = 'Reset to the written bullets';
+});
 
 function buildSlideItems(week) {
   if (!Number.isInteger(week) || week < 1) return [];
   const items = [];
   const count = deckSlideCount(week);
   for (let n = 1; n <= count; n++) items.push({ type: 'image', url: slideImageUrl(week, n) });
-  const w = teachingSlidesFor(week);
-  const notes = w && w.notes;
+  // slideNotesFor() is the written bullets with this device's own edits
+  // layered on top (see the block above) — teaching-slides.json itself is
+  // never modified.
+  const notes = slideNotesFor(week);
   const headings = Object.assign({}, SLIDE_HEADINGS_DEFAULT, (teachingSlides && teachingSlides.headings) || {});
   const extras = slidesExtras();
   for (const kind of SLIDE_EXTRA_KINDS) {
@@ -1797,6 +2686,10 @@ function prevSlide() {
 function finishTeachingSlides() {
   const show = slideshow;
   stopTeachingSlides();
+  // The whole showing (video + slides) is done. Not for a preview: its
+  // slides say nothing about where the scheduled lesson got to, and
+  // previewMode is still set until onFinish() runs endPreview().
+  if (!previewMode) clearResumePoint();
   if (show && typeof show.onFinish === 'function') show.onFinish();
 }
 
@@ -1854,3 +2747,6 @@ slideStage.addEventListener('click', (e) => {
 // past its declaration before any call runs.)
 loadAllLessons();
 loadTeachingSlides();
+// Small (~58KB) and only read when a leader presses "Read Prep" — but warmed
+// here, because the whole point is that it opens on a dead connection.
+loadLeaderPrep();

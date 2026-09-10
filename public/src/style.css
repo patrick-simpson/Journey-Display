@@ -142,8 +142,21 @@ html.cursor-hidden * {
   max-width: 90vw;
 }
 
-#journey-splash-play-btn {
+/* The splash's action row. Normally it holds one button ("Begin Video");
+   when an interrupted showing of this week's lesson was marked, schedule.js
+   swaps that for "Resume at M:SS" + "Start over" (see offerResume). Wraps on
+   a phone rather than pushing either button off the screen. */
+#journey-splash-actions {
   margin-top: 3vh;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.6rem, 2vw, 1.2rem);
+}
+
+#journey-splash-play-btn,
+#journey-splash-resume-btn {
   display: flex;
   align-items: center;
   gap: 0.6em;
@@ -161,11 +174,35 @@ html.cursor-hidden * {
 }
 
 #journey-splash-play-btn:hover,
-#journey-splash-play-btn:focus-visible {
+#journey-splash-play-btn:focus-visible,
+#journey-splash-resume-btn:hover,
+#journey-splash-resume-btn:focus-visible {
   background: #e8123a;
 }
 
-#journey-splash-play-icon {
+/* "Start over" is the secondary of the pair: same size to stay a fair
+   10-foot target, plainly not the primary colour. */
+#journey-splash-startover-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.9em 2em;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: clamp(1.05rem, 3.4vw, 1.4rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  touch-action: manipulation;
+}
+
+#journey-splash-startover-btn:hover,
+#journey-splash-startover-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+#journey-splash-play-icon,
+.journey-splash-play-icon {
   font-size: 1.2rem;
 }
 
@@ -201,6 +238,55 @@ html.cursor-hidden * {
   #journey-splash-prompt {
     display: none;
   }
+}
+
+/* ── Clock-drift notice ───────────────────────────────────────────────
+   The Pi Zero has no real-time clock, and the whole schedule is a
+   comparison against its local time (see checkClockDrift() in
+   schedule.js). When the two disagree the kiosk says so, in the one
+   corner nothing else uses: the ⇄ / ⚙ buttons and the playback bar all
+   live along the right-hand side and the bottom. Amber, not red — this is
+   a real problem to fix but nothing is broken right now. It sits above
+   both views and the corner buttons, and below the settings panel (20)
+   and the reading overlays (40), which are modal. */
+#clock-warning {
+  position: fixed;
+  top: max(2vh, 12px);
+  left: max(2vw, 12px);
+  z-index: 12;
+  max-width: min(46ch, calc(100vw - 8rem));
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  border-left: 4px solid #f0b429;
+  background: rgba(0, 0, 0, 0.82);
+  color: #ffe9b8;
+  font-family: system-ui, sans-serif;
+  font-size: clamp(0.85rem, 1.4vw, 1.15rem);
+  line-height: 1.35;
+}
+
+/* While the Journey layer owns the screen, the splash carries this message
+   itself (below) and a playing lesson must not have a banner over it — so
+   the corner note stands down. #clock-warning is a following sibling of
+   #journey-view, which is what makes this a plain CSS rule rather than
+   another thing for the script to remember to toggle. */
+#journey-view:not(.hidden) ~ #clock-warning {
+  display: none;
+}
+
+/* The same words on the splash, where the operator is already looking at
+   6:30 — the corner note is easy to miss on a wall-sized screen. */
+#journey-splash-clock {
+  margin-top: 2vh;
+  max-width: min(52ch, 88vw);
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  border-left: 4px solid #f0b429;
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffe9b8;
+  font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+  line-height: 1.4;
+  text-align: left;
 }
 
 /* Loading indicator — shown while a lesson video is fetching/buffering, so a
@@ -270,6 +356,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #pause-btn,
+#back15-btn,
+#fwd15-btn,
 #unmute-btn {
   flex: none;
   padding: 10px 18px;
@@ -288,7 +376,11 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #pause-btn:hover,
-#pause-btn:focus-visible {
+#pause-btn:focus-visible,
+#back15-btn:hover,
+#back15-btn:focus-visible,
+#fwd15-btn:hover,
+#fwd15-btn:focus-visible {
   background: rgba(255, 255, 255, 0.85);
 }
 
@@ -378,7 +470,10 @@ html.cursor-hidden #video-controls:not(.force-visible) {
    Size: vmin tracks whichever screen dimension constrains the video frame,
    so one expression covers a TV read across a room and a phone in either
    orientation; the clamp floor keeps it legible on the smallest screens and
-   the ceiling stops it swallowing the picture on very large ones. */
+   the ceiling stops it swallowing the picture on very large ones. The
+   Settings size choice multiplies that expression through --caption-scale
+   rather than replacing it, so every option keeps the same responsive
+   behaviour (see applyCaptionDisplayPrefs() in schedule.js). */
 #caption-overlay {
   position: absolute;
   left: 0;
@@ -398,7 +493,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   background-color: rgba(0, 0, 0, 0.55);
   color: #ffffff;
   font-family: system-ui, sans-serif;
-  font-size: clamp(18px, 4.5vmin, 56px);
+  font-size: calc(clamp(18px, 4.5vmin, 56px) * var(--caption-scale, 1));
   font-weight: 600;
   line-height: 1.3;
   text-align: center;
@@ -407,6 +502,14 @@ html.cursor-hidden #video-controls:not(.force-visible) {
      frame the white text can lose contrast against it — the shadow keeps
      the letterforms readable without making the band opaque. */
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+/* Settings → Captions → "Dark backdrop": a solid band instead of the
+   translucent one, for a lesson whose frames are bright enough that even
+   the shadowed white text loses contrast. Flat colour only — no blur or
+   gradient — like everything else on the Pi's paint budget. */
+#caption-overlay.caption-backdrop #caption-text {
+  background-color: #000000;
 }
 
 /* ── Caption yes/no prompt ─────────────────────────────────────────────
@@ -497,27 +600,44 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   white-space: nowrap;
 }
 
-/* Narrow screens: the bar's contents (three non-shrinking buttons, scrubber,
-   time readout) cannot fit one row on a phone — the CC button was being
-   clipped off the screen edge entirely, which made captions impossible to
-   toggle on mobile. This wraps into two tidy rows: scrubber + elapsed time
-   first (both ordered ahead), then the buttons. It must come AFTER the base
-   rules above: an earlier copy of this block lost the cascade to
+/* Narrow screens: the bar's contents (five non-shrinking buttons, scrubber,
+   time readout) cannot fit one row — the CC button was once being clipped
+   off the screen edge entirely, which made captions impossible to toggle on
+   mobile. This wraps into two tidy rows: scrubber + elapsed time first (both
+   ordered ahead), then the buttons. It must come AFTER the base rules above:
+   an earlier copy of this block lost the cascade to
    `#video-scrubber { flex: 1 }` and the scrubber never got its own row.
    positionCaptions() reads the bar's real offsetHeight, so captions lift
-   automatically as it grows taller. */
-@media (max-width: 760px) {
+   automatically as it grows taller.
+
+   The breakpoint is 1100px, not the 760px it was when the bar held three
+   buttons: with the 15-second jumps added, one row of pills plus a usable
+   scrubber needs about that much. Below it the scrubber was being squeezed
+   to literally zero width (measured at 844x390, a phone held sideways) —
+   flex: 1 with min-width: 0 shrinks silently rather than overflowing. */
+@media (max-width: 1100px) {
   #video-controls {
     flex-wrap: wrap;
     justify-content: center;
     row-gap: 8px;
-    column-gap: 8px;
-    padding: 10px 12px;
+    column-gap: 6px;
+    padding: 10px 10px;
+    /* Five pills, not three, since the 15-second jumps landed here: claw
+       back the inset that reserved room for the view-toggle button, leaving
+       just enough clearance beside it, so the buttons wrap into two tidy
+       rows instead of three. */
+    right: calc(max(3vw, 24px) + 60px);
   }
 
+  /* The scrubber's basis is "the whole row bar the time readout", so those
+     two exactly fill the first row and every pill wraps below them together.
+     With a plain percentage basis, two or three pills tagged along on the
+     scrubber's row and the rest dropped below — a button bar split across a
+     line break is much harder to hit at a glance. 8rem comfortably clears
+     the widest readout the time can render. */
   #video-scrubber {
-    flex: 1 1 55%;
-    order: -1;
+    flex: 1 1 calc(100% - 8rem);
+    order: -2;
   }
 
   #video-time {
@@ -526,10 +646,12 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   }
 
   #pause-btn,
+  #back15-btn,
+  #fwd15-btn,
   #unmute-btn,
   #cc-btn {
-    padding: 8px 12px;
-    font-size: 0.9rem;
+    padding: 8px 10px;
+    font-size: 0.85rem;
   }
 }
 
@@ -826,6 +948,124 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   background: #444444;
 }
 
+/* ── Leader prep: the handout's page-1 summary as text we lay out ─────
+   Same full-screen overlay shape as the handout viewer, but the content is
+   real DOM, so it reflows: a leader reads this on a phone as often as on
+   the TV. One measure (~62ch) keeps the lines readable at either size. */
+#prep-view {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: #121212;
+  color: #ffffff;
+  font-family: system-ui, sans-serif;
+}
+
+#prep-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+#prep-title {
+  font-size: clamp(1.05rem, 2.4vw, 1.6rem);
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#prep-close-btn {
+  flex: none;
+  min-height: 56px;
+  padding: 0 1.6rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#prep-close-btn:hover,
+#prep-close-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+#prep-close-btn:active {
+  background: rgba(255, 255, 255, 0.45);
+  transition: none;
+}
+
+/* The body text size is set HERE, not on the paragraphs, so the `em`
+   measure below is relative to the text it is actually measuring. Sized like
+   the rest of this kiosk's UI: read on a phone up close AND on the TV from
+   across the room, so the ceiling is generous. */
+#prep-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  font-size: clamp(1.05rem, 1.9vw, 2rem);
+}
+
+#prep-body > section,
+#prep-body > p {
+  max-width: 34em; /* ~65 characters at any of those sizes */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#prep-body > section {
+  margin-bottom: clamp(1.25rem, 3vh, 2rem);
+}
+
+#prep-body h3 {
+  font-size: 1.15em;
+  font-weight: 700;
+  color: #ff6b83;
+  margin-bottom: 0.4em;
+}
+
+#prep-body p,
+#prep-body li {
+  font-size: 1em;
+  line-height: 1.5;
+}
+
+#prep-body ul,
+#prep-body ol {
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+#prep-body .prep-scripture {
+  font-weight: 600;
+}
+
+#prep-body .prep-note,
+#prep-body .prep-footer {
+  opacity: 0.7;
+  font-size: 0.8em;
+}
+
+#prep-body .prep-footer {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 /* Status/error line inside the settings lesson list (loading, or the
    list couldn't be fetched) — same 10-foot sizing as the rows it stands
    in for. */
@@ -845,12 +1085,20 @@ html.cursor-hidden #video-controls:not(.force-visible) {
    very next paint instead of easing in; the release still eases out via
    each control's own base transition. These sit at the end of the sheet so
    they win the cascade over the hover/focus rules above. */
-#journey-splash-play-btn:active {
+#journey-splash-play-btn:active,
+#journey-splash-resume-btn:active {
   background: #a00d25;
   transition: none;
 }
 
+#journey-splash-startover-btn:active {
+  background: rgba(255, 255, 255, 0.4);
+  transition: none;
+}
+
 #pause-btn:active,
+#back15-btn:active,
+#fwd15-btn:active,
 #unmute-btn:active,
 #cc-btn:active {
   background: rgba(255, 255, 255, 0.95);
@@ -1073,7 +1321,8 @@ html.cursor-hidden #slide-controls {
 }
 
 /* Settings → teaching-slide preferences (10-foot sized like the rest). */
-#settings-slides {
+#settings-slides,
+#settings-captions {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
   border-top: 1px solid rgba(255, 255, 255, 0.15);
@@ -1082,17 +1331,20 @@ html.cursor-hidden #slide-controls {
   gap: 0.75rem;
 }
 
-#settings-slides h3 {
+#settings-slides h3,
+#settings-captions h3 {
   font-size: 1.6rem;
   font-weight: 700;
 }
 
-.settings-slides-hint {
+.settings-slides-hint,
+.settings-hint {
   font-size: 1.2rem;
   opacity: 0.7;
 }
 
-.settings-slides-hint kbd {
+.settings-slides-hint kbd,
+.settings-hint kbd {
   display: inline-block;
   padding: 0.05em 0.45em;
   border-radius: 6px;
@@ -1101,7 +1353,8 @@ html.cursor-hidden #slide-controls {
   font-size: 0.95em;
 }
 
-.settings-slides-field {
+.settings-slides-field,
+.settings-field {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1109,7 +1362,8 @@ html.cursor-hidden #slide-controls {
   font-size: 1.4rem;
 }
 
-.settings-slides-field select {
+.settings-slides-field select,
+.settings-field select {
   font: inherit;
   font-size: 1.25rem;
   padding: 0.5rem 0.8rem;
@@ -1120,7 +1374,8 @@ html.cursor-hidden #slide-controls {
   cursor: pointer;
 }
 
-.settings-slides-field select option {
+.settings-slides-field select option,
+.settings-field select option {
   color: #000000;
 }
 
@@ -1130,7 +1385,8 @@ html.cursor-hidden #slide-controls {
   margin-top: 0.25rem;
 }
 
-.settings-slides-check {
+.settings-slides-check,
+.settings-check {
   display: flex;
   align-items: center;
   gap: 0.8rem;
@@ -1138,11 +1394,133 @@ html.cursor-hidden #slide-controls {
   cursor: pointer;
 }
 
-.settings-slides-check input {
+.settings-slides-check input,
+.settings-check input {
   width: 1.6rem;
   height: 1.6rem;
   accent-color: #c8102e;
   cursor: pointer;
+}
+
+/* Settings → "Edit tonight's bullets": a collapsed disclosure, because it is
+   a rarely-used detour and the panel's main job is picking a video. The
+   badge is what keeps a device-local override from being invisible. */
+#settings-notes-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+#notes-edit-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  align-self: flex-start;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+#notes-edit-toggle:hover,
+#notes-edit-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+#notes-edit-toggle:active {
+  background: rgba(255, 255, 255, 0.28);
+  transition: none;
+}
+
+#notes-edited-badge {
+  padding: 0.15em 0.7em;
+  border-radius: 999px;
+  background: #c8102e;
+  color: #ffffff;
+  font-size: 0.85em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#notes-edit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#notes-edit-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.notes-edit-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.notes-edit-heading {
+  font-size: 1.25rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.notes-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1.2rem;
+  line-height: 1.35;
+  resize: vertical;
+}
+
+.notes-edit-input:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+#notes-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+#notes-reset-btn {
+  padding: 0.6rem 1.1rem;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+#notes-reset-btn:hover,
+#notes-reset-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+#notes-reset-btn:active {
+  background: rgba(255, 255, 255, 0.4);
+  transition: none;
+}
+
+#notes-edit-status {
+  font-size: 1.15rem;
+  opacity: 0.7;
 }
 
 /* Phone: one scroller, not two. The card itself scrolls and the lesson list
@@ -1156,22 +1534,48 @@ html.cursor-hidden #slide-controls {
     overflow-y: visible;
   }
 
-  .settings-slides-field {
+  .settings-slides-field,
+  .settings-field {
     flex-direction: column;
     align-items: stretch;
     gap: 0.4rem;
   }
 
-  .settings-slides-field select {
+  .settings-slides-field select,
+  .settings-field select {
     width: 100%;
   }
 
-  .settings-slides-check {
+  .settings-slides-check,
+  .settings-check {
     align-items: flex-start;
   }
 
-  .settings-slides-check input {
+  .settings-slides-check input,
+  .settings-check input {
     margin-top: 0.15em;
     flex: none;
+  }
+
+  /* Watch Video / View Handout / Read Prep: three of these squeezed onto one
+     phone row leaves each too narrow to read. */
+  #settings-variant-buttons,
+  #settings-leader-buttons {
+    flex-direction: column;
+  }
+
+  #notes-edit-toggle {
+    align-self: stretch;
+    justify-content: space-between;
+    font-size: 1.1rem;
+  }
+
+  .notes-edit-input {
+    font-size: 1.05rem;
+  }
+
+  #notes-reset-btn {
+    width: 100%;
+    font-size: 1.05rem;
   }
 }

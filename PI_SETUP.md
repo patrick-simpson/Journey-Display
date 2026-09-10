@@ -143,8 +143,27 @@ for real:
 - Make sure there are no typos in the command
 - Restart the Pi again
 
+**The screen says the kiosk's clock is off:**
+- That amber note in the top-left corner (it also appears on the 6:30
+  "Large Group Time" screen) means the Pi's clock disagrees with the
+  internet by more than two minutes. The Pi has no battery-backed clock,
+  so after a power cut it comes up at whatever time it last knew until it
+  can reach a time server. **The schedule keeps following the Pi's own
+  clock** — the note reports the problem, it does not paper over it, since
+  a wrong clock also breaks log timestamps and secure connections.
+- Fix: get the Pi back on the internet and give it a minute
+  (`timedatectl status` should say "System clock synchronized: yes";
+  `sudo timedatectl set-ntp true` if it doesn't). The note disappears by
+  itself at the next hourly check.
+- Note the kiosk cannot detect a wrong **time zone** — both readings are
+  absolute times, so a Pi set to the wrong zone shows no warning while
+  still switching at the wrong moment. Check the zone too
+  (`timedatectl` shows it; set it in Raspberry Pi Configuration or with
+  `sudo raspi-config`).
+
 **The Journey video doesn't show:**
-- Make sure the time is set correctly on the Pi (check the clock in the top right)
+- Make sure the time is set correctly on the Pi (check the clock in the top
+  right, and see the clock note above)
 - The video only appears between 6:30 PM and 7:15 PM
 - Check that you have an internet connection
 - Seeing the word "Journey" on a plain dark screen (not a black/blank

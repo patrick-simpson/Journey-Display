@@ -29,11 +29,19 @@
         <span id="journey-splash-week"></span>
         <span id="journey-splash-title"></span>
       </div>
-      <button id="journey-splash-play-btn" type="button">
-        <span id="journey-splash-play-icon" aria-hidden="true">▶</span>
-        Begin Video
-      </button>
+      <div id="journey-splash-actions">
+        <button id="journey-splash-play-btn" type="button">
+          <span id="journey-splash-play-icon" aria-hidden="true">▶</span>
+          Begin Video
+        </button>
+        <button id="journey-splash-resume-btn" class="hidden" type="button">
+          <span class="journey-splash-play-icon" aria-hidden="true">▶</span>
+          <span id="journey-splash-resume-label">Resume</span>
+        </button>
+        <button id="journey-splash-startover-btn" class="hidden" type="button">Start over</button>
+      </div>
       <p id="journey-splash-prompt">or press <kbd>Space</kbd> / <kbd>→</kbd> &middot; <kbd>S</kbd> for settings</p>
+      <p id="journey-splash-clock" class="hidden" role="status"></p>
     </div>
     <video id="journey-video" class="hidden" muted playsinline></video>
     <div id="caption-prompt" class="hidden" role="dialog" aria-modal="true" aria-labelledby="caption-prompt-q">
@@ -50,7 +58,9 @@
     </div>
     <div id="caption-overlay" class="hidden" aria-live="polite"><span id="caption-text"></span></div>
     <div id="video-controls" class="hidden">
+      <button id="back15-btn" type="button" aria-label="Back 15 seconds">Back 15s</button>
       <button id="pause-btn" type="button">Pause</button>
+      <button id="fwd15-btn" type="button" aria-label="Forward 15 seconds">Skip 15s</button>
       <button id="unmute-btn" type="button" aria-label="Unmute">🔇</button>
       <button id="cc-btn" type="button" class="hidden" aria-pressed="false" aria-label="Toggle captions">CC</button>
       <input id="video-scrubber" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek" />
@@ -71,6 +81,8 @@
       </div>
     </div>
   </div>
+
+  <p id="clock-warning" class="hidden" role="status"></p>
 
   <button id="toggle-btn" type="button" aria-label="Switch display">⇄</button>
   <button id="settings-btn" type="button" aria-label="Video settings">⚙</button>
@@ -100,8 +112,26 @@
         <div id="settings-leader-buttons">
           <button id="settings-leader-video" type="button">Watch Video</button>
           <button id="settings-leader-handout" type="button">View Handout</button>
+          <button id="settings-leader-prep" type="button">Read Prep</button>
         </div>
         <button id="settings-leader-back" type="button">← Back</button>
+      </div>
+      <div id="settings-captions">
+        <h3>Captions</h3>
+        <p class="settings-hint">
+          How captions look while they&rsquo;re on &mdash; the <kbd>CC</kbd> button
+          on the video is what turns them on and off.
+        </p>
+        <label class="settings-field" for="captions-size">
+          <span>Text size</span>
+          <select id="captions-size">
+            <option value="0.8">Small</option>
+            <option value="1">Normal</option>
+            <option value="1.3">Large</option>
+            <option value="1.6">Extra large</option>
+          </select>
+        </label>
+        <label class="settings-check"><input type="checkbox" id="captions-backdrop" /> <span><strong>Dark backdrop</strong> &mdash; a solid band behind the text, for bright video</span></label>
       </div>
       <div id="settings-slides">
         <h3>After the video: teaching slides</h3>
@@ -124,6 +154,20 @@
         <label class="settings-slides-check"><input type="checkbox" id="slides-extra-questions" /> <span><strong>Talk About It</strong> &mdash; discussion questions</span></label>
         <label class="settings-slides-check"><input type="checkbox" id="slides-extra-takeaways" /> <span><strong>Remember This</strong> &mdash; key takeaways</span></label>
         <label class="settings-slides-check"><input type="checkbox" id="slides-extra-challenges" /> <span><strong>This Week</strong> &mdash; challenges to try</span></label>
+        <div id="settings-notes-edit">
+          <button id="notes-edit-toggle" type="button" aria-expanded="false" aria-controls="notes-edit-body">
+            <span id="notes-edit-toggle-label">Edit tonight&rsquo;s bullets</span>
+            <span id="notes-edited-badge" class="hidden">Edited on this device</span>
+          </button>
+          <div id="notes-edit-body" class="hidden">
+            <p id="notes-edit-week" class="settings-hint"></p>
+            <div id="notes-edit-groups"></div>
+            <div id="notes-edit-actions">
+              <button id="notes-reset-btn" type="button" class="hidden">Reset to the written bullets</button>
+              <span id="notes-edit-status" role="status"></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -134,6 +178,14 @@
       <button id="handout-close-btn" type="button">✕ Close</button>
     </div>
     <iframe id="handout-frame" title="Leader handout PDF"></iframe>
+  </div>
+
+  <div id="prep-view" class="hidden" role="dialog" aria-modal="true" aria-label="Leader prep">
+    <div id="prep-header">
+      <span id="prep-title"></span>
+      <button id="prep-close-btn" type="button">&#10005; Close</button>
+    </div>
+    <div id="prep-body" tabindex="0"></div>
   </div>
 
   <script src="src/schedule.js"></script>
