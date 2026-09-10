@@ -37,6 +37,7 @@ const journeySplashResumeBtn = document.getElementById('journey-splash-resume-bt
 const journeySplashResumeLabel = document.getElementById('journey-splash-resume-label');
 const journeySplashStartOverBtn = document.getElementById('journey-splash-startover-btn');
 const journeySplashClock = document.getElementById('journey-splash-clock');
+const journeySplashQuality = document.getElementById('journey-splash-quality');
 const clockWarning = document.getElementById('clock-warning');
 const journeyVideo = document.getElementById('journey-video');
 const journeyLoading = document.getElementById('journey-loading');
@@ -222,7 +223,13 @@ async function cacheLessonBundle(lesson) {
   try {
     const cache = await caches.open(VIDEO_CACHE_NAME);
     const candidates = [
-      { fetchUrl: lesson.downloadUrl, cacheKey: videoCacheKey(lesson) },
+      // Only the transcoded file is worth caching. Before the nightly
+      // transcode lands, downloadUrl is still the 1080p original — bytes this
+      // device cannot play, which would evict the rest of the bundle's budget
+      // and then be served straight back by resolveVideoSrc.
+      ...(lesson.transcodedAt
+        ? [{ fetchUrl: lesson.downloadUrl, cacheKey: videoCacheKey(lesson) }]
+        : []),
       { fetchUrl: captionUrlFor(lesson.week, 'student') },
       { fetchUrl: captionUrlFor(lesson.week, 'leader') },
       { fetchUrl: handoutUrl(lesson.week) },
@@ -480,6 +487,7 @@ async function showJourneyContent() {
   hideVideoLoading();
   journeySplashWeek.textContent = `Week ${currentLesson.week}`;
   journeySplashTitle.textContent = currentLesson.title;
+  showQualityNote(currentLesson);
   // Decided from localStorage alone — no fetch stands between the splash
   // appearing and the operator seeing which buttons it offers.
   offerResume(currentLesson);
@@ -489,6 +497,42 @@ async function showJourneyContent() {
 // Actually starts the queued lesson playing — called only from a genuine
 // user action (keypress or the on-screen button), which is also what makes
 // unmuted autoplay reliable (see audioUnlocked below).
+// Which file the SCHEDULED 6:30 show should play.
+//
+// `downloadUrl` is the transcoded, same-origin 480p file ONLY once the nightly
+// transcode has succeeded; fetch-current-lesson.mjs resets it back to the
+// 1080p `sourceUrl` (and transcodedAt to null) every time the lesson genuinely
+// changes. The Pi Zero provably cannot decode that original at a watchable
+// frame rate, and transcode-lesson-video.mjs is deliberately built to never
+// fail the nightly job — so a silent transcode failure used to leave the room
+// watching a slideshow of stutters with nothing on screen to explain it.
+//
+// So the scheduled show never plays the original. When there is no transcode
+// yet it uses that week's batch-transcoded Release asset instead, which is the
+// same 854x480 Baseline encode the picker already relies on. That streams
+// rather than playing from the cache (the Release's redirect hop sends no CORS
+// header, so its bytes can never be stored — see CLAUDE.md), which is a real
+// cost on a flaky evening, but a streamed 480p file is watchable and a cached
+// 1080p one is not.
+function scheduledVideoPlan(lesson) {
+  if (!lesson) return null;
+  if (lesson.transcodedAt) return { mode: 'transcoded' };
+  return { mode: 'release', url: transcodedPreviewUrl(lesson.week, 'student') };
+}
+
+// The splash says so BEFORE anyone presses play, because the operator can act
+// on it (pick the week by hand, or accept a stream) only if they know.
+function showQualityNote(lesson) {
+  const plan = scheduledVideoPlan(lesson);
+  const degraded = !!plan && plan.mode === 'release';
+  if (degraded) {
+    journeySplashQuality.textContent =
+      "This week's video has not been converted for the kiosk yet, so it will stream the " +
+      'standard-quality copy instead. It needs the internet to play, and may pause to buffer.';
+  }
+  journeySplashQuality.classList.toggle('hidden', !degraded);
+}
+
 async function playCurrentLesson(resumeAt = 0) {
   const token = ++journeyRequestToken;
   if (!currentLesson) return;
@@ -499,7 +543,11 @@ async function playCurrentLesson(resumeAt = 0) {
   showVideoLoading();
   journeyVideo.loop = false; // plays once; falls back to Check-in Display on 'ended' below
   setMuted(!audioUnlocked);
-  const src = await resolveVideoSrc(currentLesson, token);
+  const plan = scheduledVideoPlan(currentLesson);
+  const src =
+    plan && plan.mode === 'release'
+      ? plan.url // no transcode yet: the Release copy, never the 1080p original
+      : await resolveVideoSrc(currentLesson, token);
   if (!src || token !== journeyRequestToken) return; // a newer call has since taken over
   journeyVideo.src = src;
   // The seek is armed only after the token check above, so a stale resolve

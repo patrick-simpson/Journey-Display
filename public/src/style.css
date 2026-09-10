@@ -276,7 +276,8 @@ html.cursor-hidden * {
 
 /* The same words on the splash, where the operator is already looking at
    6:30 — the corner note is easy to miss on a wall-sized screen. */
-#journey-splash-clock {
+#journey-splash-clock,
+#journey-splash-quality {
   margin-top: 2vh;
   max-width: min(52ch, 88vw);
   padding: 0.6rem 0.9rem;
