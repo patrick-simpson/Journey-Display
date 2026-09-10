@@ -45,15 +45,45 @@
 // returns the SAME one-row-per-scheduled-meeting-date shape documented
 // below for `?current_only=N` — for every club, not just Journey. Each
 // meeting date's <tr> carries a sibling
-// `<span class="fields" calendar_date="YYYY-MM-DD" …>`, which multi-match
-// disambiguation below uses to pick the one actual "current" row: the
-// most recent date that isn't in the future, or — before the season's
-// first meeting has happened yet — the soonest upcoming one (which is
-// normally that first meeting's "Faith Foundations #N" row, so it flows
-// into the existing entrance-gate default below exactly like a mid-season
-// entrance-gate week would). This is additive: when the endpoint DOES
-// isolate a single row (the normal in-season case), there's only one
-// match and this whole date-based path is never exercised.
+// `<span class="fields" calendar_date="YYYY-MM-DD" …>`.
+//
+// UPDATE (verified live 2026-09-10, the day after the predicted
+// entrance-gate -> book transition): the multi-row shape above isn't a
+// summer-only quirk — it's how this endpoint behaves in-season too, and
+// it NEVER exposes an already-held meeting's date, not even the one from
+// the night before. Checked directly: `?current_only=Y` and
+// `?current_only=N` returned byte-identical output (both with
+// `Cache-Control: no-store` — not a caching artifact), and every Advocates
+// row's `calendar_date` was 2026-09-16 or later. The 2026-09-09 meeting
+// (predicted "Unit 1 #1") had already happened and was gone from BOTH
+// endpoints; the *soonest* row was 2026-09-16's "Unit 1 #2".
+//
+// That matters because of what the "soonest upcoming" fallback does with
+// it: picking that row and using ITS lesson directly means showing kids a
+// lesson their leader hasn't taught yet, for the entire ~6-day gap between
+// meetings — verified in this repo's own git history, current-lesson.json
+// jumped straight from week 1 (entrance-gate default, unchanged since
+// 2026-08-11) to week 2 ("Unit 1 #2") on 2026-09-10, never passing through
+// a distinctly-recorded "week 1, confirmed from a real Unit 1 #1 match"
+// state at all (the entrance-gate default and the real week-1 book lesson
+// happen to be byte-identical, so `sameLesson()` saw no change to commit).
+// Every week going forward would repeat this one-lesson-ahead pattern.
+//
+// The fix: when the resolved row's own `calendar_date` is today or later
+// (the school's/church's local "today", via `todayLocalDateStr()` — NOT a
+// naive UTC epoch compare: the cron runs 08:23 UTC / ~4:23 AM Eastern,
+// which is already hours past UTC midnight, so comparing raw timestamps
+// would misclassify TODAY's own not-yet-held meeting as "in the past"),
+// that meeting hasn't happened yet — so what's actually "current" (most
+// recently TAUGHT) is the PREVIOUS lesson in `lessons.json`'s sequence,
+// not the one the row names. See `resolveCurrentSection()`'s `alreadyHeld`
+// field and its one call site below. This subsumes the old "past date vs.
+// soonest upcoming" disambiguation (the "past" branch still exists, for
+// robustness, in case the site ever again exposes an already-held date —
+// it's just never been observed doing so) and additionally applies the
+// same today-or-later check to the single-match case, which the original
+// version of this comment assumed was always a clean "here's today's
+// meeting" read and never questioned.
 //
 // IMPORTANT — "Faith Foundations" is TwoTimTwo/Awana's generic
 // "entrance gate" onboarding sequence every club runs through BEFORE
@@ -172,12 +202,11 @@ function rowCalendarDate(row) {
   return null;
 }
 
-/** Find the Advocates row(s) in the "current book track" table and return
- * the Section text (e.g. "Faith Foundations #7"), or null if the
- * table/row isn't there in the shape we expect, or if the row is
- * ambiguous (zero matches, a blank cell, or more than one match that
- * can't be resolved by date — see rowCalendarDate()). */
-function extractSectionText(html) {
+/** Collects every Advocates row in the "current book track" table as raw
+ * `{ section, dateStr }` pairs — `dateStr` from rowCalendarDate(), null
+ * when unavailable. Pure extraction; resolveCurrentSection() below does
+ * the picking/disambiguating. */
+function extractSectionMatches(html) {
   const doc = new JSDOM(html).window.document;
   const matches = [];
   for (const row of doc.querySelectorAll('tr.book-track-mtg')) {
@@ -188,31 +217,68 @@ function extractSectionText(html) {
     const section = cells[2].querySelector('b')?.textContent?.trim() || cells[2].textContent?.trim() || '';
     matches.push({ section, dateStr: rowCalendarDate(row) });
   }
+  return matches;
+}
 
+const CLUB_TIMEZONE = 'America/New_York';
+
+/** "YYYY-MM-DD" for "today" in the club's own timezone. A plain string
+ * compare against a row's own bare `calendar_date` avoids the timezone
+ * pitfall of epoch-timestamp math: the cron runs at 08:23 UTC (~4:23 AM
+ * Eastern), hours past UTC midnight, so comparing raw `Date.now()`
+ * against a UTC-midnight parse of today's own date would already read as
+ * "in the past" before that day's meeting has actually happened. */
+function todayLocalDateStr(timeZone = CLUB_TIMEZONE) {
+  // en-CA's date format is YYYY-MM-DD, matching calendar_date's own shape.
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    new Date()
+  );
+}
+
+/** Picks which Advocates row is "current" and whether ITS OWN lesson is
+ * actually current or the meeting it's assigned to just hasn't happened
+ * yet (see the big comment at the top of this file — verified 2026-09-10
+ * that `?current_only=Y` never exposes an already-held meeting's date, so
+ * "the soonest row this endpoint shows" and "the lesson that was most
+ * recently taught" are usually two different things, off by one lesson).
+ *
+ * Returns `{ sectionText, alreadyHeld, matchCount, blank }`.
+ * `alreadyHeld`:
+ *   - `true`  — this meeting has already happened; use its own lesson.
+ *   - `false` — this meeting is today-or-later, hasn't happened yet;
+ *     caller should resolve to the PREVIOUS lesson in sequence instead.
+ *   - `null`  — no date available to reason about (a single match with no
+ *     `calendar_date` at all) — caller uses it directly, the same as
+ *     `true`, preserving this script's original pre-date-aware behavior
+ *     for that shape rather than guessing when there's nothing to check. */
+function resolveCurrentSection(matches) {
   if (matches.length === 0) return { sectionText: null, matchCount: 0 };
 
-  if (matches.length > 1) {
-    // Outside the regular meeting season, current_only=Y returns one row
-    // per scheduled meeting for the whole year instead of isolating
-    // "today's" — pick the one that's actually current by date instead of
-    // refusing outright, but only if every match parses to a real date;
-    // a single unparseable one means the page shape isn't what's assumed,
-    // and guessing among the rest would be worse than refusing.
-    const dated = matches.map((m) => ({ ...m, date: m.dateStr ? Date.parse(`${m.dateStr}T00:00:00Z`) : NaN }));
-    if (dated.some((m) => !Number.isFinite(m.date))) {
-      return { sectionText: null, matchCount: matches.length };
-    }
-    const today = Date.now();
-    const past = dated.filter((m) => m.date <= today);
-    const chosen = past.length > 0
-      ? past.reduce((latest, m) => (m.date > latest.date ? m : latest))
-      : dated.reduce((soonest, m) => (m.date < soonest.date ? m : soonest));
-    if (!chosen.section) return { sectionText: null, matchCount: matches.length, blank: true };
-    return { sectionText: chosen.section, matchCount: matches.length };
+  if (matches.length === 1) {
+    const only = matches[0];
+    if (!only.section) return { sectionText: null, matchCount: 1, blank: true };
+    if (!only.dateStr) return { sectionText: only.section, alreadyHeld: null, matchCount: 1 };
+    return { sectionText: only.section, alreadyHeld: only.dateStr < todayLocalDateStr(), matchCount: 1 };
   }
 
-  if (!matches[0].section) return { sectionText: null, matchCount: 1, blank: true };
-  return { sectionText: matches[0].section, matchCount: 1 };
+  // More than one row: every one needs a parseable date to disambiguate —
+  // a single unparseable one means the page shape isn't what's assumed,
+  // and guessing among the rest would be worse than refusing.
+  if (matches.some((m) => !m.dateStr || Number.isNaN(Date.parse(`${m.dateStr}T00:00:00Z`)))) {
+    return { sectionText: null, matchCount: matches.length };
+  }
+  const today = todayLocalDateStr();
+  const past = matches.filter((m) => m.dateStr < today);
+  if (past.length > 0) {
+    // Never actually observed live (see the 2026-09-10 comment above) —
+    // kept for robustness in case the site exposes past dates again.
+    const chosen = past.reduce((latest, m) => (m.dateStr > latest.dateStr ? m : latest));
+    if (!chosen.section) return { sectionText: null, matchCount: matches.length, blank: true };
+    return { sectionText: chosen.section, alreadyHeld: true, matchCount: matches.length };
+  }
+  const soonest = matches.reduce((s, m) => (m.dateStr < s.dateStr ? m : s));
+  if (!soonest.section) return { sectionText: null, matchCount: matches.length, blank: true };
+  return { sectionText: soonest.section, alreadyHeld: false, matchCount: matches.length };
 }
 
 /** "Unit N #M" -> the lessons.json entry with matching unit/lesson.
@@ -312,7 +378,7 @@ if (lessons.length === 0) {
 }
 
 const html = fromFile ? readFileSync(fromFile, 'utf8') : await fetchWithRetry(url);
-const { sectionText, matchCount, blank } = extractSectionText(html);
+const { sectionText, alreadyHeld, matchCount, blank } = resolveCurrentSection(extractSectionMatches(html));
 
 if (!sectionText) {
   if (matchCount > 1) {
@@ -354,13 +420,38 @@ if (normalizeLabel(sectionText).startsWith(ENTRANCE_GATE_LABEL)) {
   process.exit(0);
 }
 
-const lesson = matchLesson(sectionText, lessons);
+let lesson = matchLesson(sectionText, lessons);
 if (!lesson) {
   console.error(
     `Extracted "${sectionText}" but couldn't resolve a week number from it, or it doesn't match ` +
     `any entry in ${lessonsPath} — refusing to overwrite ${out}.`
   );
   process.exit(1);
+}
+
+if (alreadyHeld === false) {
+  // "${sectionText}" is assigned to a meeting that's today-or-later —
+  // hasn't happened yet at the time this (early-morning) script runs —
+  // so it isn't what was actually most recently TAUGHT. See the
+  // 2026-09-10 comment at the top of this file. What's actually current
+  // is the previous lesson in sequence.
+  const previous = lessons.find((l) => l.week === lesson.week - 1);
+  if (previous) {
+    console.log(
+      `"${sectionText}" is assigned to a meeting that hasn't happened yet — using the previous ` +
+      `lesson, week ${previous.week} ("${previous.title}"), as what's actually current.`
+    );
+    lesson = previous;
+  } else {
+    // week 1 has no predecessor — the club's very first book meeting is
+    // scheduled but hasn't happened yet, so there's no real "current"
+    // book lesson at all yet. The entrance-gate default (also week 1) is
+    // exactly the right answer here too.
+    console.log(
+      `"${sectionText}" is the club's first book meeting and hasn't happened yet — defaulting to ` +
+      `week 1, same as the entrance-gate default.`
+    );
+  }
 }
 
 const existing = readExisting(out);

@@ -276,18 +276,20 @@ still there, the script defaults to **week 1** (the first Advocates
 video) rather than leaving the display blank — an explicit default, by
 request, not a match against the entrance-gate count.
 
-**Once in the book, the Section text is "Unit N #M"** — verified
-against this church's own full-year schedule (fetch
-`?current_only=N`, one book-track table per scheduled meeting date for
-the whole year, rather than just the current one). The Journey club's
-schedule shows the last entrance-gate meeting as "Faith Foundations #7"
-(2026-09-02), then the very next meeting (2026-09-09) as "Unit 1 #1",
-continuing in lockstep with the Advocates page's own numbering through
-"Unit 8 #4" (2027-05-19). So "Unit N #M" maps directly to
-`lessons.json`'s `unit`/`lesson` fields — an earlier version of this
-script guessed a flat 1-32 count instead, which happened to work for
-Unit 1 by coincidence but would have been wrong from Unit 2 onward;
-that guess has been replaced with this verified mapping.
+**Once in the book, the Section text is "Unit N #M"** — the numbering
+maps directly to `lessons.json`'s `unit`/`lesson` fields, verified
+against this church's full-year schedule showing the last entrance-gate
+meeting as "Faith Foundations #7" (2026-09-02) then the very next
+meeting (2026-09-09) as "Unit 1 #1", continuing in lockstep with the
+Advocates page's own numbering through "Unit 8 #4" (2027-05-19) — an
+earlier version of this script guessed a flat 1-32 count instead, which
+happened to work for Unit 1 by coincidence but would have been wrong
+from Unit 2 onward; that guess has been replaced with this verified
+mapping. (The *numbering* mapping is solid. The *timing* semantics
+around it were wrong until 2026-09-10 — see immediately below; don't
+re-trust old claims about what `?current_only=N` returns without
+re-checking live, since the 2026-09-10 finding directly contradicts
+what this paragraph used to say about it.)
 
 The entrance-gate label check is deliberately tolerant of whitespace
 (including a stray non-breaking space, which `String.trim()` alone
@@ -295,6 +297,50 @@ does not strip from the middle of a string) and case, normalizing
 before comparison — the same tolerance `matchLesson()`'s `\s+` regex
 already had, so a template variance doesn't turn into a permanent
 nightly failure on one side but not the other.
+
+**This endpoint never exposes an already-held meeting's date — verified
+live 2026-09-10, the day after the predicted entrance-gate -> book
+transition.** Both `?current_only=Y` and `?current_only=N` returned
+byte-identical output (each with `Cache-Control: no-store` — not a
+caching artifact worth chasing), and every Advocates row's
+`calendar_date` was 2026-09-16 or later; the 2026-09-09 meeting
+("Unit 1 #1", predicted current as of that date) had already happened
+and was gone from both. This directly contradicts what an earlier
+version of the paragraph above claimed `?current_only=N` returns (a
+full-year table "for the whole year, rather than just the current
+one") — that claim was never re-verified after it was first written and
+turned out to be wrong, or the site's behavior changed since; either
+way, trust the 2026-09-10 finding over it.
+
+That matters because of what picking "the soonest upcoming row" and
+using it directly used to do: show kids a lesson their leader hasn't
+taught yet, for the entire ~6-day gap between meetings. Confirmed in
+this repo's own git history — `current-lesson.json` jumped straight
+from week 1 (entrance-gate default, unchanged since 2026-08-11) to week
+2 ("Unit 1 #2", not yet taught) on 2026-09-10, skipping past a
+distinctly-recorded "week 1, confirmed" state entirely (the
+entrance-gate default and the real week-1 book lesson are
+byte-identical, so `sameLesson()` saw no change to commit when the club
+actually started the book on 2026-09-09) — and the live kiosk was
+confirmed serving that wrong week-2 video before this was caught and
+fixed the same day.
+
+**The fix**: `resolveCurrentSection()` now carries an `alreadyHeld` flag
+alongside the matched Section text — `true`/`null` (already happened, or
+no date to check at all — the latter preserves this script's original
+pre-date-aware behavior for a hypothetical old page shape with no
+`calendar_date`, never observed live but kept for robustness) means use
+the matched row's own lesson directly, exactly as before; `false` (the
+matched meeting is today-or-later in the club's own timezone — see
+`todayLocalDateStr()`, deliberately NOT a naive UTC epoch compare, since
+the cron runs 08:23 UTC / ~4:23 AM Eastern, hours past UTC midnight)
+means that meeting hasn't happened yet, so what's actually current is
+the **previous** lesson in `lessons.json`'s sequence — clamped to the
+week-1 default (not "week 0") when the matched row is itself the club's
+first book meeting. Test it by hand with
+`--from-file` against a page where the soonest Advocates row is dated
+in the future (true of every live fetch since 2026-09-10) and confirm
+the resolved week is one *behind* whatever "Unit N #M" the page shows.
 
 ### Video transcoding (`scripts/transcode-lesson-video.mjs`)
 
