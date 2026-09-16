@@ -11,14 +11,20 @@
 // data/leader-handout-summaries.json stays the SINGLE hand-edited source (it
 // is a build input, deliberately never served; see CLAUDE.md). This script
 // copies only its summary fields into public/. Nothing derived from the video
-// itself goes in here: the transcript prose stays a build input, and the
-// spoken transcript is already published as the caption .vtt.
+// itself goes in THIS file; the transcript travels as its own per-week file
+// (see below), so leader-prep.json stays small enough to warm at startup.
+//
+// It also regenerates public/prep-transcripts/ (see
+// scripts/build-prep-transcripts.mjs) for the same reason: those served
+// copies are derived from data/*-transcript-prose.json and the VTTs, so they
+// are rebuilt beside this one rather than drifting until someone remembers.
 //
 // Usage: node scripts/build-leader-prep.mjs
 //        (also run automatically by scripts/render-leader-handouts.mjs, so
 //         the served copy can't drift from the handouts)
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { writePrepTranscripts } from './build-prep-transcripts.mjs';
 
 const REPO = path.dirname(path.dirname(new URL(import.meta.url).pathname));
 const SRC = path.join(REPO, 'data', 'leader-handout-summaries.json');

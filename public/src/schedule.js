@@ -60,6 +60,11 @@ const settingsVariantPrompt = document.getElementById('settings-variant-prompt')
 const settingsVariantStudentBtn = document.getElementById('settings-variant-student');
 const settingsVariantLeaderBtn = document.getElementById('settings-variant-leader');
 const settingsVariantBackBtn = document.getElementById('settings-variant-back');
+const settingsStudentPicker = document.getElementById('settings-student-picker');
+const settingsStudentPrompt = document.getElementById('settings-student-prompt');
+const settingsStudentVideoBtn = document.getElementById('settings-student-video');
+const settingsStudentPrepBtn = document.getElementById('settings-student-prep');
+const settingsStudentBackBtn = document.getElementById('settings-student-back');
 const settingsLeaderPicker = document.getElementById('settings-leader-picker');
 const settingsLeaderPrompt = document.getElementById('settings-leader-prompt');
 const settingsLeaderVideoBtn = document.getElementById('settings-leader-video');
@@ -233,6 +238,11 @@ async function cacheLessonBundle(lesson) {
       { fetchUrl: captionUrlFor(lesson.week, 'student') },
       { fetchUrl: captionUrlFor(lesson.week, 'leader') },
       { fetchUrl: handoutUrl(lesson.week) },
+      // Read Prep's transcripts, one file per role (see prepTranscriptUrl).
+      // Week 27 has no Leader Video, so its leader file 404s and is skipped
+      // exactly like its VTT and handout.
+      { fetchUrl: prepTranscriptUrl(lesson.week, 'leader') },
+      { fetchUrl: prepTranscriptUrl(lesson.week, 'student') },
       // The teaching slides shown after the video (see startTeachingSlides).
       ...Array.from({ length: deckSlideCount(lesson.week) }, (_, i) => ({
         fetchUrl: slideImageUrl(lesson.week, i + 1),
@@ -1737,6 +1747,7 @@ function onLessonPicked(lesson) {
 function resetSettingsPanelToList() {
   pendingPreviewLesson = null;
   settingsVariantPicker.classList.add('hidden');
+  settingsStudentPicker.classList.add('hidden');
   settingsLeaderPicker.classList.add('hidden');
   settingsLessonList.classList.remove('hidden');
 }
@@ -1895,6 +1906,256 @@ function leaderPrepFor(week) {
 // for week A must not paint into an overlay showing week B.
 let prepRequestId = 0;
 
+/* ── The transcript inside Read Prep ──────────────────────────────────
+   Below the summary, collapsed behind one button, every Read Prep carries
+   that video's whole transcript in two versions:
+
+     Edited       the readable prose the Leader Handout prints, and
+     Exact words  the verbatim cue text from the caption .vtt.
+
+   Both come from public/prep-transcripts/week-NN-<role>.json, built by
+   scripts/build-prep-transcripts.mjs from data/<role>-transcript-prose.json
+   and that week's VTT. One file per week per role, because leader-prep.json
+   is warmed at startup for all 31 weeks and a transcript is tens of KB: it
+   is fetched only when a leader actually expands one.
+
+   Which version the leader last chose is a per-device preference, read with
+   the same try/catch shape as the caption prefs (kiosk Chromium can throw on
+   localStorage rather than returning null).
+
+   Every paragraph carries the start time of its first cue, shown as a
+   tappable timestamp: pressing it closes the overlay and starts THAT video
+   at that moment, through the same preview path the picker uses. */
+const PREP_TRANSCRIPT_MODE_KEY = 'journey.prep.transcriptMode';
+
+function prepTranscriptUrl(week, role) {
+  return `prep-transcripts/week-${String(week).padStart(2, '0')}-${role}.json`;
+}
+
+function storedPrepTranscriptMode() {
+  try {
+    return localStorage.getItem(PREP_TRANSCRIPT_MODE_KEY) === 'exact' ? 'exact' : 'edited';
+  } catch {
+    return 'edited';
+  }
+}
+
+function storePrepTranscriptMode(mode) {
+  try {
+    localStorage.setItem(PREP_TRANSCRIPT_MODE_KEY, mode);
+  } catch {
+    // The choice just won't survive a reload. Nothing else depends on it.
+  }
+}
+
+let prepTranscriptMode = storedPrepTranscriptMode();
+
+// url -> parsed transcript. Only successes are remembered: memoizing a
+// failure would leave a 24/7 kiosk unable to ever load that transcript again
+// after one bad evening, the same reason captionsAvailable() only caches
+// positive probes.
+const prepTranscripts = new Map();
+
+function validPrepTranscript(data) {
+  return !!data && typeof data === 'object' && Array.isArray(data.paragraphs);
+}
+
+async function loadPrepTranscript(url) {
+  const known = prepTranscripts.get(url);
+  if (known) return known;
+  // caches.match() searches every bucket, so the current week's copy is found
+  // whether it arrived with the prefetched bundle (journey-videos-v1) or was
+  // stored below after an on-demand fetch for some other week.
+  if ('caches' in window) {
+    try {
+      const hit = await caches.match(url);
+      if (hit) {
+        const cached = await hit.json();
+        if (validPrepTranscript(cached)) {
+          prepTranscripts.set(url, cached);
+          return cached;
+        }
+      }
+    } catch {
+      // fall through to the network
+    }
+  }
+  try {
+    const res = await fetchWithTimeout(url, {}, 5000);
+    if (!res.ok) throw new Error(`${url} ${res.status}`);
+    // Parse and shape-check BEFORE caching, like lessons.json: a 200 carrying
+    // a truncated deploy must never become this device's offline copy.
+    const text = await res.text();
+    const data = JSON.parse(text);
+    if (!validPrepTranscript(data)) throw new Error(`${url}: unexpected shape`);
+    prepTranscripts.set(url, data);
+    if ('caches' in window) {
+      try {
+        const cache = await caches.open(ASSET_CACHE_NAME);
+        await cache.put(url, new Response(text, { headers: { 'content-type': 'application/json' } }));
+      } catch {
+        // Not storable right now, still usable live.
+      }
+    }
+    return data;
+  } catch (err) {
+    console.warn('Journey: transcript unavailable', url, err);
+    return null;
+  }
+}
+
+/* Start the video this transcript belongs to, at this paragraph.
+   Acknowledge-first: closePrep() and requestPlayback()'s reveal both happen
+   synchronously, so the screen has changed before anything is fetched. */
+function startPrepAt(lesson, role, seconds) {
+  audioUnlocked = true; // a real press, so the video may start with sound
+  closePrep();
+  if (role === 'leader') {
+    if (!lesson.leaderDownloadUrl) return;
+    requestPlayback(captionUrlFor(lesson.week, 'leader'), () => playLeaderPreview(lesson, seconds));
+    return;
+  }
+  requestPlayback(captionUrlFor(lesson.week, 'student'), () => playStudentPreview(lesson, seconds));
+}
+
+function renderPrepParagraphs(container, data, lesson, role) {
+  container.textContent = '';
+  for (const para of data.paragraphs) {
+    if (para.heading) {
+      const h = document.createElement('h4');
+      h.className = 'prep-para-heading';
+      h.textContent = para.heading;
+      container.appendChild(h);
+    }
+    const p = document.createElement('p');
+    p.className = 'prep-para';
+    const stamp = document.createElement('button');
+    stamp.type = 'button';
+    stamp.className = 'prep-time';
+    stamp.textContent = formatTime(para.t);
+    stamp.setAttribute('aria-label', `Play this video from ${formatTime(para.t)}`);
+    stamp.addEventListener('click', () => startPrepAt(lesson, role, para.t));
+    const text = document.createElement('span');
+    text.className = 'prep-para-text';
+    text.textContent = prepTranscriptMode === 'exact' ? para.exact : para.edited;
+    p.append(stamp, text);
+    container.appendChild(p);
+  }
+}
+
+/* Edited / Exact words. Both versions of every paragraph are already in the
+   one JSON, so switching repaints from memory and never fetches. */
+function buildPrepModeRow(lesson, role, container) {
+  const row = document.createElement('div');
+  row.className = 'prep-transcript-modes';
+  const label = document.createElement('span');
+  label.className = 'prep-modes-label';
+  label.textContent = 'Version';
+  row.appendChild(label);
+  const buttons = [];
+  for (const [mode, text] of [
+    ['edited', 'Edited'],
+    ['exact', 'Exact words'],
+  ]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'prep-mode-btn';
+    button.textContent = text;
+    button.setAttribute('aria-pressed', String(prepTranscriptMode === mode));
+    button.addEventListener('click', () => {
+      prepTranscriptMode = mode;
+      storePrepTranscriptMode(mode);
+      for (const other of buttons) other.el.setAttribute('aria-pressed', String(other.mode === mode));
+      const data = prepTranscripts.get(prepTranscriptUrl(lesson.week, role));
+      if (data) renderPrepParagraphs(container, data, lesson, role);
+    });
+    buttons.push({ mode, el: button });
+    row.appendChild(button);
+  }
+  return row;
+}
+
+/* `reveal` is false when the transcript is open from the start (the Student
+   Prep), where scrolling would hide the top of the overlay nobody asked to
+   leave. It is true when a leader pressed the button. */
+function expandPrepTranscript(lesson, role, toggle, panel, scrolls = true) {
+  const requestId = prepRequestId; // the overlay open this expansion belongs to
+  toggle.setAttribute('aria-expanded', 'true');
+  toggle.textContent = 'Hide the full transcript';
+  panel.classList.remove('hidden');
+  panel.textContent = '';
+  // The header row and the mode toggle are built now, with nothing awaited:
+  // pressing the button has to change the screen this frame.
+  const paragraphs = document.createElement('div');
+  paragraphs.className = 'prep-paras';
+  panel.append(buildPrepModeRow(lesson, role, paragraphs), paragraphs);
+  // Put the section the leader just opened at the top of the overlay: the
+  // button sits under a screen of summary, so without this the paragraphs
+  // appear entirely below the fold. Run once now (the press is acknowledged
+  // whether or not a transcript arrives) and again once the paragraphs are
+  // in, because until then there is nothing below to scroll up against.
+  // Guarded: it is the one call here a non-browser DOM may not implement.
+  const reveal = () => {
+    if (scrolls && typeof toggle.scrollIntoView === 'function') toggle.scrollIntoView(true);
+  };
+  reveal();
+  const url = prepTranscriptUrl(lesson.week, role);
+  const inMemory = prepTranscripts.get(url);
+  if (inMemory) {
+    renderPrepParagraphs(paragraphs, inMemory, lesson, role);
+    reveal();
+    return;
+  }
+  const loading = document.createElement('p');
+  loading.className = 'prep-note';
+  loading.textContent = 'Loading transcript…';
+  paragraphs.appendChild(loading);
+  loadPrepTranscript(url).then((data) => {
+    // Closed, reopened on another week, or collapsed while the fetch was in
+    // flight: paint nothing rather than into a panel nobody is looking at.
+    if (requestId !== prepRequestId || !paragraphs.isConnected) return;
+    if (!data) {
+      paragraphs.textContent = '';
+      const failed = document.createElement('p');
+      failed.className = 'prep-note';
+      failed.textContent =
+        'The transcript hasn’t downloaded to this device yet. Check the kiosk’s internet connection, then try again.';
+      paragraphs.appendChild(failed);
+      return;
+    }
+    renderPrepParagraphs(paragraphs, data, lesson, role);
+    reveal();
+  });
+}
+
+function appendPrepTranscript(lesson, role, startExpanded) {
+  // Week 27 has no Leader Video, so there is no leader transcript to offer.
+  if (role === 'leader' && !lesson.leaderDownloadUrl) return;
+  const section = document.createElement('section');
+  section.className = 'prep-transcript';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'prep-transcript-toggle';
+  toggle.textContent = 'Read the full transcript';
+  toggle.setAttribute('aria-expanded', 'false');
+  const panel = document.createElement('div');
+  panel.className = 'prep-transcript-body hidden';
+  section.append(toggle, panel);
+  prepBody.appendChild(section);
+  toggle.addEventListener('click', () => {
+    if (toggle.getAttribute('aria-expanded') === 'true') {
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.textContent = 'Read the full transcript';
+      panel.classList.add('hidden');
+      panel.textContent = ''; // a screen of paragraphs has no reason to stay in the DOM
+      return;
+    }
+    expandPrepTranscript(lesson, role, toggle, panel);
+  });
+  if (startExpanded) expandPrepTranscript(lesson, role, toggle, panel, false);
+}
+
+
 function prepNote(message) {
   prepBody.textContent = '';
   const p = document.createElement('p');
@@ -1912,7 +2173,15 @@ function prepSection(heading, build) {
   prepBody.appendChild(section);
 }
 
-function renderPrep(lesson) {
+function renderPrep(lesson, role = 'leader') {
+  // The Student Prep has no summary to show: the Big Idea / Key Points /
+  // Scripture / Questions are written from the LEADER Video, so putting them
+  // here would credit the wrong video. It is the transcript, open already.
+  if (role === 'student') {
+    prepNote('The Student Video, written out. Summaries live under the Leader Video’s prep.');
+    appendPrepTranscript(lesson, role, true);
+    return;
+  }
   const entry = leaderPrepFor(lesson.week);
   if (!entry) {
     prepNote(
@@ -1920,6 +2189,7 @@ function renderPrep(lesson) {
         ? 'The leader prep hasn’t downloaded to this device yet — check the kiosk’s internet connection, then try again.'
         : `There’s no leader prep for week ${lesson.week}. (Week 27 has no Leader Video, so it has no summary.)`
     );
+    appendPrepTranscript(lesson, role, false);
     return;
   }
   prepBody.textContent = '';
@@ -1960,6 +2230,7 @@ function renderPrep(lesson) {
       return ol;
     });
   }
+  appendPrepTranscript(lesson, role, false);
   const footer = document.createElement('p');
   footer.className = 'prep-footer';
   footer.textContent =
@@ -1967,21 +2238,23 @@ function renderPrep(lesson) {
   prepBody.appendChild(footer);
 }
 
-function openPrep(lesson) {
+function openPrep(lesson, role = 'leader') {
   const requestId = ++prepRequestId;
   // Everything visible happens now; the JSON (if it isn't in memory yet) is
   // waited on behind an on-screen note, never in front of the overlay.
-  prepTitle.textContent = `Week ${lesson.week} — ${lesson.title} (Leader Prep)`;
+  const label = role === 'student' ? 'Student Prep' : 'Leader Prep';
+  prepTitle.textContent = `Week ${lesson.week} — ${lesson.title} (${label})`;
   prepView.classList.remove('hidden');
   prepCloseBtn.focus();
-  if (leaderPrep) {
-    renderPrep(lesson);
+  // A Student Prep never reads leader-prep.json, so it never waits on it.
+  if (role === 'student' || leaderPrep) {
+    renderPrep(lesson, role);
     return;
   }
   prepNote('Loading the leader prep…');
   loadLeaderPrep().then(() => {
     if (requestId !== prepRequestId) return; // closed, or reopened on another week
-    renderPrep(lesson);
+    renderPrep(lesson, role);
   });
 }
 
@@ -2097,35 +2370,81 @@ settingsBackdrop.addEventListener('click', closeSettingsPanel);
 
 settingsVariantBackBtn.addEventListener('click', resetSettingsPanelToList);
 
+/* Both roles' previews live in one function each, because the Read Prep
+   overlay's timestamps start the same videos the picker does. `seekTo` is
+   the second to open at: it is armed as pendingSeek only AFTER
+   startPreview() has bumped journeyRequestToken, so the one permanent
+   'loadedmetadata' listener applies it and a superseded request can never
+   drop its seek onto a newer video. 0 means "from the top", which also
+   clears any mark an abandoned request left behind. */
+function armPreviewSeek(seconds) {
+  pendingSeek = seconds > 0 ? { token: journeyRequestToken, t: seconds } : null;
+}
+
+async function playStudentPreview(lesson, seekTo = 0) {
+  // The current week's Student Video is the one already pre-downloaded for
+  // the 6:30 show — play the local copy instead of re-streaming ~17MB from
+  // the GitHub Release, so a same-week preview works with the network dead.
+  // Gated on transcodedAt so a not-yet-transcoded week (downloadUrl still
+  // the 1080p original the Pi can't decode) keeps using the Release asset.
+  if (currentLesson && currentLesson.week === lesson.week && currentLesson.transcodedAt) {
+    const token = journeyRequestToken;
+    const src = await resolveVideoSrc(currentLesson, token);
+    if (!src || token !== journeyRequestToken) return; // torn down while reading the cache
+    startPreview(
+      src,
+      `${lesson.title} (Student Video)`,
+      transcodedPreviewUrl(lesson.week, 'student'),
+      lesson.week
+    );
+    armPreviewSeek(seekTo);
+    return;
+  }
+  startPreview(
+    transcodedPreviewUrl(lesson.week, 'student'),
+    `${lesson.title} (Student Video)`,
+    lesson.downloadUrl,
+    lesson.week
+  );
+  armPreviewSeek(seekTo);
+}
+
+function playLeaderPreview(lesson, seekTo = 0) {
+  startPreview(
+    transcodedPreviewUrl(lesson.week, 'leader'),
+    `${lesson.title} (Leader Video)`,
+    lesson.leaderDownloadUrl,
+    lesson.week
+  );
+  armPreviewSeek(seekTo);
+}
+
+// Student is a two-step choice now too: the Student Video's transcript is
+// readable in Read Prep, so "which video?" is followed by "video or prep?"
+// on both sides rather than only the Leader's.
 settingsVariantStudentBtn.addEventListener('click', () => {
+  if (!pendingPreviewLesson) return;
+  settingsStudentPrompt.textContent = `"${pendingPreviewLesson.title}" (Student): video or prep?`;
+  settingsVariantPicker.classList.add('hidden');
+  settingsStudentPicker.classList.remove('hidden');
+});
+
+settingsStudentVideoBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson) return;
   const lesson = pendingPreviewLesson;
   closeSettingsPanel();
-  requestPlayback(captionUrlFor(lesson.week, 'student'), async () => {
-    // The current week's Student Video is the one already pre-downloaded for
-    // the 6:30 show — play the local copy instead of re-streaming ~17MB from
-    // the GitHub Release, so a same-week preview works with the network dead.
-    // Gated on transcodedAt so a not-yet-transcoded week (downloadUrl still
-    // the 1080p original the Pi can't decode) keeps using the Release asset.
-    if (currentLesson && currentLesson.week === lesson.week && currentLesson.transcodedAt) {
-      const token = journeyRequestToken;
-      const src = await resolveVideoSrc(currentLesson, token);
-      if (!src || token !== journeyRequestToken) return; // torn down while reading the cache
-      startPreview(
-        src,
-        `${lesson.title} (Student Video)`,
-        transcodedPreviewUrl(lesson.week, 'student'),
-        lesson.week
-      );
-      return;
-    }
-    startPreview(
-      transcodedPreviewUrl(lesson.week, 'student'),
-      `${lesson.title} (Student Video)`,
-      lesson.downloadUrl,
-      lesson.week
-    );
-  });
+  requestPlayback(captionUrlFor(lesson.week, 'student'), () => playStudentPreview(lesson));
+});
+
+settingsStudentPrepBtn.addEventListener('click', () => {
+  if (!pendingPreviewLesson) return;
+  openPrep(pendingPreviewLesson, 'student');
+  closeSettingsPanel();
+});
+
+settingsStudentBackBtn.addEventListener('click', () => {
+  settingsStudentPicker.classList.add('hidden');
+  settingsVariantPicker.classList.remove('hidden');
 });
 
 // Leader is a two-step choice: first Leader vs Student, then Video vs
@@ -2142,14 +2461,7 @@ settingsLeaderVideoBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson || !pendingPreviewLesson.leaderDownloadUrl) return;
   const lesson = pendingPreviewLesson;
   closeSettingsPanel();
-  requestPlayback(captionUrlFor(lesson.week, 'leader'), () =>
-    startPreview(
-      transcodedPreviewUrl(lesson.week, 'leader'),
-      `${lesson.title} (Leader Video)`,
-      lesson.leaderDownloadUrl,
-      lesson.week
-    )
-  );
+  requestPlayback(captionUrlFor(lesson.week, 'leader'), () => playLeaderPreview(lesson));
 });
 
 settingsLeaderHandoutBtn.addEventListener('click', () => {
@@ -2160,7 +2472,7 @@ settingsLeaderHandoutBtn.addEventListener('click', () => {
 
 settingsLeaderPrepBtn.addEventListener('click', () => {
   if (!pendingPreviewLesson) return;
-  openPrep(pendingPreviewLesson);
+  openPrep(pendingPreviewLesson, 'leader');
   closeSettingsPanel();
 });
 

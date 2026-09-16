@@ -88,6 +88,14 @@ setting has regressed.
   workflow step; see "Video transcoding" below). Neither makes the
   *site* a Node app: `public/` stays plain HTML/CSS/JS with no build
   step, same as ever. `node_modules/` is gitignored.
+- `npm test` runs `node --test` over `test/`. `test/kiosk-dom.mjs` boots the
+  real `public/index.html` + `schedule.js` in jsdom (media, object URLs and
+  the Cache API stubbed; `caches` left undefined on purpose, which is the
+  path a fresh kiosk takes), so page behavior can be tested by pressing the
+  actual buttons rather than by calling internals. schedule.js is a classic
+  script, so its top-level `function` declarations are reachable on `window`
+  while its `let`/`const` state deliberately is not. Run
+  `node --check public/src/schedule.js` alongside it.
 
 ## Daily schedule
 
@@ -373,8 +381,9 @@ a reboot during a total outage has no app shell to load).
   first, network later.
 - **The whole current-week bundle is pre-downloaded, not just the
   video**: `cacheLessonBundle()` (on load, hourly, and on the browser's
-  `online` event) stores the lesson video, BOTH transcripts, and the
-  leader handout in `journey-videos-v1`. A 404 (week 27 has no leader
+  `online` event) stores the lesson video, BOTH caption transcripts, both
+  roles' Read Prep transcripts, and the leader handout in
+  `journey-videos-v1`. A 404 (week 27 has no leader
   VTT/handout) is "legitimately missing — skip", not a failure; the old
   bundle is evicted only after every piece of the new one stored
   (store-before-evict, extended from the old single-video invariant —
@@ -740,9 +749,12 @@ directly):
     hand-editable data; `scripts/render-leader-handouts.mjs` renders, and
     `scripts/finalize-handout-pdf.py` stamps /Lang, the XMP+docinfo title
     and DisplayDocTitle **and verifies** every file is tagged, titled and
-    language-marked. Both data files are build inputs, deliberately NOT under
-    `public/` — the transcript is already published there as the caption
-    `.vtt`, and there is no reason to serve a second copy.
+    language-marked. Both data files stay hand-edited build inputs and the
+    handout pipeline is unchanged, but the **edited prose is now served**,
+    per week, under `public/prep-transcripts/` — the owner asked for the
+    transcript on screen (2026-09-16), so Read Prep reads it out of the same
+    JSON rather than a leader having to open the PDF. The `.vtt` is still the
+    only copy of the *spoken* words that is published on its own.
   - The prose is *edited for reading* (the owner's choice over verbatim):
     spoken grammar repaired, filler and false starts removed, every point,
     example and Scripture reference kept. Two rules exist because an error
@@ -791,12 +803,54 @@ directly):
   `render-leader-handouts.mjs` calls the same writer, so the served copy
   can't drift from the handouts. `data/leader-handout-summaries.json` remains
   the single hand-edited source and stays a build input — only the summaries
-  travel, because those are this church's own writing about each video; the
-  transcript prose stays out of `public/` (the spoken transcript is already
-  published as the caption `.vtt`). Week 27 has no Leader Video, so it has no
-  entry, and the overlay says exactly that rather than showing a blank panel.
-- **Picker flow:** lesson → Student/Leader → (Leader only)
-  Watch Video / View Handout / Read Prep. The handout opens in a full-screen
+  travel, because those are this church's own writing about each video. Week
+  27 has no Leader Video, so it has no entry, and the overlay says exactly
+  that rather than showing a blank panel. Nothing is ever added to this file:
+  it is warmed at startup for all 31 weeks, so it has to stay small.
+- **The transcript inside Read Prep** (owner-requested 2026-09-16). Under the
+  summary, collapsed behind one "Read the full transcript" button, every prep
+  carries that video's whole transcript in two versions: **Edited** (the same
+  prose the handout prints) and **Exact words** (the verbatim cue text).
+  Per-device preference `journey.prep.transcriptMode`, read with the same
+  try/catch shape as the caption prefs. Both versions live in the one file, so
+  switching repaints from memory and fetches nothing.
+  - `scripts/build-prep-transcripts.mjs` (`npm run build-prep-transcripts`)
+    writes `public/prep-transcripts/week-NN-<role>.json` for BOTH roles from
+    `data/<role>-transcript-prose.json` and that week's VTT.
+    `build-leader-prep.mjs` chains it, so `render-leader-handouts.mjs` keeps
+    all the served copies in step for free. It is gated by
+    `validate-transcript-prose.py`, which grew `--role`/`--prose` for the
+    student side: a role whose prose fails is NOT written, because a gap in
+    the paragraph tiling means a dropped passage and half a transcript in
+    front of a leader is worse than none. A role whose prose file does not
+    exist is skipped quietly.
+  - **Per-week files**, not one big one, for the same reason leader-prep.json
+    carries only summaries: a transcript is tens of KB and is fetched only
+    when a leader actually expands one. The current week's two files ride
+    `cacheLessonBundle()`, so tonight's lesson reads with the network dead;
+    any other week is fetched cache-first through `fetchWithTimeout` (5s) and
+    stored in `journey-assets-v1` only after it parses. A failure is never
+    memoized, or one bad evening would cost a 24/7 kiosk that transcript
+    until a reload.
+  - **`data/student-transcript-prose.json`** is the Student Video's half, the
+    same schema and 32 weeks (owner-requested 2026-09-16, same licensing
+    character as the leader prose: this church's own editing of a video it is
+    licensed to show, for its own leaders, never linked elsewhere).
+  - Each paragraph keeps the printed handout's **timestamp as a real button**
+    in a hanging margin (above the paragraph below 600px). Pressing one
+    closes the overlay and starts that role's video there, through the same
+    `playLeaderPreview()` / `playStudentPreview()` the picker uses. The seek
+    is armed as `pendingSeek` only AFTER `startPreview()` has bumped
+    `journeyRequestToken`, so the one permanent `loadedmetadata` listener
+    applies it and a superseded request can never seek a newer video.
+    Acknowledge-first holds: the overlay closes and the loading overlay
+    appears before anything is fetched.
+- **Picker flow:** lesson → Student/Leader → Student: Watch Video / Read Prep,
+  Leader: Watch Video / View Handout / Read Prep. Both roles ask the second
+  question now; only the Leader side has a handout. A **Student Read Prep has
+  no summary at all** (the summaries are written from the Leader Video, so
+  showing them there would credit the wrong video): one line saying so, and
+  the transcript expanded already. The handout opens in a full-screen
   iframe overlay (`#handout-view`, Chromium's built-in PDF viewer) so
   the kiosk never leaves the page; closing it detaches the iframe
   `src` (512MB-Pi memory hygiene). `#prep-view` is the same shape with our
