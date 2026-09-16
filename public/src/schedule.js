@@ -27,6 +27,7 @@ function fetchWithTimeout(url, options, timeoutMs) {
 }
 
 const checkinView = document.getElementById('checkin-view');
+const checkinFrame = document.getElementById('checkin-frame');
 const journeyView = document.getElementById('journey-view');
 const journeyPlaceholder = document.getElementById('journey-placeholder');
 const journeySplash = document.getElementById('journey-splash');
@@ -36,9 +37,7 @@ const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
 const journeySplashResumeBtn = document.getElementById('journey-splash-resume-btn');
 const journeySplashResumeLabel = document.getElementById('journey-splash-resume-label');
 const journeySplashStartOverBtn = document.getElementById('journey-splash-startover-btn');
-const journeySplashClock = document.getElementById('journey-splash-clock');
 const journeySplashQuality = document.getElementById('journey-splash-quality');
-const clockWarning = document.getElementById('clock-warning');
 const journeyVideo = document.getElementById('journey-video');
 const journeyLoading = document.getElementById('journey-loading');
 const journeyLoadingNote = document.getElementById('journey-loading-note');
@@ -109,8 +108,120 @@ const notesEditGroups = document.getElementById('notes-edit-groups');
 const notesEditStatus = document.getElementById('notes-edit-status');
 const notesEditedBadge = document.getElementById('notes-edited-badge');
 const notesResetBtn = document.getElementById('notes-reset-btn');
+const qualityButtons = {
+  auto: document.getElementById('quality-auto'),
+  full: document.getElementById('quality-full'),
+  low: document.getElementById('quality-low'),
+};
+const qualityStatus = document.getElementById('quality-status');
+
+/* ── Device profile: what this particular screen can cope with ────────
+   This page runs in two very different places. The kiosk is a 2017
+   Raspberry Pi Zero (single-core ARMv6) that cannot decode Awana's 1080p
+   originals at a watchable frame rate, and wants the embedded Check-in
+   Display's animations turned down. The same URL is also opened on a Mac,
+   a laptop or a phone, where the converted 480p copies are a needless
+   downgrade of a lesson projected to a room.
+
+   So the page asks what it is running on, once, and everything quality
+   related reads the answer: the iframe's ?lowPower=1 flag, which file the
+   scheduled show and the picker play, and which bytes cacheLessonBundle()
+   pre-downloads.
+
+   'low' is the historical behavior, unchanged in every detail: a device
+   that detects low, or is set to Low power by hand, does exactly what the
+   kiosk did before this existed.
+
+   detectDeviceProfile() is pure (it takes the two navigator readings) so
+   the UA table below can be tested without a browser:
+   - Linux on ARM is a Raspberry Pi, every model this could run on.
+   - Phones and tablets stream on cell data onto a small screen, where the
+     480p copy is the right trade rather than a compromise.
+   - Two cores or fewer is a weak machine whatever it calls itself. */
+const PLAYBACK_QUALITY_KEY = 'journey.playback.quality';
+const PLAYBACK_QUALITY_CHOICES = ['auto', 'full', 'low'];
+
+function detectDeviceProfile(userAgent, hardwareConcurrency) {
+  const ua = String(userAgent || '');
+  if (/\b(armv6l|armv7l|aarch64)\b/.test(ua)) return 'low';
+  if (/Android|Mobile|iPhone|iPad/.test(ua)) return 'low';
+  const cores = Number(hardwareConcurrency);
+  if (Number.isFinite(cores) && cores > 0 && cores <= 2) return 'low';
+  return 'full';
+}
+
+// The one place navigator is read.
+const detectedProfile = detectDeviceProfile(
+  navigator.userAgent,
+  navigator.hardwareConcurrency
+);
+
+// Per-device override, wrapped like every other preference here: kiosk
+// Chromium can throw on localStorage rather than returning null.
+function storedPlaybackQuality() {
+  try {
+    const v = localStorage.getItem(PLAYBACK_QUALITY_KEY);
+    return PLAYBACK_QUALITY_CHOICES.includes(v) ? v : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
+
+// Returns whether the choice was actually stored, because a write that failed has
+// to be said out loud rather than reported as saved, like the bullet editor.
+function storePlaybackQuality(choice) {
+  try {
+    localStorage.setItem(PLAYBACK_QUALITY_KEY, choice);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Cached for the page's lifetime: this is read on every video pick and a
+// localStorage hit per pick is pointless. chooseQuality() clears it, which
+// is the only way the answer can change without a reload.
+let profileCache = null;
+
+function effectiveProfile() {
+  if (profileCache) return profileCache;
+  const choice = storedPlaybackQuality();
+  profileCache = choice === 'auto' ? detectedProfile : choice;
+  return profileCache;
+}
+
+/* ── The embedded Check-in Display ────────────────────────────────────
+   ?lowPower=1 is that app's own flag for "this screen is weak": it forces
+   confetti off and zero animation for THIS embed only, without touching
+   what its other, standalone signage devices default to. So the flag is
+   the low profile's, and a full-quality device gets the plain URL.
+   index.html ships the low-power URL as the static src, so a browser with
+   JavaScript disabled still shows something. */
+const CHECKIN_DISPLAY_ORIGIN = 'https://patrick-simpson.github.io';
+const CHECKIN_DISPLAY_URL = `${CHECKIN_DISPLAY_ORIGIN}/Awana-Check-in-Display/`;
+
+function checkinDisplayUrl(profile) {
+  return profile === 'low' ? `${CHECKIN_DISPLAY_URL}?lowPower=1` : CHECKIN_DISPLAY_URL;
+}
+
+// Only written when it differs: assigning the same src still reloads the
+// iframe in Chromium, which would drop the display's live check-in socket
+// for no reason at all.
+function applyCheckinDisplayUrl() {
+  if (!checkinFrame) return;
+  const wanted = checkinDisplayUrl(effectiveProfile());
+  if (checkinFrame.getAttribute('src') !== wanted) checkinFrame.src = wanted;
+}
+
+applyCheckinDisplayUrl();
 
 let currentLesson = null;
+// public/lessons.json's whole lesson list, once loaded (see loadAllLessons at
+// the end of the file). Declared up here, with the rest of the shared state,
+// because originalVideoUrl() reads it to find a week's original video URL and
+// is reachable from the startup refreshLesson() call, and a `let` further down
+// the file would still be in its temporal dead zone at that moment.
+let allLessons = null;
 let currentObjectUrl = null;
 // Teaching-slides state (see the "Teaching slides" section near the end).
 // Declared up here because stopJourneyContent() — reached from the startup
@@ -202,7 +313,40 @@ function sameLesson(a, b) {
    URL alone is what keeps a cached lesson from surviving its own replacement.
    The fetch itself still goes to the real URL — only the cache key carries
    the version. */
-function videoCacheKey(lesson) {
+/* Awana's own full-size file for this lesson, which is what a full-quality
+   device plays. current-lesson.json's sourceUrl is the CORS-friendly CDN URL
+   the nightly script already resolved (see CLAUDE.md), so it is both
+   playable and fetchable into the Cache API; lessons.json's downloadUrl for
+   the same week is the fallback when a lesson file predates that field.
+   Returns null when neither is known, which every caller treats as "there is
+   no original to play or store". */
+function originalVideoUrl(lesson) {
+  if (!lesson) return null;
+  if (typeof lesson.sourceUrl === 'string' && lesson.sourceUrl) return lesson.sourceUrl;
+  const entry = Array.isArray(allLessons)
+    ? allLessons.find((l) => l && l.week === lesson.week)
+    : null;
+  if (entry && typeof entry.downloadUrl === 'string' && entry.downloadUrl) return entry.downloadUrl;
+  return typeof lesson.downloadUrl === 'string' ? lesson.downloadUrl : null;
+}
+
+/* The two qualities are stored under keys that can never collide, so a device
+   that switches profiles can never be served the other quality's bytes:
+
+   low   the historical key exactly: downloadUrl, plus the transcode's own
+         version once there is one. A Pi that already has this week stored
+         keeps it.
+   full  the original's URL plus a quality marker.
+
+   The marker is a query parameter rather than a '#1080' fragment because the
+   Cache API ignores fragments when it matches a request, so a fragment would
+   silently be the same key as the plain URL. */
+function videoCacheKey(lesson, profile = effectiveProfile()) {
+  if (profile === 'full') {
+    const url = originalVideoUrl(lesson);
+    if (!url) return null;
+    return `${url}${url.includes('?') ? '&' : '?'}q=1080`;
+  }
   if (!lesson.transcodedAt) return lesson.downloadUrl;
   const sep = lesson.downloadUrl.includes('?') ? '&' : '?';
   return `${lesson.downloadUrl}${sep}v=${encodeURIComponent(lesson.transcodedAt)}`;
@@ -216,6 +360,28 @@ function videoCacheKey(lesson) {
    piece of the new one is safely stored — a mid-download failure can never
    leave the cache emptier than it started (the invariant the old
    cacheLessonVideo() kept for the video alone, extended to the bundle). */
+/* Which video file the bundle should pre-download for this device, if any.
+
+   low   Only the transcoded file is worth caching. Before the nightly
+         transcode lands, downloadUrl is still the 1080p original: bytes this
+         device cannot play, which would eat the bundle's budget and then be
+         served straight back by resolveVideoSrc.
+   full  Awana's original, under the quality-marked key, so the 480p entry is
+         never mistaken for it. Marked optional: the original is a cross-origin
+         fetch, and if it is ever served without CORS headers there is nothing
+         this page can do about it. That must cost the lesson's video and
+         nothing else, not hold up the eviction of last week's bundle. */
+function lessonVideoCandidates(lesson) {
+  if (effectiveProfile() === 'full') {
+    const url = originalVideoUrl(lesson);
+    const cacheKey = videoCacheKey(lesson, 'full');
+    return url && cacheKey ? [{ fetchUrl: url, cacheKey, optional: true }] : [];
+  }
+  return lesson.transcodedAt
+    ? [{ fetchUrl: lesson.downloadUrl, cacheKey: videoCacheKey(lesson, 'low') }]
+    : [];
+}
+
 let bundleInFlight = false;
 async function cacheLessonBundle(lesson) {
   if (!('caches' in window)) return;
@@ -228,13 +394,7 @@ async function cacheLessonBundle(lesson) {
   try {
     const cache = await caches.open(VIDEO_CACHE_NAME);
     const candidates = [
-      // Only the transcoded file is worth caching. Before the nightly
-      // transcode lands, downloadUrl is still the 1080p original — bytes this
-      // device cannot play, which would evict the rest of the bundle's budget
-      // and then be served straight back by resolveVideoSrc.
-      ...(lesson.transcodedAt
-        ? [{ fetchUrl: lesson.downloadUrl, cacheKey: videoCacheKey(lesson) }]
-        : []),
+      ...lessonVideoCandidates(lesson),
       { fetchUrl: captionUrlFor(lesson.week, 'student') },
       { fetchUrl: captionUrlFor(lesson.week, 'leader') },
       { fetchUrl: handoutUrl(lesson.week) },
@@ -252,17 +412,24 @@ async function cacheLessonBundle(lesson) {
     for (const c of candidates) c.cacheKey = c.cacheKey || c.fetchUrl;
     const bundleUrls = new Set(candidates.map((c) => new URL(c.cacheKey, location.href).href));
     let allStored = true;
-    for (const { fetchUrl, cacheKey } of candidates) {
+    for (const { fetchUrl, cacheKey, optional } of candidates) {
       try {
         if (await cache.match(cacheKey)) continue; // already stored
         const response = await fetch(fetchUrl);
         if (response.status === 404) continue; // legitimately doesn't exist — skip, not a failure
         if (!response.ok) {
-          allStored = false;
+          if (!optional) allStored = false;
           continue;
         }
         await cache.put(cacheKey, response);
       } catch (err) {
+        if (optional) {
+          // The full-quality original, which this page cannot make fetchable
+          // if the CDN answers without CORS headers. Log it and keep the rest
+          // of the bundle: playback falls back to streaming the same file.
+          console.warn('Journey: could not cache', fetchUrl, err);
+          continue;
+        }
         // Offline, or the host unreachable right now — keep whatever's
         // already cached and try again on the next refresh. Logged (not just
         // swallowed) so a permanently-failing cache attempt is discoverable
@@ -293,6 +460,11 @@ async function cacheLessonBundle(lesson) {
    ever revoke (on a 512MB Pi that leak would sit resident until the next
    show). Callers must bail on null. */
 async function resolveVideoSrc(lesson, token) {
+  // Which quality this device plays, decided once here so the cache lookup
+  // and the live URL can never disagree about it.
+  const profile = effectiveProfile();
+  const liveUrl = profile === 'full' ? originalVideoUrl(lesson) : lesson.downloadUrl;
+  const cacheKey = videoCacheKey(lesson, profile);
   if ('caches' in window) {
     try {
       const cache = await caches.open(VIDEO_CACHE_NAME);
@@ -302,9 +474,11 @@ async function resolveVideoSrc(lesson, token) {
       // code always had — so it's strictly better than falling through to
       // the network on a dead evening connection. The bundle prefetch stores
       // under the versioned key and then evicts the legacy entry, so this
-      // heals itself after one online refresh.
+      // heals itself after one online refresh. Low profile only: on full that
+      // bare key holds the 480p copy, which is the other quality's bytes.
       const cached =
-        (await cache.match(videoCacheKey(lesson))) || (await cache.match(lesson.downloadUrl));
+        (cacheKey && (await cache.match(cacheKey))) ||
+        (profile === 'low' ? await cache.match(lesson.downloadUrl) : null);
       if (cached) {
         const blob = await cached.blob();
         if (token !== undefined && token !== journeyRequestToken) return null;
@@ -321,7 +495,7 @@ async function resolveVideoSrc(lesson, token) {
     }
   }
   if (token !== undefined && token !== journeyRequestToken) return null;
-  return lesson.downloadUrl;
+  return liveUrl;
 }
 
 /* ── Resume an interrupted lesson ─────────────────────────────────────
@@ -524,14 +698,21 @@ async function showJourneyContent() {
 // header, so its bytes can never be stored — see CLAUDE.md), which is a real
 // cost on a flaky evening, but a streamed 480p file is watchable and a cached
 // 1080p one is not.
+//
+// All of that is a LOW-profile rule, and so is the splash note below it: a
+// full-quality device plays Awana's original whether or not the kiosk's
+// nightly transcode has run, so there is nothing degraded to warn about.
 function scheduledVideoPlan(lesson) {
   if (!lesson) return null;
+  if (effectiveProfile() === 'full') return { mode: 'original' };
   if (lesson.transcodedAt) return { mode: 'transcoded' };
   return { mode: 'release', url: transcodedPreviewUrl(lesson.week, 'student') };
 }
 
 // The splash says so BEFORE anyone presses play, because the operator can act
-// on it (pick the week by hand, or accept a stream) only if they know.
+// on it (pick the week by hand, or accept a stream) only if they know. Only
+// ever shown on the low profile, where a missing transcode really does mean a
+// streamed, lower-quality copy.
 function showQualityNote(lesson) {
   const plan = scheduledVideoPlan(lesson);
   const degraded = !!plan && plan.mode === 'release';
@@ -557,7 +738,7 @@ async function playCurrentLesson(resumeAt = 0) {
   const src =
     plan && plan.mode === 'release'
       ? plan.url // no transcode yet: the Release copy, never the 1080p original
-      : await resolveVideoSrc(currentLesson, token);
+      : await resolveVideoSrc(currentLesson, token); // this device's quality, cache first
   if (!src || token !== journeyRequestToken) return; // a newer call has since taken over
   journeyVideo.src = src;
   // The seek is armed only after the token check above, so a stale resolve
@@ -844,6 +1025,47 @@ syncCaptionPrefInputs();
 applyCaptionDisplayPrefs();
 captionsSizeSelect.addEventListener('change', storeCaptionDisplayPrefs);
 captionsBackdropInput.addEventListener('change', storeCaptionDisplayPrefs);
+
+/* ── Settings: Playback quality ───────────────────────────────────────
+   Three buttons, Auto / Full quality / Low power, with Auto naming what was
+   detected so an operator can see what it would do before trusting it. A
+   change applies at once: the embedded display's flag is swapped now, and
+   the next video pick reads the new profile.
+
+   Like the caption size, the change is applied in memory whether or not the
+   write succeeded, and a failed write says so instead of claiming it saved:
+   nothing else on the page would tell the operator that the choice will be
+   gone after a reload. */
+function qualityWords(profile) {
+  return profile === 'full' ? 'full quality' : 'low power';
+}
+
+function syncQualityButtons() {
+  qualityButtons.auto.textContent = `Auto (detected: ${qualityWords(detectedProfile)})`;
+  const choice = storedPlaybackQuality();
+  for (const key of PLAYBACK_QUALITY_CHOICES) {
+    qualityButtons[key].setAttribute('aria-pressed', String(key === choice));
+  }
+}
+
+function chooseQuality(choice) {
+  if (!PLAYBACK_QUALITY_CHOICES.includes(choice)) return;
+  const stored = storePlaybackQuality(choice);
+  // Applied from the choice itself, not read back from storage, so the
+  // buttons still do something on a device where the write just failed.
+  profileCache = choice === 'auto' ? detectedProfile : choice;
+  applyCheckinDisplayUrl();
+  syncQualityButtons();
+  qualityStatus.textContent = stored
+    ? `Using ${qualityWords(effectiveProfile())} on this device.`
+    : `Using ${qualityWords(effectiveProfile())} now, but this kiosk’s browser won’t ` +
+      'store settings, so it goes back to Auto when the page reloads.';
+}
+
+syncQualityButtons();
+for (const key of PLAYBACK_QUALITY_CHOICES) {
+  qualityButtons[key].addEventListener('click', () => chooseQuality(key));
+}
 
 function applyCaptions() {
   removeCaptionTracks();
@@ -1207,6 +1429,69 @@ unmuteBtn.addEventListener('click', () => {
   setMuted(!journeyVideo.muted);
 });
 
+/* ── Whole-page fullscreen on a double-click ──────────────────────────
+   A double-click puts THIS page into fullscreen, not the thing that was
+   double-clicked. That is the point: fullscreening the embedded display's
+   own stage, or the <video>, would take the ⇄ and ⚙ corner buttons off the
+   screen with it and leave an operator with no way back out except the
+   keyboard. The next double-click leaves fullscreen again.
+
+   Two ways in, because the two layers are different documents:
+   - The Check-in Display is a cross-origin iframe, so a double-click inside
+     it never reaches this document at all. That app posts a message up to
+     its parent instead when it is embedded (see its urlFlags/CLAUDE.md), and
+     the listener below is this side of that contract.
+   - The Journey layer is ours, so a plain dblclick listener does it, minus
+     anything that already means something else: a control, a text field, the
+     settings panel, or a reading overlay.
+
+   Nothing else is touched: no view changes, no lastPhase, no teardown. Every
+   fullscreen call is best effort (a browser may refuse one that is not tied
+   to a gesture it likes) and its failure is swallowed, because there is
+   nothing useful to say about it on a wall-mounted screen. */
+const DISPLAY_FULLSCREEN_MESSAGE = 'awana-display:toggle-fullscreen';
+
+function togglePageFullscreen() {
+  try {
+    if (document.fullscreenElement) {
+      const left = document.exitFullscreen && document.exitFullscreen();
+      if (left && typeof left.catch === 'function') left.catch(() => {});
+      return;
+    }
+    const el = document.documentElement;
+    const entered = el.requestFullscreen && el.requestFullscreen();
+    if (entered && typeof entered.catch === 'function') entered.catch(() => {});
+  } catch {
+    // Unsupported, or refused outright. The page carries on windowed.
+  }
+}
+
+window.addEventListener('message', (event) => {
+  // The source check is the real gate: only the window this page put in its
+  // own iframe can ask for this. The origin check is belt and braces for the
+  // two origins that window is ever legitimately on (the published display,
+  // or a local copy served beside this page during development).
+  if (!checkinFrame || event.source !== checkinFrame.contentWindow) return;
+  if (event.origin !== location.origin && !String(event.origin).startsWith(CHECKIN_DISPLAY_ORIGIN)) {
+    return;
+  }
+  const data = event.data;
+  if (!data || typeof data !== 'object' || data.type !== DISPLAY_FULLSCREEN_MESSAGE) return;
+  togglePageFullscreen();
+});
+
+journeyView.addEventListener('dblclick', (e) => {
+  const target = e.target;
+  if (
+    target instanceof Element &&
+    target.closest('button, input, textarea, select, #settings-panel, #handout-view, #prep-view')
+  ) {
+    return;
+  }
+  if (!settingsPanel.classList.contains('hidden') || readerOverlayOpen()) return;
+  togglePageFullscreen();
+});
+
 // Starts the queued lesson playing — only while the splash is actually up
 // (isAwaitingPlay()), so a stray keypress at any other time (e.g. during
 // the Check-in Display, or once the video's already playing) does nothing.
@@ -1468,125 +1753,11 @@ journeyVideo.addEventListener('error', () => {
   }
 });
 
-/* ── Is the kiosk's clock right? ──────────────────────────────────────
-   The whole schedule is a comparison against the Pi's local system clock
-   (scheduledPhase()), and a Raspberry Pi Zero has no real-time clock at
-   all: after a power cut it comes up at whatever time it last knew, and
-   only NTP over a flaky church connection fixes that. When it doesn't, the
-   symptom is "the lesson never started" or "it started at 3 AM", which
-   reads exactly like a bug in this file.
-
-   So: measure the drift and SAY SO. The schedule is deliberately NOT
-   corrected from server time — a silently corrected clock would hide a real
-   Pi problem that also breaks logs, TLS certificate validity and every
-   other timestamp on the box. Report, never patch.
-
-   Mechanics:
-   - One cheap HEAD to a same-origin file, bounded by fetchWithTimeout, on
-     the hourly refresh (and at startup). Nothing awaits it — it is
-     fire-and-forget and only ever writes text into a corner note.
-   - The probe URL carries a unique query string, and the Date header is
-     then ALSO corrected by Age. Both, because a stale Date is the one way
-     this check can cry wolf: GitHub Pages serves the site through a CDN
-     with max-age=600, so a cache hit's Date can be ten minutes old — which
-     would read as a ten-minute drift on a perfectly good clock. The unique
-     URL forces a fresh response (nobody has that key cached); Age covers
-     any intermediate proxy that answers it from somewhere anyway.
-   - Only the last measurement is kept, in memory. Nothing is persisted:
-     a stale "your clock was wrong an hour ago" note would be its own lie.
-
-   Known limit, worth not rediscovering: this catches a wrong CLOCK, not a
-   wrong TIME ZONE. Both readings are absolute epoch times, so a Pi set to
-   the wrong zone measures zero drift while scheduledPhase() still fires an
-   hour out. See PI_SETUP.md for setting the zone. */
-const CLOCK_PROBE_URL = 'current-lesson.json'; // small, always deployed
-const CLOCK_PROBE_TIMEOUT_MS = 4000;
-const CLOCK_DRIFT_WARN_MS = 120 * 1000; // below this, a slow NTP sync isn't news
-const CLOCK_RECHECK_MIN_MS = 5 * 60 * 1000; // 'online' can fire in bursts
-// Anything claiming to be older than this is a broken header, not a clock.
-const CLOCK_SANE_AFTER_MS = Date.UTC(2024, 0, 1);
-
-let clockProbeInFlight = false;
-let lastClockProbeMs = 0;
-
-function wallClock(ms) {
-  const d = new Date(ms);
-  const hours = d.getHours();
-  const h12 = hours % 12 || 12;
-  return `${h12}:${String(d.getMinutes()).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
-}
-
-// "about 12 minutes fast" — the operator's words, not "offset +720s".
-function describeDrift(offsetMs) {
-  const fast = offsetMs > 0;
-  const minutes = Math.round(Math.abs(offsetMs) / 60000);
-  const amount =
-    minutes < 120
-      ? `${minutes} minute${minutes === 1 ? '' : 's'}`
-      : `${(Math.abs(offsetMs) / 3600000).toFixed(1)} hours`;
-  return `about ${amount} ${fast ? 'fast' : 'slow'}`;
-}
-
-function showClockWarning(text) {
-  clockWarning.textContent = text;
-  clockWarning.classList.toggle('hidden', !text);
-  journeySplashClock.textContent = text;
-  journeySplashClock.classList.toggle('hidden', !text);
-}
-
-async function checkClockDrift() {
-  if (clockProbeInFlight) return;
-  const now = Date.now();
-  if (lastClockProbeMs && now - lastClockProbeMs < CLOCK_RECHECK_MIN_MS) return;
-  clockProbeInFlight = true;
-  try {
-    const before = Date.now();
-    // Unique per probe, so no cache anywhere can answer with an old Date.
-    // Random as well as time-based: a stuck clock repeats Date.now().
-    const url = `${CLOCK_PROBE_URL}?clock=${before}-${Math.random().toString(36).slice(2, 8)}`;
-    const res = await fetchWithTimeout(
-      url,
-      { method: 'HEAD', cache: 'no-store' },
-      CLOCK_PROBE_TIMEOUT_MS
-    );
-    const local = (before + Date.now()) / 2; // midpoint: the round trip isn't the drift
-    lastClockProbeMs = Date.now();
-    if (!res.ok) return;
-    const served = Date.parse(res.headers.get('date') || '');
-    if (!Number.isFinite(served) || served < CLOCK_SANE_AFTER_MS) return;
-    // A CDN hit's Date is the age of the cached response, not now.
-    const age = Number(res.headers.get('age'));
-    const serverNow = served + (Number.isFinite(age) && age > 0 ? age * 1000 : 0);
-    const offset = local - serverNow;
-    if (Math.abs(offset) < CLOCK_DRIFT_WARN_MS) {
-      showClockWarning('');
-      return;
-    }
-    console.warn(
-      `Journey: kiosk clock is ${describeDrift(offset)} (kiosk ${new Date(local).toISOString()}, internet ${new Date(serverNow).toISOString()})`
-    );
-    showClockWarning(
-      `This kiosk’s clock is ${describeDrift(offset)}, so the 6:30 switch may be wrong. ` +
-        `Kiosk says ${wallClock(local)}, the internet says ${wallClock(serverNow)}. ` +
-        `The schedule still follows the kiosk’s own clock.`
-    );
-  } catch {
-    // Offline or timed out: the clock is unmeasurable right now, which is
-    // not evidence either way — leave whatever the last measurement said.
-  } finally {
-    clockProbeInFlight = false;
-  }
-}
-
 /* ── Lesson refresh: pulled well ahead of the evening window so the
       video is already cached locally by 6:30, regardless of how the
       network is behaving right then. ──────────────────────────────── */
 
 async function refreshLesson() {
-  // Fire-and-forget, and first in the function so it still runs on the
-  // evenings when the lesson fetch itself fails: nothing here waits on it,
-  // and all it can ever do is write text into a corner note.
-  checkClockDrift();
   const lesson = await loadCurrentLesson();
   // A failed fetch (the exact flaky-network case this refresh exists to be
   // resilient against) must never blank out a lesson we already have —
@@ -1623,7 +1794,6 @@ window.addEventListener('online', () => refreshLesson());
    Leader Video — week 27 — have that choice disabled); see the comment in
    onLessonPicked() for why this is deliberately unconditional. */
 
-let allLessons = null;
 let pendingPreviewLesson = null;
 // Set alongside each preview: the lesson's original URL, tried once if the
 // transcoded release asset errors (missing, or the release was renamed).
@@ -2286,6 +2456,10 @@ function openSettingsPanel() {
   notesEditBody.classList.add('hidden');
   notesEditToggle.setAttribute('aria-expanded', 'false');
   updateNotesEditedBadge();
+  // Both read only memory and localStorage, so the panel still opens in the
+  // same frame the gear was pressed.
+  syncQualityButtons();
+  qualityStatus.textContent = '';
   settingsPanel.classList.remove('hidden');
   if (allLessons) {
     renderLessonList(allLessons);
@@ -2381,13 +2555,29 @@ function armPreviewSeek(seconds) {
   pendingSeek = seconds > 0 ? { token: journeyRequestToken, t: seconds } : null;
 }
 
+/* Which file a picked video plays, and what it falls back to once if that
+   errors. The two profiles are exact inverses of each other: a weak device
+   wants the 480p Release copy and treats Awana's original as the emergency
+   spare, a capable one wants the original and treats the Release copy as the
+   spare. Neither is cached: a Release asset's redirect hop carries no CORS
+   header, and an occasional manual pick does not need the nightly bundle's
+   machinery, it just needs a file that plays. */
+function previewSources(week, variant, originalUrl) {
+  const release = transcodedPreviewUrl(week, variant);
+  return effectiveProfile() === 'full' && originalUrl
+    ? { url: originalUrl, fallback: release }
+    : { url: release, fallback: originalUrl };
+}
+
 async function playStudentPreview(lesson, seekTo = 0) {
   // The current week's Student Video is the one already pre-downloaded for
-  // the 6:30 show — play the local copy instead of re-streaming ~17MB from
-  // the GitHub Release, so a same-week preview works with the network dead.
-  // Gated on transcodedAt so a not-yet-transcoded week (downloadUrl still
-  // the 1080p original the Pi can't decode) keeps using the Release asset.
-  if (currentLesson && currentLesson.week === lesson.week && currentLesson.transcodedAt) {
+  // the 6:30 show, so play the local copy instead of re-streaming it: a
+  // same-week preview works with the network dead. resolveVideoSrc() serves
+  // this device's own quality, so there is no risk of handing the Pi the
+  // 1080p bytes; on the low profile the shortcut still needs transcodedAt,
+  // because without it downloadUrl is that original.
+  const sameWeek = !!currentLesson && currentLesson.week === lesson.week;
+  if (sameWeek && (effectiveProfile() === 'full' || currentLesson.transcodedAt)) {
     const token = journeyRequestToken;
     const src = await resolveVideoSrc(currentLesson, token);
     if (!src || token !== journeyRequestToken) return; // torn down while reading the cache
@@ -2400,22 +2590,14 @@ async function playStudentPreview(lesson, seekTo = 0) {
     armPreviewSeek(seekTo);
     return;
   }
-  startPreview(
-    transcodedPreviewUrl(lesson.week, 'student'),
-    `${lesson.title} (Student Video)`,
-    lesson.downloadUrl,
-    lesson.week
-  );
+  const { url, fallback } = previewSources(lesson.week, 'student', lesson.downloadUrl);
+  startPreview(url, `${lesson.title} (Student Video)`, fallback, lesson.week);
   armPreviewSeek(seekTo);
 }
 
 function playLeaderPreview(lesson, seekTo = 0) {
-  startPreview(
-    transcodedPreviewUrl(lesson.week, 'leader'),
-    `${lesson.title} (Leader Video)`,
-    lesson.leaderDownloadUrl,
-    lesson.week
-  );
+  const { url, fallback } = previewSources(lesson.week, 'leader', lesson.leaderDownloadUrl);
+  startPreview(url, `${lesson.title} (Leader Video)`, fallback, lesson.week);
   armPreviewSeek(seekTo);
 }
 

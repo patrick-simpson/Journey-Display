@@ -8,7 +8,11 @@
 </head>
 <body>
   <div id="checkin-view" class="view">
+    <!-- The src here is the low-power one, so a browser with JavaScript off
+         still shows the display. schedule.js rewrites it at startup from the
+         device profile (see checkinDisplayUrl in src/schedule.js). -->
     <iframe
+      id="checkin-frame"
       src="https://patrick-simpson.github.io/Awana-Check-in-Display/?lowPower=1"
       title="Awana Check-in Display"
       allow="fullscreen"
@@ -41,7 +45,6 @@
         <button id="journey-splash-startover-btn" class="hidden" type="button">Start over</button>
       </div>
       <p id="journey-splash-prompt">or press <kbd>Space</kbd> / <kbd>→</kbd> &middot; <kbd>S</kbd> for settings</p>
-      <p id="journey-splash-clock" class="hidden" role="status"></p>
       <p id="journey-splash-quality" class="hidden" role="status"></p>
     </div>
     <video id="journey-video" class="hidden" muted playsinline></video>
@@ -82,8 +85,6 @@
       </div>
     </div>
   </div>
-
-  <p id="clock-warning" class="hidden" role="status"></p>
 
   <button id="toggle-btn" type="button" aria-label="Switch display">⇄</button>
   <button id="settings-btn" type="button" aria-label="Video settings">⚙</button>
@@ -141,6 +142,22 @@
           </select>
         </label>
         <label class="settings-check"><input type="checkbox" id="captions-backdrop" /> <span><strong>Dark backdrop</strong> &mdash; a solid band behind the text, for bright video</span></label>
+      </div>
+      <div id="settings-quality">
+        <h3>Playback quality</h3>
+        <p class="settings-hint">
+          Auto reads the device. <strong>Low power</strong> is what the kiosk
+          Raspberry Pi needs: the small converted lesson videos, and the
+          check-in display with its animations turned down.
+          <strong>Full quality</strong> plays Awana&rsquo;s own full-size video
+          and lets the check-in display animate normally.
+        </p>
+        <div id="quality-buttons" role="group" aria-label="Playback quality">
+          <button id="quality-auto" type="button" class="quality-btn" aria-pressed="true">Auto</button>
+          <button id="quality-full" type="button" class="quality-btn" aria-pressed="false">Full quality</button>
+          <button id="quality-low" type="button" class="quality-btn" aria-pressed="false">Low power</button>
+        </div>
+        <p id="quality-status" class="settings-hint" role="status"></p>
       </div>
       <div id="settings-slides">
         <h3>After the video: teaching slides</h3>

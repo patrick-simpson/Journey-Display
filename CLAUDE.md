@@ -92,7 +92,10 @@ setting has regressed.
   real `public/index.html` + `schedule.js` in jsdom (media, object URLs and
   the Cache API stubbed; `caches` left undefined on purpose, which is the
   path a fresh kiosk takes), so page behavior can be tested by pressing the
-  actual buttons rather than by calling internals. schedule.js is a classic
+  actual buttons rather than by calling internals. It boots as the real
+  kiosk (a Pi Zero UA, one core, so `detectDeviceProfile()` reads low);
+  pass its exported `DESKTOP` as the third argument for a page opened on a
+  Mac. schedule.js is a classic
   script, so its top-level `function` declarations are reachable on `window`
   while its `let`/`const` state deliberately is not. Run
   `node --check public/src/schedule.js` alongside it.
@@ -112,41 +115,6 @@ setting has regressed.
   change when the phase actually flips (i.e. exactly at the two
   boundaries) — this is what lets the manual toggle button override
   the view in between without being fought by the poller.
-
-### Is the Pi's clock right? (`checkClockDrift()`)
-
-The whole schedule is a comparison against the Pi's local clock, and a Pi
-Zero has no real-time clock: after a power cut it comes up at whatever time
-it last knew until NTP over a flaky church connection catches up. Every
-symptom of that ("the lesson never started", "it started at 3 AM") looks
-exactly like a bug in `schedule.js`. So the kiosk measures the drift and
-**reports** it — an amber note top-left (`#clock-warning`) plus the same
-words on the splash (`#journey-splash-clock`), over ±120s.
-
-- **It never corrects the schedule from server time.** A silently corrected
-  clock would hide a real Pi problem that also breaks log timestamps and TLS
-  certificate validity. `scheduledPhase()` is untouched, and the note says so
-  out loud ("the schedule still follows the kiosk's own clock").
-- One `HEAD` through `fetchWithTimeout` (4s), fired-and-forgotten at the top
-  of `refreshLesson()` so it still runs on evenings when the lesson fetch
-  fails; rate-limited to once per 5 minutes because `online` fires in bursts.
-  Nothing awaits it and it only ever writes text into a note, so the
-  acknowledge-first rule is never in play.
-- **A stale `Date` is the one way this can cry wolf**, so it's guarded twice:
-  the probe URL carries a unique query string (nothing has that key cached)
-  *and* the `Date` header is corrected by `Age`. Without either, GitHub
-  Pages' `max-age=600` means a CDN hit's `Date` can be ten minutes old and
-  read as ten minutes of drift on a perfectly good clock.
-- The offset lives in memory only — a persisted "your clock was wrong an
-  hour ago" would be its own lie.
-- The corner note stands down whenever `#journey-view` is showing (a plain
-  sibling CSS rule, `#journey-view:not(.hidden) ~ #clock-warning`): the
-  splash carries the message itself, and a banner has no business over a
-  lesson playing to a room.
-- **Known limit:** this catches a wrong clock, not a wrong **time zone**.
-  Both readings are absolute epoch times, so a Pi set to the wrong zone
-  measures zero drift while still switching an hour out. PI_SETUP.md's
-  troubleshooting says so.
 
 ## The Journey page itself
 
@@ -352,6 +320,61 @@ checked by extracting and viewing real frames from both).
   sourceUrl is a CDN URL" note below describes. Direct `<video>`
   playback, which is all the picker does, doesn't care.)
 
+### Device profile: low power and full quality
+
+The kiosk is the 2017 Pi Zero, but this same URL gets opened on a Mac, a
+laptop and the odd phone, and the two want opposite things. So
+`detectDeviceProfile(userAgent, hardwareConcurrency)` in `schedule.js`
+(pure, wired to `navigator` in exactly one place) answers `'low'` or
+`'full'`, and everything quality-related reads `effectiveProfile()`:
+
+- **Low** when the UA says Linux on ARM (`armv6l`/`armv7l`/`aarch64`,
+  which covers every Raspberry Pi), when it says Android/Mobile/iPhone/iPad (a small
+  screen on cell data wants the small file), or when
+  `navigator.hardwareConcurrency <= 2`. Everything else is full.
+- **Per-device override** in Settings → "Playback quality": Auto / Full
+  quality / Low power, stored under `journey.playback.quality` and read
+  with the same try/catch shape as the caption prefs. Auto's label names
+  what was detected ("Auto (detected: full quality)"), because a promise
+  nobody can check is worth nothing on a wall-mounted screen. The answer
+  is cached per page load and recomputed when the setting changes; a
+  change applies at once (the iframe is swapped, the next pick reads the
+  new profile), and a write that failed says so rather than claiming it
+  saved, like the bullet editor.
+- **Low is the old behavior, byte for byte.** Every rule below that
+  predates this section is a low-profile rule, including the legacy
+  unversioned cache key, which only the low profile may read.
+
+What **full** changes, and nothing else does:
+
+- The embedded Check-in Display loses `?lowPower=1` (see "Embedding
+  note").
+- The scheduled show plays Awana's ORIGINAL: a cache hit for it, else
+  `current-lesson.json`'s `sourceUrl`, else `lessons.json`'s
+  `downloadUrl` for that week (`originalVideoUrl()`).
+  `scheduledVideoPlan()`'s "never play the undecodable original" guard and
+  the `#journey-splash-quality` note it drives are low-profile only:
+  nothing is degraded about playing the original, so there is no note.
+- The picker plays the originals with the 480p Release asset as its
+  one-shot error fallback, the exact inverse of the low profile
+  (`previewSources()`). The same-week cached-copy shortcut still applies,
+  pointing at the 1080p cache entry.
+- `cacheLessonBundle()` pre-downloads the ORIGINAL Student Video from
+  `sourceUrl` (CORS-friendly by design, see the CORS note below) instead
+  of the transcode. That entry is **optional**: a cross-origin file served
+  without CORS headers is not something this page can fix, so the failure
+  costs the video and nothing else in the bundle, and store-before-evict
+  still holds.
+- **The two qualities can never be confused for one another.**
+  `videoCacheKey(lesson, profile)` keys the original by its own URL plus
+  `?q=1080`. That marker is a query parameter and not a `#1080` fragment
+  on purpose: the Cache API ignores fragments when it matches, so a
+  fragment would silently be the same key as the 480p copy.
+
+Nothing about this rehosts anything: the originals are streamed (and
+cached for this kiosk's own playback) straight from Awana's own CDN, the
+same files `lessons.json` has always pointed at.
+
 ### Video playback and offline resilience (`public/src/schedule.js`)
 
 No service worker — the browser's Cache API is used directly from
@@ -392,11 +415,15 @@ a reboot during a total outage has no app shell to load).
   iframe get blob URLs when cached (revoked in `stopJourneyContent()` /
   `closeHandout()`), so captions and the current week's handout work
   offline. A same-week Student pick in the manual picker also plays the
-  cached copy (gated on `currentLesson.transcodedAt`, so a
-  not-yet-transcoded 1080p original never reaches the Pi's decoder that
-  way) instead of re-streaming ~17MB from the Release.
+  cached copy instead of re-streaming it. On the low profile that shortcut
+  is gated on `currentLesson.transcodedAt`, so a not-yet-transcoded 1080p
+  original never reaches the Pi's decoder that way; on the full profile
+  the original is what it wanted anyway. Which video the bundle stores at
+  all is the profile's choice (see "Device profile" above).
 - **The cached video is keyed by `transcodedAt`, not URL alone**
-  (`videoCacheKey()`): the nightly transcode reuses one filename, so
+  (`videoCacheKey()`, on the low profile; the full profile keys the
+  original by `?q=1080` instead, see "Device profile"): the nightly
+  transcode reuses one filename, so
   when the lesson changes, this week's and last week's bytes share a
   URL — and the kiosk essentially never witnesses the brief
   pre-transcode CloudFront-URL state whose URL change used to be the
@@ -969,10 +996,12 @@ upcoming lesson, or catching up after a missed night.
   mid-preview doesn't interrupt it, and ending a preview afterward
   correctly resumes the real auto-resolved lesson, not the previewed
   one).
-- **Plays the pre-transcoded 480p Release asset**
+- **Plays the pre-transcoded 480p Release asset** on the low profile
   (`transcodedPreviewUrl()` in `schedule.js` →
   `releases/download/transcoded-videos-v1/week-NN-{student,leader}.mp4`),
-  falling back to the original URL once if that asset errors. An
+  falling back to the original URL once if that asset errors. On the full
+  profile it is the other way round: the original, with the Release copy
+  as the one-shot fallback (`previewSources()`). An
   earlier version played the originals directly as an "accepted
   trade-off" — but the Pi Zero can't decode 1080p at a watchable frame
   rate at all, so every non-current week was effectively unplayable
@@ -1004,9 +1033,26 @@ has no `X-Frame-Options`/CSP restriction, so it embeds fine in
 `#checkin-view`'s iframe. If that ever changes, this page would need a
 different integration approach (e.g. redirecting instead of embedding).
 
-The iframe `src` carries `?lowPower=1` — that sibling app's own signage
-runs on other, far more powerful devices too, so its confetti/motion
-defaults stay full-strength; this flag scopes reduced animations to
-*this* embed's Raspberry Pi Zero specifically, without touching what
-any other device defaults to. See that repo's `src/lib/urlFlags.js` and
-`CLAUDE.md` before changing or removing it.
+`?lowPower=1` scopes reduced animations to *this* embed (that sibling
+app's own signage runs on far more powerful devices too, so its
+confetti/motion defaults stay full-strength). It is no longer a fixed
+part of the URL: `index.html` ships the low-power URL as the static
+`src`, so a browser with JavaScript off still shows something, and
+`applyCheckinDisplayUrl()` rewrites it at startup from
+`effectiveProfile()` (see "Device profile") to the same URL with or
+without the flag. The Pi still gets it; a Mac does not. The rewrite only
+happens when the URL actually differs, because re-assigning `src` reloads
+the iframe and drops the display's live check-in socket for nothing. See
+that repo's `src/lib/urlFlags.js` and `CLAUDE.md` before changing this.
+
+**The fullscreen message contract.** A double-click inside the iframe is
+cross-origin and never reaches this document, so the display posts
+`{ type: 'awana-display:toggle-fullscreen' }` to `window.parent` when it
+is embedded, instead of fullscreening its own stage. This page toggles
+fullscreen on `document.documentElement` (never on the iframe or the
+`<video>`: fullscreening either would take the ⇄ and ⚙ buttons off the
+screen with it), and accepts the message only when `event.source` is its
+own iframe's `contentWindow` **and** `event.origin` is the display's
+origin or this page's own. A double-click on `#journey-view` does the
+same thing locally, inert over a control, a text field, the settings
+panel or a reading overlay.
