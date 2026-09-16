@@ -1212,10 +1212,13 @@ html.cursor-hidden #video-controls:not(.force-visible) {
     padding-left: 0;
   }
 
+  /* block, not inline-block: inline would leave the chip sitting in the
+     paragraph's first line with the text wrapping around it. */
   .prep-time {
     position: static;
-    display: inline-block;
-    margin-bottom: 0.4em;
+    display: block;
+    width: fit-content;
+    margin-bottom: 0.45em;
   }
 }
 

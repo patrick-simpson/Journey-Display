@@ -2075,7 +2075,10 @@ function buildPrepModeRow(lesson, role, container) {
   return row;
 }
 
-function expandPrepTranscript(lesson, role, toggle, panel) {
+/* `reveal` is false when the transcript is open from the start (the Student
+   Prep), where scrolling would hide the top of the overlay nobody asked to
+   leave. It is true when a leader pressed the button. */
+function expandPrepTranscript(lesson, role, toggle, panel, scrolls = true) {
   const requestId = prepRequestId; // the overlay open this expansion belongs to
   toggle.setAttribute('aria-expanded', 'true');
   toggle.textContent = 'Hide the full transcript';
@@ -2086,10 +2089,21 @@ function expandPrepTranscript(lesson, role, toggle, panel) {
   const paragraphs = document.createElement('div');
   paragraphs.className = 'prep-paras';
   panel.append(buildPrepModeRow(lesson, role, paragraphs), paragraphs);
+  // Put the section the leader just opened at the top of the overlay: the
+  // button sits under a screen of summary, so without this the paragraphs
+  // appear entirely below the fold. Run once now (the press is acknowledged
+  // whether or not a transcript arrives) and again once the paragraphs are
+  // in, because until then there is nothing below to scroll up against.
+  // Guarded: it is the one call here a non-browser DOM may not implement.
+  const reveal = () => {
+    if (scrolls && typeof toggle.scrollIntoView === 'function') toggle.scrollIntoView(true);
+  };
+  reveal();
   const url = prepTranscriptUrl(lesson.week, role);
   const inMemory = prepTranscripts.get(url);
   if (inMemory) {
     renderPrepParagraphs(paragraphs, inMemory, lesson, role);
+    reveal();
     return;
   }
   const loading = document.createElement('p');
@@ -2110,6 +2124,7 @@ function expandPrepTranscript(lesson, role, toggle, panel) {
       return;
     }
     renderPrepParagraphs(paragraphs, data, lesson, role);
+    reveal();
   });
 }
 
@@ -2137,7 +2152,7 @@ function appendPrepTranscript(lesson, role, startExpanded) {
     }
     expandPrepTranscript(lesson, role, toggle, panel);
   });
-  if (startExpanded) expandPrepTranscript(lesson, role, toggle, panel);
+  if (startExpanded) expandPrepTranscript(lesson, role, toggle, panel, false);
 }
 
 

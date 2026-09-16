@@ -11,7 +11,7 @@
     "render-handouts": "node scripts/render-leader-handouts.mjs",
     "build-leader-prep": "node scripts/build-leader-prep.mjs",
     "build-prep-transcripts": "node scripts/build-prep-transcripts.mjs",
-    "test": "node --test test/"
+    "test": "node --test"
   },
   "devDependencies": {
     "jsdom": "^29.1.1",
