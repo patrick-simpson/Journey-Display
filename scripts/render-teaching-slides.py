@@ -51,7 +51,8 @@ DECK_SLIDES = 4            # slides 1-4 are Awana's; 5 is the blank template
 def render_week(week, url, workdir):
     tag = f'week-{week:02d}'
     pptx = os.path.join(workdir, f'{tag}.pptx')
-    urllib.request.urlretrieve(url, pptx)
+    # curl, not urllib: Awana's host answers Python's default agent with 403.
+    subprocess.run(['curl', '-sfL', '-A', 'Mozilla/5.0', '-o', pptx, url], check=True)
     subprocess.run(
         ['soffice', '--headless', '--norestore', '--convert-to', 'pdf', '--outdir', workdir, pptx],
         check=True, capture_output=True, env={**os.environ, 'HOME': workdir},
@@ -78,7 +79,22 @@ def render_week(week, url, workdir):
     print(f'{tag}: {DECK_SLIDES} slides + template written')
 
 
+def require_fonts():
+    """The decks set their body text in Calibri and their headings in Arial.
+    Without metric-compatible substitutes LibreOffice falls back to DejaVu
+    Sans, which is wide enough that a 72pt line of Calibri wraps once more
+    and the last line runs off the bottom of the slide (owner-reported from
+    the kiosk, 2026-09-16: week 2's misconception slide). Refuse to render
+    rather than publish that again: apt install fonts-crosextra-carlito
+    fonts-liberation, then fc-cache -f."""
+    for family, want in (('Calibri', 'Carlito'), ('Arial', 'Liberation Sans')):
+        got = subprocess.run(['fc-match', family], capture_output=True, text=True).stdout
+        if want not in got:
+            raise SystemExit(f'{family} resolves to {got.strip()!r}, not {want}; install it before rendering')
+
+
 def main():
+    require_fonts()
     manifest = json.load(open(MANIFEST))
     weeks = [int(w) for w in sys.argv[1:]] or sorted(int(k) for k in manifest['weeks'])
     with tempfile.TemporaryDirectory() as workdir:

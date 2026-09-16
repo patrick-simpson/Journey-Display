@@ -908,6 +908,14 @@ video's ending used to do.
   largest referenced image as the background). It refuses a deck that
   isn't exactly 5 slides — all 32 were on 2026-09-06. Weeks 3 and 4
   really do have a doubled `.pptx.pptx` extension on Awana's side.
+  **It refuses to run without Carlito and Liberation Sans** (the
+  metric-compatible stand-ins for the decks' Calibri and Arial): the first
+  render was done without them, LibreOffice fell back to DejaVu Sans, and
+  on two dozen slides the wider face pushed the last line of body text off
+  the bottom of the picture (owner-reported 2026-09-16 from week 2's
+  misconception slide). All 32 decks were re-rendered with the right fonts
+  that day; the template backgrounds were unaffected. If a slide ever looks
+  cut off again, check `fc-match Calibri` before suspecting the deck.
 - `public/teaching-slides.json` — `{ version, sourceUrl, headings,
   weeks: { "N": { title, deckUrl, slides, notes } } }`. `notes` is the
   generated fill for the TEMPLATE slide, three kinds × three bullets:
