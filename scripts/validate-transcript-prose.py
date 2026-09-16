@@ -18,7 +18,10 @@ mechanical, so they catch what proofreading misses:
   SHAPE      non-empty paragraphs, a heading on the first one, a sane number
              of headings.
 
-Usage: python3 scripts/validate-transcript-prose.py
+Usage: python3 scripts/validate-transcript-prose.py [--role leader|student] [--prose PATH]
+  --role   which video's VTTs to check against (default leader; student checks
+           data/student-transcript-prose.json against week-NN-student.vtt)
+  --prose  override the prose file (e.g. a draft before it is merged)
 Exit status is non-zero if anything fails, so it can gate the render step.
 """
 import json
@@ -27,8 +30,29 @@ import re
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PROSE = os.path.join(REPO, 'data', 'leader-transcript-prose.json')
 TRANSCRIPTS = os.path.join(REPO, 'public', 'transcripts')
+ROLE = 'leader'
+PROSE = os.path.join(REPO, 'data', 'leader-transcript-prose.json')
+
+
+def parse_args(argv):
+    """--role and --prose, set as module globals so check() stays simple."""
+    global ROLE, PROSE
+    args = list(argv)
+    prose_set = False
+    while args:
+        flag = args.pop(0)
+        if flag == '--role' and args:
+            ROLE = args.pop(0)
+            if ROLE not in ('leader', 'student'):
+                sys.exit(f'--role must be leader or student, not {ROLE!r}')
+        elif flag == '--prose' and args:
+            PROSE = os.path.abspath(args.pop(0))
+            prose_set = True
+        else:
+            sys.exit(f'unknown argument {flag!r}')
+    if not prose_set:
+        PROSE = os.path.join(REPO, 'data', f'{ROLE}-transcript-prose.json')
 
 MIN_LENGTH_RATIO = 0.5
 BOOKS = re.compile(
@@ -42,7 +66,7 @@ BOOKS = re.compile(
 
 def spoken(week):
     """(cue numbers, spoken words) straight from the VTT."""
-    path = os.path.join(TRANSCRIPTS, f'week-{week:02d}-leader.vtt')
+    path = os.path.join(TRANSCRIPTS, f'week-{week:02d}-{ROLE}.vtt')
     lines = open(path).read().splitlines()
     nums, words, i = [], [], 0
     while i < len(lines):
@@ -115,6 +139,7 @@ def check(week, entry):
 
 
 def main():
+    parse_args(sys.argv[1:])
     if not os.path.exists(PROSE):
         print(f'{PROSE} does not exist yet')
         return 1
