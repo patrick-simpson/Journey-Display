@@ -20,13 +20,30 @@ const PUBLIC = path.join(REPO, 'public');
 
 export const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+// The kiosk this harness boots is the real one: a Raspberry Pi Zero, which
+// detectDeviceProfile() reads as the low-power profile. A test that wants the
+// page as a Mac or a laptop sees it passes `device` (see below).
+export const PI_ZERO = {
+  userAgent:
+    'Mozilla/5.0 (X11; Linux armv6l) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
+  hardwareConcurrency: 1,
+};
+
+export const DESKTOP = {
+  userAgent:
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+  hardwareConcurrency: 8,
+};
+
 /**
  * @param routes  url substring -> { json } | { status } | { text }
  * @param prefs   localStorage entries seeded BEFORE schedule.js runs, the way
  *                a kiosk that has been used before comes up
+ * @param device  { userAgent, hardwareConcurrency } the machine this page is
+ *                running on, defaulting to the kiosk's own Pi Zero
  * @returns { dom, window, document, fetchLog, seeks, video, close }
  */
-export function bootKiosk(routes = {}, prefs = {}) {
+export function bootKiosk(routes = {}, prefs = {}, device = PI_ZERO) {
   const html = readFileSync(path.join(PUBLIC, 'index.html'), 'utf8').replace(
     '<script src="src/schedule.js"></script>',
     ''
@@ -35,8 +52,15 @@ export function bootKiosk(routes = {}, prefs = {}) {
     url: 'https://example.test/',
     runScripts: 'dangerously',
     pretendToBeVisual: true,
+    userAgent: device.userAgent,
   });
   const { window } = dom;
+  // jsdom reports 4 cores whatever it is pretending to be, and the page reads
+  // this to tell a Pi from a laptop.
+  Object.defineProperty(window.navigator, 'hardwareConcurrency', {
+    get: () => device.hardwareConcurrency,
+    configurable: true,
+  });
 
   const fetchLog = [];
   window.fetch = (url, options = {}) => {

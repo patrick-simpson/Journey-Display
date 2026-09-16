@@ -1480,7 +1480,8 @@ html.cursor-hidden #slide-controls {
 
 /* Settings → teaching-slide preferences (10-foot sized like the rest). */
 #settings-slides,
-#settings-captions {
+#settings-captions,
+#settings-quality {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
   border-top: 1px solid rgba(255, 255, 255, 0.15);
@@ -1490,9 +1491,52 @@ html.cursor-hidden #slide-controls {
 }
 
 #settings-slides h3,
-#settings-captions h3 {
+#settings-captions h3,
+#settings-quality h3 {
   font-size: 1.6rem;
   font-weight: 700;
+}
+
+/* Settings -> Playback quality: Auto / Full quality / Low power, one pressed
+   at a time. Pill buttons like the Read Prep version switch, sized for the
+   same across-the-room read as the rest of this panel. */
+#quality-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.quality-btn {
+  min-height: 56px;
+  padding: 0.5em 1.4em;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: none;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.quality-btn[aria-pressed='true'] {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #121212;
+}
+
+.quality-btn:hover,
+.quality-btn:focus-visible {
+  border-color: #ffffff;
+}
+
+.quality-btn:active {
+  transition: none;
+  opacity: 0.8;
+}
+
+#quality-status:empty {
+  display: none;
 }
 
 .settings-slides-hint,
@@ -1720,6 +1764,12 @@ html.cursor-hidden #slide-controls {
   #settings-variant-buttons,
   #settings-student-buttons,
   #settings-leader-buttons {
+    flex-direction: column;
+  }
+
+  /* The Auto button carries what was detected, so it is the widest of the
+     three and cannot share a phone row with them. */
+  #quality-buttons {
     flex-direction: column;
   }
 

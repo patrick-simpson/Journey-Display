@@ -8,7 +8,11 @@
 </head>
 <body>
   <div id="checkin-view" class="view">
+    <!-- The src here is the low-power one, so a browser with JavaScript off
+         still shows the display. schedule.js rewrites it at startup from the
+         device profile (see checkinDisplayUrl in src/schedule.js). -->
     <iframe
+      id="checkin-frame"
       src="https://patrick-simpson.github.io/Awana-Check-in-Display/?lowPower=1"
       title="Awana Check-in Display"
       allow="fullscreen"
@@ -141,6 +145,22 @@
           </select>
         </label>
         <label class="settings-check"><input type="checkbox" id="captions-backdrop" /> <span><strong>Dark backdrop</strong> &mdash; a solid band behind the text, for bright video</span></label>
+      </div>
+      <div id="settings-quality">
+        <h3>Playback quality</h3>
+        <p class="settings-hint">
+          Auto reads the device. <strong>Low power</strong> is what the kiosk
+          Raspberry Pi needs: the small converted lesson videos, and the
+          check-in display with its animations turned down.
+          <strong>Full quality</strong> plays Awana&rsquo;s own full-size video
+          and lets the check-in display animate normally.
+        </p>
+        <div id="quality-buttons" role="group" aria-label="Playback quality">
+          <button id="quality-auto" type="button" class="quality-btn" aria-pressed="true">Auto</button>
+          <button id="quality-full" type="button" class="quality-btn" aria-pressed="false">Full quality</button>
+          <button id="quality-low" type="button" class="quality-btn" aria-pressed="false">Low power</button>
+        </div>
+        <p id="quality-status" class="settings-hint" role="status"></p>
       </div>
       <div id="settings-slides">
         <h3>After the video: teaching slides</h3>
