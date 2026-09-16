@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Journey Display</title>
+  <!-- The deployed copy carries the commit SHA here (scripts/stamp-build.mjs,
+       run by deploy.yml); "dev" is what a checkout and the tests see. The
+       kiosk compares it with version.json to notice a new deploy and reload
+       itself when nothing is on screen. -->
+  <meta name="journey-build" content="dev" />
   <link rel="stylesheet" href="src/style.css" />
 </head>
 <body>
