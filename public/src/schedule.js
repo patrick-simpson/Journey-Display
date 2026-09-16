@@ -465,11 +465,15 @@ async function cacheLessonBundle(lesson) {
    pre-downloaded, still store-before-evict, and is still what plays when
    the probe below says the network cannot answer. */
 const STREAM_PROBE_MS = 2500;
+const STREAM_STALL_SWAP_MS = 8000;
 
 /* Set by resolveVideoSrc when it chose to stream a file that IS also in the
-   cache: { key, src }. Nothing reads it yet; the stall swap that does lands
-   next. */
+   cache: { key, src }. That is everything the stall swap needs, and matching
+   on the src the element actually carries means a swap can never land on a
+   video the operator has since replaced. Cleared on teardown and by the swap
+   itself, so it happens at most once per playback. */
 let streamSwapCandidate = null;
+let streamStallTimer = null;
 
 /* Is the live file fetchable right now? One bounded HEAD, whose answer picks
    between streaming (smooth) and the cached blob (the safety net). This does
@@ -534,7 +538,7 @@ async function resolveVideoSrc(lesson, token) {
       if (cached) {
         // There are bytes on disk, so this is the one decision worth a probe:
         // stream them from the server if it can answer, and keep the disk
-        // copy in reserve.
+        // copy in reserve for the stall swap below.
         if (await videoUrlReachable(liveUrl)) {
           if (token !== undefined && token !== journeyRequestToken) return null;
           streamSwapCandidate = { key, src: liveUrl };
@@ -550,6 +554,53 @@ async function resolveVideoSrc(lesson, token) {
   }
   if (token !== undefined && token !== journeyRequestToken) return null;
   return liveUrl;
+}
+
+/* The safety net, armed: a streamed video that has been stalled for
+   STREAM_STALL_SWAP_MS with the same bytes sitting in the cache swaps to
+   them once and carries on from where the room got to. Not near the end,
+   where the existing end-of-lesson handoff owns the stall; not at all when
+   there is no cached copy, which is every picker video and any evening the
+   bundle never landed. */
+function clearStreamStallSwap() {
+  clearTimeout(streamStallTimer);
+  streamStallTimer = null;
+}
+
+function armStreamStallSwap() {
+  if (!streamSwapCandidate || streamStallTimer) return;
+  streamStallTimer = setTimeout(swapToCachedCopy, STREAM_STALL_SWAP_MS);
+}
+
+async function swapToCachedCopy() {
+  streamStallTimer = null;
+  const candidate = streamSwapCandidate;
+  if (!candidate || !('caches' in window)) return;
+  if (journeyVideo.classList.contains('hidden')) return;
+  if (journeyVideo.getAttribute('src') !== candidate.src) return;
+  if (videoNearEnd()) return; // the end-of-lesson handoff answers this one
+  const token = journeyRequestToken;
+  const at = journeyVideo.currentTime;
+  let cached = null;
+  try {
+    const cache = await caches.open(VIDEO_CACHE_NAME);
+    cached = await cache.match(candidate.key);
+  } catch {
+    return;
+  }
+  if (!cached || token !== journeyRequestToken) return;
+  if (journeyVideo.getAttribute('src') !== candidate.src) return;
+  const blobUrl = await blobUrlFromCacheHit(cached, token);
+  if (!blobUrl) return;
+  if (journeyVideo.getAttribute('src') !== candidate.src) return;
+  streamSwapCandidate = null; // at most once per playback
+  console.log('Journey: the streamed video stalled, switching to the cached copy');
+  // Armed before the src lands, and applied by the ONE permanent
+  // loadedmetadata listener, which re-checks this token: a superseded
+  // request can never drop its position onto a newer video.
+  pendingSeek = at > 0 ? { token, t: at } : null;
+  journeyVideo.src = blobUrl;
+  journeyVideo.play().catch(() => {});
 }
 
 /* ── Resume an interrupted lesson ─────────────────────────────────────
@@ -1279,13 +1330,20 @@ function showVideoLoading() {
 
 function hideVideoLoading() {
   clearTimeout(loadingStallTimer);
+  // Frames are arriving again (or the video is being torn down), so the
+  // stall swap has nothing to answer for either.
+  clearStreamStallSwap();
   journeyLoadingNote.textContent = LOADING_NOTE_DEFAULT;
   journeyLoading.classList.add('hidden');
 }
 
 journeyVideo.addEventListener('playing', hideVideoLoading);
 journeyVideo.addEventListener('waiting', () => {
-  if (!journeyVideo.classList.contains('hidden')) showVideoLoading();
+  if (journeyVideo.classList.contains('hidden')) return;
+  showVideoLoading();
+  // A stall on a streamed file is the one case where the cached copy is
+  // worth its stutter: see swapToCachedCopy above.
+  armStreamStallSwap();
 });
 
 function setMuted(muted) {
@@ -1421,7 +1479,9 @@ function stopJourneyContent() {
   videoScrubber.value = '0';
   videoTime.textContent = '0:00';
   journeySplash.classList.add('hidden');
-  streamSwapCandidate = null; // nothing is attached any more
+  // Nothing is attached any more, so there is nothing to swap.
+  streamSwapCandidate = null;
+  clearStreamStallSwap();
   if (currentObjectUrl) {
     URL.revokeObjectURL(currentObjectUrl);
     currentObjectUrl = null;

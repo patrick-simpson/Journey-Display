@@ -62,6 +62,26 @@ async function beginTheLesson(kiosk) {
   await ticks(6);
 }
 
+/* The page's own setTimeout, captured for the duration of one call, so a
+   stall can be aged 8 seconds without waiting 8 seconds. jsdom gives the page
+   its own timers, so this never touches the test runner's. */
+function captureTimers(window, fn) {
+  const real = window.setTimeout;
+  const captured = [];
+  window.setTimeout = (cb, ms) => {
+    captured.push({ cb, ms });
+    return 0;
+  };
+  try {
+    fn();
+  } finally {
+    window.setTimeout = real;
+  }
+  return captured;
+}
+
+const timerAt = (timers, ms) => timers.find((t) => t.ms === ms);
+
 test('a reachable video streams, and no blob is made for it', async () => {
   const kiosk = await bootWithCachedVideo();
   const objectUrls = countObjectUrls(kiosk.window);
@@ -106,5 +126,65 @@ test('an offline kiosk plays the cached copy without probing at all', async () =
     false,
     'navigator.onLine already answered the question'
   );
+  kiosk.close();
+});
+
+test('a streamed video that stalls swaps to the cached copy, once, where it was', async () => {
+  const kiosk = await bootWithCachedVideo();
+  await beginTheLesson(kiosk);
+  assert.equal(kiosk.video.getAttribute('src'), 'current-lesson-video.mp4');
+
+  kiosk.video.currentTime = 120;
+  const timers = captureTimers(kiosk.window, () =>
+    kiosk.video.dispatchEvent(new kiosk.window.Event('waiting'))
+  );
+  const swap = timerAt(timers, 8000);
+  assert.ok(swap, 'a stalled stream with a cached copy arms the swap');
+  swap.cb();
+  await ticks(6);
+
+  assert.equal(kiosk.video.getAttribute('src'), 'blob:stub');
+  // The position is armed as pendingSeek and applied by the one permanent
+  // loadedmetadata listener, not written straight to the element.
+  kiosk.seeks.length = 0;
+  kiosk.video.dispatchEvent(new kiosk.window.Event('loadedmetadata'));
+  assert.deepEqual(kiosk.seeks, [120]);
+
+  // Once per playback: the candidate is spent, so a second stall arms nothing.
+  const again = captureTimers(kiosk.window, () =>
+    kiosk.video.dispatchEvent(new kiosk.window.Event('waiting'))
+  );
+  assert.equal(timerAt(again, 8000), undefined);
+  kiosk.close();
+});
+
+test('a stall with nothing cached is left to the existing stall handling', async () => {
+  // No cache at all: the picker's videos and any evening the bundle never
+  // landed. There is nothing to swap to, so nothing is armed.
+  const kiosk = bootKiosk(ROUTES, ANSWERED, PI_ZERO);
+  await ticks();
+  await beginTheLesson(kiosk);
+  assert.equal(kiosk.video.getAttribute('src'), 'current-lesson-video.mp4');
+
+  const timers = captureTimers(kiosk.window, () =>
+    kiosk.video.dispatchEvent(new kiosk.window.Event('waiting'))
+  );
+  assert.equal(timerAt(timers, 8000), undefined);
+  assert.ok(timerAt(timers, 12000), 'the loading note still says something honest');
+  kiosk.close();
+});
+
+test('a stall on the last seconds hands over to the slides instead of swapping', async () => {
+  const kiosk = await bootWithCachedVideo();
+  await beginTheLesson(kiosk);
+  kiosk.video.currentTime = 599; // duration is 600 in the harness
+
+  const timers = captureTimers(kiosk.window, () =>
+    kiosk.video.dispatchEvent(new kiosk.window.Event('waiting'))
+  );
+  timerAt(timers, 8000).cb();
+  await ticks(6);
+
+  assert.equal(kiosk.video.getAttribute('src'), 'current-lesson-video.mp4', 'no swap this close to the end');
   kiosk.close();
 });
