@@ -837,12 +837,14 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #settings-variant-prompt,
+#settings-student-prompt,
 #settings-leader-prompt {
   margin-bottom: 1.25rem;
   font-size: 1.6rem;
 }
 
 #settings-variant-buttons,
+#settings-student-buttons,
 #settings-leader-buttons {
   display: flex;
   gap: 1rem;
@@ -850,6 +852,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #settings-variant-buttons button,
+#settings-student-buttons button,
 #settings-leader-buttons button {
   flex: 1;
   padding: 1.4rem;
@@ -865,6 +868,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 #settings-variant-buttons button:hover,
 #settings-variant-buttons button:focus-visible,
+#settings-student-buttons button:hover,
+#settings-student-buttons button:focus-visible,
 #settings-leader-buttons button:hover,
 #settings-leader-buttons button:focus-visible {
   background: rgba(255, 255, 255, 0.3);
@@ -876,6 +881,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #settings-variant-back,
+#settings-student-back,
 #settings-leader-back {
   border: none;
   background: none;
@@ -889,6 +895,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 #settings-variant-back:hover,
 #settings-variant-back:focus-visible,
+#settings-student-back:hover,
+#settings-student-back:focus-visible,
 #settings-leader-back:hover,
 #settings-leader-back:focus-visible {
   color: #ffffff;
@@ -1067,6 +1075,150 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+/* ── The transcript inside Read Prep ──────────────────────────────────
+   Collapsed behind one button under the summary, with an Edited / Exact
+   words toggle and a tappable timestamp beside every paragraph. Sized for
+   the same two screens as the rest of this overlay: read on the TV from
+   across the room, and read on a phone on the way to church. */
+#prep-body .prep-transcript {
+  max-width: 34em;
+  margin: clamp(1.25rem, 3vh, 2rem) auto 0;
+  padding-top: clamp(1rem, 2.5vh, 1.5rem);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.prep-transcript-toggle {
+  width: 100%;
+  min-height: 56px; /* a finger, not a mouse */
+  padding: 0.85em 1.1em;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.prep-transcript-toggle:hover,
+.prep-transcript-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.prep-transcript-toggle:active {
+  background: rgba(255, 255, 255, 0.45);
+  transition: none;
+}
+
+.prep-transcript-toggle[aria-expanded='true'] {
+  margin-bottom: 1em;
+}
+
+.prep-transcript-modes {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  flex-wrap: wrap;
+  margin-bottom: 1.2em;
+}
+
+.prep-modes-label {
+  font-size: 0.8em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.prep-mode-btn {
+  min-height: 48px;
+  padding: 0.5em 1.1em;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: none;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.prep-mode-btn[aria-pressed='true'] {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #121212;
+}
+
+.prep-mode-btn:hover,
+.prep-mode-btn:focus-visible {
+  border-color: #ffffff;
+}
+
+.prep-mode-btn:active {
+  transition: none;
+  opacity: 0.8;
+}
+
+#prep-body .prep-para-heading {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: #ff6b83;
+  margin: 1.4em 0 0.4em;
+}
+
+/* The timestamp sits in a hanging margin beside the paragraph, like the
+   printed handout, so the text keeps one clean left edge to read down. */
+#prep-body .prep-para {
+  position: relative;
+  padding-left: 4.6em;
+  margin-bottom: 1em;
+  line-height: 1.55;
+}
+
+.prep-time {
+  position: absolute;
+  left: 0;
+  top: 0;
+  min-width: 3.6em;
+  min-height: 44px;
+  padding: 0.1em 0.35em;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.prep-time:hover,
+.prep-time:focus-visible {
+  background: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.prep-time:active {
+  background: rgba(255, 255, 255, 0.45);
+  transition: none;
+}
+
+/* Below ~600px the hanging margin costs more than it gives: the timestamp
+   goes above its paragraph and the text runs the full width. */
+@media (max-width: 600px) {
+  #prep-body .prep-para {
+    padding-left: 0;
+  }
+
+  .prep-time {
+    position: static;
+    display: inline-block;
+    margin-bottom: 0.4em;
+  }
+}
+
 /* Status/error line inside the settings lesson list (loading, or the
    list couldn't be fetched) — same 10-foot sizing as the rows it stands
    in for. */
@@ -1122,6 +1274,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #settings-variant-buttons button:active:not(:disabled),
+#settings-student-buttons button:active,
 #settings-leader-buttons button:active,
 #settings-close-btn:active,
 #handout-close-btn:active {
@@ -1129,6 +1282,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #settings-variant-back:active,
+#settings-student-back:active,
 #settings-leader-back:active {
   color: #ffffff;
 }
@@ -1561,6 +1715,7 @@ html.cursor-hidden #slide-controls {
   /* Watch Video / View Handout / Read Prep: three of these squeezed onto one
      phone row leaves each too narrow to read. */
   #settings-variant-buttons,
+  #settings-student-buttons,
   #settings-leader-buttons {
     flex-direction: column;
   }
