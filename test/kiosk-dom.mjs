@@ -109,6 +109,42 @@ export function bootKiosk(routes = {}, prefs = {}, device = PI_ZERO) {
   return { dom, window, document: window.document, fetchLog, seeks, video, close };
 }
 
+/* A Cache API just real enough for the page's use of it: one Map per bucket,
+   keyed by absolute URL the way a browser keys it, so store-before-evict can
+   be watched and a cached video can be put there by hand. Installed AFTER
+   boot on purpose: schedule.js feature-checks `caches` at call time, and
+   leaving it undefined at startup is the path a fresh kiosk takes. */
+export function installCaches(window) {
+  const buckets = new Map();
+  const abs = (key) => new window.URL(String(key), 'https://example.test/').href;
+  const bucket = (name) => {
+    if (!buckets.has(name)) buckets.set(name, new Map());
+    return buckets.get(name);
+  };
+  const open = async (name) => {
+    const store = bucket(name);
+    return {
+      match: async (key) => store.get(abs(key)),
+      put: async (key, response) => {
+        store.set(abs(key), response);
+      },
+      keys: async () => [...store.keys()].map((url) => ({ url })),
+      delete: async (request) => store.delete(abs(request.url || request)),
+    };
+  };
+  window.caches = {
+    open,
+    match: async (key) => {
+      for (const store of buckets.values()) {
+        const hit = store.get(abs(key));
+        if (hit) return hit;
+      }
+      return undefined;
+    },
+  };
+  return { buckets, keysIn: (name) => [...bucket(name).keys()] };
+}
+
 function makeResponse(window, body, status) {
   return {
     ok: status >= 200 && status < 300,
