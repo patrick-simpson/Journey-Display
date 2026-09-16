@@ -1429,6 +1429,69 @@ unmuteBtn.addEventListener('click', () => {
   setMuted(!journeyVideo.muted);
 });
 
+/* ── Whole-page fullscreen on a double-click ──────────────────────────
+   A double-click puts THIS page into fullscreen, not the thing that was
+   double-clicked. That is the point: fullscreening the embedded display's
+   own stage, or the <video>, would take the ⇄ and ⚙ corner buttons off the
+   screen with it and leave an operator with no way back out except the
+   keyboard. The next double-click leaves fullscreen again.
+
+   Two ways in, because the two layers are different documents:
+   - The Check-in Display is a cross-origin iframe, so a double-click inside
+     it never reaches this document at all. That app posts a message up to
+     its parent instead when it is embedded (see its urlFlags/CLAUDE.md), and
+     the listener below is this side of that contract.
+   - The Journey layer is ours, so a plain dblclick listener does it, minus
+     anything that already means something else: a control, a text field, the
+     settings panel, or a reading overlay.
+
+   Nothing else is touched: no view changes, no lastPhase, no teardown. Every
+   fullscreen call is best effort (a browser may refuse one that is not tied
+   to a gesture it likes) and its failure is swallowed, because there is
+   nothing useful to say about it on a wall-mounted screen. */
+const DISPLAY_FULLSCREEN_MESSAGE = 'awana-display:toggle-fullscreen';
+
+function togglePageFullscreen() {
+  try {
+    if (document.fullscreenElement) {
+      const left = document.exitFullscreen && document.exitFullscreen();
+      if (left && typeof left.catch === 'function') left.catch(() => {});
+      return;
+    }
+    const el = document.documentElement;
+    const entered = el.requestFullscreen && el.requestFullscreen();
+    if (entered && typeof entered.catch === 'function') entered.catch(() => {});
+  } catch {
+    // Unsupported, or refused outright. The page carries on windowed.
+  }
+}
+
+window.addEventListener('message', (event) => {
+  // The source check is the real gate: only the window this page put in its
+  // own iframe can ask for this. The origin check is belt and braces for the
+  // two origins that window is ever legitimately on (the published display,
+  // or a local copy served beside this page during development).
+  if (!checkinFrame || event.source !== checkinFrame.contentWindow) return;
+  if (event.origin !== location.origin && !String(event.origin).startsWith(CHECKIN_DISPLAY_ORIGIN)) {
+    return;
+  }
+  const data = event.data;
+  if (!data || typeof data !== 'object' || data.type !== DISPLAY_FULLSCREEN_MESSAGE) return;
+  togglePageFullscreen();
+});
+
+journeyView.addEventListener('dblclick', (e) => {
+  const target = e.target;
+  if (
+    target instanceof Element &&
+    target.closest('button, input, textarea, select, #settings-panel, #handout-view, #prep-view')
+  ) {
+    return;
+  }
+  if (!settingsPanel.classList.contains('hidden') || readerOverlayOpen()) return;
+  togglePageFullscreen();
+});
+
 // Starts the queued lesson playing — only while the splash is actually up
 // (isAwaitingPlay()), so a stray keypress at any other time (e.g. during
 // the Check-in Display, or once the video's already playing) does nothing.
