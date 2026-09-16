@@ -1,2 +1,4 @@
 node_modules/
 __pycache__/
+# Written at deploy time by scripts/stamp-build.mjs, never committed.
+public/version.json

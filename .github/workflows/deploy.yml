@@ -64,6 +64,16 @@ jobs:
           # to flip a setting in the UI.
           enablement: true
 
+      - name: Stamp the build id into the copy being deployed
+        # There is no build step, so the commit SHA is stamped in here instead:
+        # public/version.json for the kiosk to poll, the same SHA in
+        # index.html's journey-build meta, and ?v=<sha> on schedule.js and
+        # style.css so a reloaded page cannot keep running the previous
+        # deploy's assets out of Chromium's disk cache (Pages serves
+        # everything with max-age=600). Only the uploaded copy is rewritten;
+        # the committed files keep plain paths and content="dev".
+        run: node scripts/stamp-build.mjs "$GITHUB_SHA"
+
       - name: Upload artifact
         # No build step — this is a plain static HTML/CSS/JS site
         # (deliberately no framework/bundler, see CLAUDE.md). Only

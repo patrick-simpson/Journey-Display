@@ -21,11 +21,62 @@ normal reload does not revalidate subresources that are still fresh —
 so for up to ~10 minutes after a deploy, an F5 on the Pi reloads
 `index.html` but keeps running the *previous* `schedule.js`/CSS from
 disk cache (this survives a reboot too). This has already caused one
-"the fix didn't work" false alarm during live testing. When verifying a
-fix on the kiosk: wait 10 minutes and then refresh, or hard-refresh
-(Ctrl+Shift+R) to bypass the cache immediately. When a live symptom
-contradicts code you know is deployed, suspect this cache before
-suspecting the code.
+"the fix didn't work" false alarm during live testing. The kiosk now
+reloads itself onto a new build within a few minutes on its own (see
+"Self-updating kiosk" below), so this only bites when you are checking
+inside those minutes: to verify a fix right now, wait 10 minutes and then
+refresh, or hard-refresh (Ctrl+Shift+R) to bypass the cache immediately.
+When a live symptom contradicts code you know is deployed, suspect this
+cache before suspecting the code.
+
+## Self-updating kiosk
+
+Since 2026-09-16 the Pi picks up a deploy on its own, usually within a few
+minutes, with no SSH and no keyboard. The ten-minute note above is now
+only about *verifying a fix inside those minutes*: left alone, the kiosk
+gets there by itself.
+
+- **Build identity is stamped at deploy time**, because a site with no
+  build step has nothing that knows its own commit.
+  `scripts/stamp-build.mjs` runs in `deploy.yml` between the checkout and
+  the Pages upload and rewrites the copy being uploaded: it writes
+  `public/version.json` (`{ build, builtAt }`), puts the same SHA in
+  `index.html`'s `<meta name="journey-build">`, and appends `?v=<sha>` to
+  `src/schedule.js` and `src/style.css`. The committed page keeps
+  `content="dev"` and plain asset paths (a test pins that), and
+  `version.json` is gitignored, so a checkout and the jsdom harness see
+  the page exactly as before. The script is idempotent and throws if the
+  meta is missing, which fails the deploy loudly rather than shipping a
+  page that can never update itself.
+- **The `?v=` is not decoration.** Pages serves every asset with
+  `max-age=600` and Chromium reuses a still-fresh subresource across a
+  reload, so without it a reload would come back running the *previous*
+  `schedule.js`. A changed query string is a different URL, so the new
+  page pulls new assets immediately.
+- **The poll**: every 3 minutes, and on the `online` event (rate limited
+  to once a minute), `version.json?b=<now>` with `cache: 'no-store'`
+  through `fetchWithTimeout` (5s), compared against the meta. A non-200
+  is "no news" and the poller stays inert, which is what a local checkout
+  and any unstamped copy see.
+- **Never reload onto the old page.** `max-age=600` applies to
+  `index.html` too, so `version.json` can report a new build minutes
+  before the edge serving this kiosk stops handing back the old page.
+  `index.html?b=<now>` is fetched no-store first and must actually carry
+  the new SHA; if it does not, the next tick tries again. Without this,
+  the reload looks exactly like "the deploy did not take", which is the
+  false alarm this repo has already had once.
+- **Never reload during something a room is watching.** `safeToReload()`
+  requires no video attached, no teaching slideshow, no `previewMode`, no
+  reader overlay, the Settings panel closed, no caption prompt, nothing
+  focused in a text field, and not the splash waiting for someone to press
+  Begin. In practice that means the Check-in Display is showing, or the
+  Journey window has ended. A busy kiosk re-checks every 15 seconds and
+  there is no forced deadline: an evening that never goes idle simply
+  updates tomorrow. Nothing is persisted, and the reload is a plain
+  `location.reload()` through a one-line `reloadPage()` indirection the
+  tests stub.
+- The embedded Check-in Display is a different origin and reloads itself
+  through its own version poll; nothing here reaches into that iframe.
 
 ## GitHub Pages source must stay "GitHub Actions"
 
@@ -414,8 +465,11 @@ a reboot during a total outage has no app shell to load).
   Playback then consumes the cache: caption tracks and the handout
   iframe get blob URLs when cached (revoked in `stopJourneyContent()` /
   `closeHandout()`), so captions and the current week's handout work
-  offline. A same-week Student pick in the manual picker also plays the
-  cached copy instead of re-streaming it. On the low profile that shortcut
+  offline. The *video* is the exception since 2026-09-16 (see "Playback
+  streams first" below): the bundle is what plays when the network cannot
+  serve it, not what plays by default. A same-week Student pick in the
+  manual picker goes through the same `resolveVideoSrc()`, so it streams
+  or plays the cached copy on the same rule. On the low profile that shortcut
   is gated on `currentLesson.transcodedAt`, so a not-yet-transcoded 1080p
   original never reaches the Pi's decoder that way; on the full profile
   the original is what it wanted anyway. Which video the bundle stores at
@@ -527,13 +581,40 @@ a reboot during a total outage has no app shell to load).
   fetch `sourceUrl` directly.
 - The previous week's cached video is evicted only once the new one is
   safely stored, so a mid-download failure can't leave the cache empty.
-- Playback resolves from the cache (via `URL.createObjectURL`) when
-  available, falling back to the live download URL otherwise (e.g. the
-  very first run before anything's cached yet). The object URL is only
-  ever revoked once its replacement is already in hand, and only
-  released for good (along with detaching the `<video>` element) once
-  the Journey window closes — a ~100-200MB decoded blob has no reason
-  to stay resident for the other 23 hours of the day on a 512MB Pi Zero.
+- **Playback streams first; the cached copy is the safety net** (changed
+  2026-09-16). The owner watched the live kiosk play a *picker* video,
+  streamed from the Release over plain HTTP, perfectly smoothly, while the
+  6:30 show — the same lesson, played from the Cache API as a blob URL —
+  stuttered badly. Both files are the identical encode (854x480 Baseline
+  3.1, 23.976 fps, same frame count), so the **blob-URL playback path on a
+  single-core, 512MB device is the only variable**: no range requests, and
+  the whole file materialised as one object before the decoder sees it. So
+  `resolveVideoSrc()` now prefers the network URL whenever the network can
+  answer — `navigator.onLine !== false` **and** one bounded `HEAD` through
+  `fetchWithTimeout` (2.5s) coming back ok — and falls back to the blob when
+  it can't. Both profiles, since a full-quality device streaming the
+  original from Awana's CDN is exactly what the picker has always done.
+  Acknowledge-first is untouched: the Journey layer and the loading overlay
+  are on screen before `playCurrentLesson()` awaits any of this.
+  `cacheLessonBundle()` is unchanged, store-before-evict included — the
+  cache is still what makes a dead evening a non-event, it is just no
+  longer the *first* choice on a working one.
+- **One stall swap, and only one.** A streamed video whose `waiting` state
+  persists for `STREAM_STALL_SWAP_MS` (8s) while the same bytes sit in the
+  cache hot-swaps to them: the position is remembered, armed as
+  `pendingSeek` and applied by the ONE permanent `loadedmetadata` listener
+  with its token check, and playback resumes. At most once per playback
+  (`streamSwapCandidate` is matched against the src the element actually
+  carries, and spent by the swap), never within `END_STALL_TOLERANCE_S` of
+  the end (the end-of-lesson handoff owns that stall), and never when
+  there is no cached copy — which is every picker video, and any evening
+  the bundle never landed. Captions, the handout and the slides still use
+  blob URLs; they are small, and none of them is decoded in real time.
+- The object URL, when one is made, is only ever revoked once its
+  replacement is already in hand, and only released for good (along with
+  detaching the `<video>` element) once the Journey window closes — a
+  ~100-200MB decoded blob has no reason to stay resident for the other 23
+  hours of the day on a 512MB Pi Zero.
 - Video starts muted (autoplay policy) with a visible unmute button
   (a text label, not just an emoji glyph, since Raspberry Pi OS doesn't
   always ship a color-emoji font); finishing the video falls back to
@@ -908,6 +989,14 @@ video's ending used to do.
   largest referenced image as the background). It refuses a deck that
   isn't exactly 5 slides — all 32 were on 2026-09-06. Weeks 3 and 4
   really do have a doubled `.pptx.pptx` extension on Awana's side.
+  **It refuses to run without Carlito and Liberation Sans** (the
+  metric-compatible stand-ins for the decks' Calibri and Arial): the first
+  render was done without them, LibreOffice fell back to DejaVu Sans, and
+  on two dozen slides the wider face pushed the last line of body text off
+  the bottom of the picture (owner-reported 2026-09-16 from week 2's
+  misconception slide). All 32 decks were re-rendered with the right fonts
+  that day; the template backgrounds were unaffected. If a slide ever looks
+  cut off again, check `fc-match Calibri` before suspecting the deck.
 - `public/teaching-slides.json` — `{ version, sourceUrl, headings,
   weeks: { "N": { title, deckUrl, slides, notes } } }`. `notes` is the
   generated fill for the TEMPLATE slide, three kinds × three bullets:
@@ -944,9 +1033,33 @@ video's ending used to do.
   shortcut now also requires the Settings panel closed and no text field
   focused: with real textareas on the page, a space between two words must
   stay a space.
-- **Four ways in, never just `ended`** (`endOfLessonHandoff()`): the
-  video's own `ended` event, the near-end stall watchdog, a manual → , and
-  a fatal video error all funnel through one handoff. Hanging the slides off
+- **The deck can also be reached WITHOUT the video** (owner request
+  2026-09-16), because some weeks the room has already watched the lesson or
+  there is no time for it, and the slides are the part the leader needs.
+  Two entry points, both landing on the same `startTeachingSlides()`:
+  - **On the 6:30 splash**: a quieter secondary button, "Skip to slides",
+    beside Begin Video / Resume / Start over (it never replaces them), and
+    **Shift+→** (`skipToTeachingSlides()`). Plain → still begins the video,
+    deliberately: a reflexive tap must never skip a lesson, which is the
+    same reason Space stays "pause" during playback. Gated exactly like
+    Begin Video (`isAwaitingPlay()` plus the Settings panel closed and no
+    text field focused), repeats ignored, nothing awaited before the stage
+    appears, and `journeyVideo.src` is never set at all. It runs in the
+    SCHEDULED (non-preview) mode, so Finish hands back to the Check-in
+    Display exactly as it does after a video, and it clears
+    `journey.resume` because the lesson is being called done, which is what
+    `finishTeachingSlides()` does at the other end of the same show.
+  - **In the picker**: a third first-level choice, "Teaching slides",
+    beside Student / Leader, enabled for every week including 27 (the deck
+    exists whether or not a Leader Video does). `startSlidesPreview()` runs
+    it in `previewMode` with `previewWeek` set, so the right deck shows,
+    Finish runs `endPreview()`, the poll and the hourly refresh stay out of
+    the way, and ⇄ tears it down through `stopJourneyContent()`.
+  The splash hint line now reads "Space / → begin · Shift+→ slides ·
+  S settings" and is still hidden on touch-only devices.
+- **Four ways in from a video, never just `ended`** (`endOfLessonHandoff()`):
+  the video's own `ended` event, the near-end stall watchdog, a manual → ,
+  and a fatal video error all funnel through one handoff. Hanging the slides off
   `ended` alone stranded a leader mid-club on 2026-09-06: the lesson wedged
   on its last chunk over church WiFi, `ended` never fired, and the room sat
   on a frozen final frame under "Loading video…" with no way to reach the

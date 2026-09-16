@@ -124,7 +124,11 @@ for real:
 5. Click **"Commit changes..."** then **"Commit changes"** to save to `main`
 6. Wait about a minute for the site to redeploy (check the repository's
    **Actions** tab for a green checkmark)
-7. On the Pi, refresh the browser (press F5)
+7. Leave the Pi alone. It checks for a new version every few minutes and
+   reloads itself once nothing is on screen (never in the middle of a
+   lesson), so the change arrives on its own, usually within about five
+   minutes. If you want it right now, refresh the browser with
+   **Ctrl + Shift + R** (a plain F5 can keep using cached files)
 
 ## Troubleshooting
 
@@ -166,10 +170,16 @@ for real:
   instead of a broken video
 
 **A change was made on GitHub but the Pi still acts the old way:**
-- The Pi's browser caches the site's files for up to 10 minutes, and a
-  normal refresh (or even a reboot) can keep using the cached copy
-  during that window. Wait 10 minutes and refresh again, or press
-  **Ctrl + Shift + R** for a hard refresh that skips the cache.
+- Give it a few minutes. The kiosk checks for a new version every few
+  minutes and reloads itself when nothing is on screen, so a change
+  normally arrives without anyone touching the Pi.
+- It deliberately will not reload while a lesson, the teaching slides, a
+  preview or the Settings panel is up, so a change made during club
+  arrives after club.
+- To force it now: the Pi's browser caches the site's files for up to 10
+  minutes, and a normal refresh (or even a reboot) can keep using the
+  cached copy during that window. Wait 10 minutes and refresh again, or
+  press **Ctrl + Shift + R** for a hard refresh that skips the cache.
 
 **I edited the schedule file on the Pi but nothing changed:**
 - The schedule lives in the website's code on GitHub, not on the Pi —

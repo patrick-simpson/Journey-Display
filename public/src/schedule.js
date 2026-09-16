@@ -37,6 +37,7 @@ const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
 const journeySplashResumeBtn = document.getElementById('journey-splash-resume-btn');
 const journeySplashResumeLabel = document.getElementById('journey-splash-resume-label');
 const journeySplashStartOverBtn = document.getElementById('journey-splash-startover-btn');
+const journeySplashSlidesBtn = document.getElementById('journey-splash-slides-btn');
 const journeySplashQuality = document.getElementById('journey-splash-quality');
 const journeyVideo = document.getElementById('journey-video');
 const journeyLoading = document.getElementById('journey-loading');
@@ -58,6 +59,7 @@ const settingsVariantPicker = document.getElementById('settings-variant-picker')
 const settingsVariantPrompt = document.getElementById('settings-variant-prompt');
 const settingsVariantStudentBtn = document.getElementById('settings-variant-student');
 const settingsVariantLeaderBtn = document.getElementById('settings-variant-leader');
+const settingsVariantSlidesBtn = document.getElementById('settings-variant-slides');
 const settingsVariantBackBtn = document.getElementById('settings-variant-back');
 const settingsStudentPicker = document.getElementById('settings-student-picker');
 const settingsStudentPrompt = document.getElementById('settings-student-prompt');
@@ -451,43 +453,101 @@ async function cacheLessonBundle(lesson) {
   }
 }
 
-/* Resolves what the <video> element should play: the cached copy as a blob
-   URL when available, the live URL otherwise. `token` is the caller's
-   journeyRequestToken snapshot — if a teardown or newer request has bumped
-   the token while the (slow, ~17MB) cache read was in flight, this returns
-   null WITHOUT committing anything, so a stale resolve can neither clobber
-   currentObjectUrl nor strand a multi-megabyte blob URL that nothing will
-   ever revoke (on a 512MB Pi that leak would sit resident until the next
-   show). Callers must bail on null. */
+/* ── Stream first, play the cached copy only when streaming cannot ────
+   The Pi plays a picker video streamed over plain HTTP smoothly, and
+   stutters badly on the SAME encode served to the <video> element as a blob
+   URL out of the Cache API (owner report, 2026-09-16, from the live kiosk;
+   both files verified as identical encodes, 854x480 Baseline 3.1, 23.976
+   fps, same frame count). The blob path is the only variable, so a device
+   with a working connection now streams, exactly the way the picker always
+   has, and the cache goes back to being what it is good at: the safety net
+   for an evening with no internet.
+
+   Nothing about cacheLessonBundle() changes. The bundle is still
+   pre-downloaded, still store-before-evict, and is still what plays when
+   the probe below says the network cannot answer. */
+const STREAM_PROBE_MS = 2500;
+const STREAM_STALL_SWAP_MS = 8000;
+
+/* Set by resolveVideoSrc when it chose to stream a file that IS also in the
+   cache: { key, src }. That is everything the stall swap needs, and matching
+   on the src the element actually carries means a swap can never land on a
+   video the operator has since replaced. Cleared on teardown and by the swap
+   itself, so it happens at most once per playback. */
+let streamSwapCandidate = null;
+let streamStallTimer = null;
+
+/* Is the live file fetchable right now? One bounded HEAD, whose answer picks
+   between streaming (smooth) and the cached blob (the safety net). This does
+   not break acknowledge-first: the Journey view, the splash teardown and the
+   loading overlay are all already on screen before any caller awaits it. */
+async function videoUrlReachable(url) {
+  if (!url) return false;
+  if (navigator.onLine === false) return false;
+  try {
+    const res = await fetchWithTimeout(url, { method: 'HEAD' }, STREAM_PROBE_MS);
+    return !!res && res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/* The cache hit as a playable blob URL, with the object-URL lifetime rules
+   this page has always kept: the token is re-checked after the (slow, ~17MB)
+   read, and the previous object URL is revoked only once its replacement is
+   in hand. Returns null when a newer request has taken over. */
+async function blobUrlFromCacheHit(cached, token) {
+  const blob = await cached.blob();
+  if (token !== undefined && token !== journeyRequestToken) return null;
+  const blobUrl = URL.createObjectURL(blob);
+  if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+  currentObjectUrl = blobUrl;
+  return blobUrl;
+}
+
+/* Resolves what the <video> element should play: the live URL when the
+   network can serve it, the cached copy as a blob URL otherwise. `token` is
+   the caller's journeyRequestToken snapshot. If a teardown or newer request
+   has bumped the token while the probe or the cache read was in flight, this
+   returns null WITHOUT committing anything, so a stale resolve can neither
+   clobber currentObjectUrl nor strand a multi-megabyte blob URL that nothing
+   will ever revoke (on a 512MB Pi that leak would sit resident until the
+   next show). Callers must bail on null. */
 async function resolveVideoSrc(lesson, token) {
   // Which quality this device plays, decided once here so the cache lookup
   // and the live URL can never disagree about it.
   const profile = effectiveProfile();
   const liveUrl = profile === 'full' ? originalVideoUrl(lesson) : lesson.downloadUrl;
   const cacheKey = videoCacheKey(lesson, profile);
+  streamSwapCandidate = null;
   if ('caches' in window) {
     try {
       const cache = await caches.open(VIDEO_CACHE_NAME);
       // Migration fallback: kiosks that cached this week's video before the
       // key was versioned hold it under the bare downloadUrl. That copy can
-      // only be a same-URL fetch — at worst exactly the staleness the old
-      // code always had — so it's strictly better than falling through to
-      // the network on a dead evening connection. The bundle prefetch stores
+      // only be a same-URL fetch (at worst exactly the staleness the old code
+      // always had), so it is strictly better than falling through to the
+      // network on a dead evening connection. The bundle prefetch stores
       // under the versioned key and then evicts the legacy entry, so this
       // heals itself after one online refresh. Low profile only: on full that
       // bare key holds the 480p copy, which is the other quality's bytes.
-      const cached =
-        (cacheKey && (await cache.match(cacheKey))) ||
-        (profile === 'low' ? await cache.match(lesson.downloadUrl) : null);
+      let key = cacheKey;
+      let cached = cacheKey ? await cache.match(cacheKey) : null;
+      if (!cached && profile === 'low') {
+        key = lesson.downloadUrl;
+        cached = await cache.match(key);
+      }
       if (cached) {
-        const blob = await cached.blob();
-        if (token !== undefined && token !== journeyRequestToken) return null;
-        const blobUrl = URL.createObjectURL(blob);
-        // Only revoke the previous object URL once its replacement is in
-        // hand — never before — so a slower, still-in-flight resolve can
-        // never be left pointing at an already-revoked URL.
-        if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
-        currentObjectUrl = blobUrl;
+        // There are bytes on disk, so this is the one decision worth a probe:
+        // stream them from the server if it can answer, and keep the disk
+        // copy in reserve for the stall swap below.
+        if (await videoUrlReachable(liveUrl)) {
+          if (token !== undefined && token !== journeyRequestToken) return null;
+          streamSwapCandidate = { key, src: liveUrl };
+          return liveUrl;
+        }
+        const blobUrl = await blobUrlFromCacheHit(cached, token);
+        if (!blobUrl) return null;
         return blobUrl;
       }
     } catch {
@@ -496,6 +556,53 @@ async function resolveVideoSrc(lesson, token) {
   }
   if (token !== undefined && token !== journeyRequestToken) return null;
   return liveUrl;
+}
+
+/* The safety net, armed: a streamed video that has been stalled for
+   STREAM_STALL_SWAP_MS with the same bytes sitting in the cache swaps to
+   them once and carries on from where the room got to. Not near the end,
+   where the existing end-of-lesson handoff owns the stall; not at all when
+   there is no cached copy, which is every picker video and any evening the
+   bundle never landed. */
+function clearStreamStallSwap() {
+  clearTimeout(streamStallTimer);
+  streamStallTimer = null;
+}
+
+function armStreamStallSwap() {
+  if (!streamSwapCandidate || streamStallTimer) return;
+  streamStallTimer = setTimeout(swapToCachedCopy, STREAM_STALL_SWAP_MS);
+}
+
+async function swapToCachedCopy() {
+  streamStallTimer = null;
+  const candidate = streamSwapCandidate;
+  if (!candidate || !('caches' in window)) return;
+  if (journeyVideo.classList.contains('hidden')) return;
+  if (journeyVideo.getAttribute('src') !== candidate.src) return;
+  if (videoNearEnd()) return; // the end-of-lesson handoff answers this one
+  const token = journeyRequestToken;
+  const at = journeyVideo.currentTime;
+  let cached = null;
+  try {
+    const cache = await caches.open(VIDEO_CACHE_NAME);
+    cached = await cache.match(candidate.key);
+  } catch {
+    return;
+  }
+  if (!cached || token !== journeyRequestToken) return;
+  if (journeyVideo.getAttribute('src') !== candidate.src) return;
+  const blobUrl = await blobUrlFromCacheHit(cached, token);
+  if (!blobUrl) return;
+  if (journeyVideo.getAttribute('src') !== candidate.src) return;
+  streamSwapCandidate = null; // at most once per playback
+  console.log('Journey: the streamed video stalled, switching to the cached copy');
+  // Armed before the src lands, and applied by the ONE permanent
+  // loadedmetadata listener, which re-checks this token: a superseded
+  // request can never drop its position onto a newer video.
+  pendingSeek = at > 0 ? { token, t: at } : null;
+  journeyVideo.src = blobUrl;
+  journeyVideo.play().catch(() => {});
 }
 
 /* ── Resume an interrupted lesson ─────────────────────────────────────
@@ -1225,13 +1332,20 @@ function showVideoLoading() {
 
 function hideVideoLoading() {
   clearTimeout(loadingStallTimer);
+  // Frames are arriving again (or the video is being torn down), so the
+  // stall swap has nothing to answer for either.
+  clearStreamStallSwap();
   journeyLoadingNote.textContent = LOADING_NOTE_DEFAULT;
   journeyLoading.classList.add('hidden');
 }
 
 journeyVideo.addEventListener('playing', hideVideoLoading);
 journeyVideo.addEventListener('waiting', () => {
-  if (!journeyVideo.classList.contains('hidden')) showVideoLoading();
+  if (journeyVideo.classList.contains('hidden')) return;
+  showVideoLoading();
+  // A stall on a streamed file is the one case where the cached copy is
+  // worth its stutter: see swapToCachedCopy above.
+  armStreamStallSwap();
 });
 
 function setMuted(muted) {
@@ -1367,6 +1481,9 @@ function stopJourneyContent() {
   videoScrubber.value = '0';
   videoTime.textContent = '0:00';
   journeySplash.classList.add('hidden');
+  // Nothing is attached any more, so there is nothing to swap.
+  streamSwapCandidate = null;
+  clearStreamStallSwap();
   if (currentObjectUrl) {
     URL.revokeObjectURL(currentObjectUrl);
     currentObjectUrl = null;
@@ -1517,6 +1634,37 @@ journeySplashStartOverBtn.addEventListener('click', () => {
   beginScheduledPlay(0);
 });
 
+/* Skip the video, show this week's teaching slides (owner request
+   2026-09-16). Some weeks the room has already watched the lesson, or there
+   is no time for it, and the deck is the part the leader actually needs.
+
+   It is the same slideshow the end-of-video handoff runs, in the same
+   scheduled (non-preview) mode, so Finish hands back to the Check-in Display
+   exactly as it does after a video. No video is ever attached:
+   startTeachingSlides() releases the element and hides the splash itself.
+   The resume mark goes, because the lesson is being treated as done, which is
+   what finishTeachingSlides() does at the other end of the same show. Nothing
+   is awaited before the stage appears; slide images load as they always do. */
+function skipToTeachingSlides() {
+  // Same gate as Begin Video, plus the panel: the Settings overlay covers the
+  // splash, so a press that reaches this while it is open is not a press.
+  if (!isAwaitingPlay() || !settingsPanel.classList.contains('hidden')) return false;
+  const week = currentLesson && currentLesson.week;
+  if (!startTeachingSlides(week, () => setView('checkin'))) {
+    // No deck for this week at all: leave the splash exactly as it was
+    // rather than tearing the screen down for nothing.
+    console.warn('Journey: no teaching slides for week', week);
+    return false;
+  }
+  clearResumePoint();
+  return true;
+}
+
+journeySplashSlidesBtn.addEventListener('click', () => {
+  audioUnlocked = true;
+  skipToTeachingSlides();
+});
+
 // The scheduled show plays the Student Video, so that's the transcript to
 // offer. requestPlayback() asks about captions only if this device has never
 // answered, then starts playback either way.
@@ -1600,6 +1748,22 @@ document.addEventListener('keydown', (e) => {
       const back = e.code === 'Comma' || e.code === 'BracketLeft';
       seekBy(back ? -SEEK_STEP_S : SEEK_STEP_S);
     }
+    return;
+  }
+  /* Shift+→ on the splash goes straight to the teaching slides. Gated
+     exactly like Begin Video below, and deliberately a modified key: plain →
+     still begins the video, so no reflexive tap can skip the lesson. */
+  if (
+    e.code === 'ArrowRight' &&
+    e.shiftKey &&
+    !e.repeat &&
+    !typing &&
+    isAwaitingPlay() &&
+    settingsPanel.classList.contains('hidden')
+  ) {
+    e.preventDefault();
+    audioUnlocked = true;
+    skipToTeachingSlides();
     return;
   }
   if (e.code !== 'Space' && e.code !== 'ArrowRight') return;
@@ -1909,6 +2073,9 @@ function onLessonPicked(lesson) {
   // consistent extra click beats a clever inconsistency.
   pendingPreviewLesson = lesson;
   settingsVariantPrompt.textContent = `"${lesson.title}" — which video?`;
+  // The deck is generated for every week, including 27, which has no Leader
+  // Video, so this choice is never disabled.
+  settingsVariantSlidesBtn.disabled = false;
   settingsVariantLeaderBtn.disabled = !lesson.leaderDownloadUrl;
   settingsLessonList.classList.add('hidden');
   settingsVariantPicker.classList.remove('hidden');
@@ -2543,6 +2710,37 @@ settingsCloseBtn.addEventListener('click', closeSettingsPanel);
 settingsBackdrop.addEventListener('click', closeSettingsPanel);
 
 settingsVariantBackBtn.addEventListener('click', resetSettingsPanelToList);
+
+/* The picker's third choice: that week's teaching slides on their own, with
+   no video at all. It is a preview like any other pick, so previewMode holds
+   off the 15s scheduler poll and the hourly refresh, Finish runs endPreview()
+   and the ⇄ button tears it down through stopJourneyContent(). previewWeek is
+   set for the same reason a video preview sets it: the deck on screen is that
+   lesson's, not the scheduled one's. */
+function startSlidesPreview(week) {
+  ++journeyRequestToken; // invalidate any in-flight playback request
+  previewMode = true;
+  previewFallbackUrl = null;
+  previewWeek = week;
+  playingWeek = null; // a preview is never the scheduled show's resume point
+  if (startTeachingSlides(week, endPreview)) {
+    console.log(`Journey: previewing week ${week} teaching slides`);
+    return true;
+  }
+  // Nothing to show: hand control straight back rather than sitting in a
+  // preview with an empty stage.
+  previewMode = false;
+  previewWeek = null;
+  setView(scheduledPhase());
+  return false;
+}
+
+settingsVariantSlidesBtn.addEventListener('click', () => {
+  if (!pendingPreviewLesson) return;
+  const week = pendingPreviewLesson.week;
+  closeSettingsPanel();
+  startSlidesPreview(week);
+});
 
 /* Both roles' previews live in one function each, because the Read Prep
    overlay's timestamps start the same videos the picker does. `seekTo` is
@@ -3292,3 +3490,144 @@ loadTeachingSlides();
 // Small (~58KB) and only read when a leader presses "Read Prep" — but warmed
 // here, because the whole point is that it opens on a dead connection.
 loadLeaderPrep();
+
+/* ── Self-updating kiosk ──────────────────────────────────────────────
+   The Pi is wall-mounted and nobody wants to SSH in or find a keyboard to
+   press F5 after a deploy. So the page notices a new build and reloads
+   itself, with two hard rules: never onto the old page, and never while a
+   room is watching something.
+
+   How it knows: deploy.yml runs scripts/stamp-build.mjs, which writes
+   version.json and stamps the same commit SHA into the journey-build meta
+   of the page that was uploaded (and onto the asset URLs, so the reloaded
+   page cannot keep running the previous deploy's schedule.js out of disk
+   cache). This page compares the two.
+
+   Missing version.json (a local checkout, a stale Pages cache, a 404) is
+   "no news", never a reload: an unstamped page polls harmlessly forever.
+
+   The freshness check exists because Pages' max-age=600 applies to
+   index.html too. version.json can report a new build minutes before the
+   CDN edge serving this kiosk stops handing back the old page, and a reload
+   onto the old page looks exactly like "the deploy did not take". So the
+   new SHA has to be visible in a freshly fetched index.html before anything
+   reloads; if it is not, the next tick tries again. */
+const VERSION_POLL_MS = 3 * 60 * 1000;
+const VERSION_BUSY_RECHECK_MS = 15000;
+const VERSION_ONLINE_MIN_GAP_MS = 60 * 1000;
+
+// The build this page is running, read fresh rather than cached at load, so
+// there is exactly one source for it: the document itself.
+function currentBuildId() {
+  const meta = document.querySelector(`meta[name="journey-build"]`);
+  const value = meta && meta.getAttribute('content');
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function buildIdInHtml(html) {
+  const tag = /<meta[^>]*name=["']journey-build["'][^>]*>/i.exec(String(html));
+  if (!tag) return '';
+  const content = /content=["']([^"']*)["']/i.exec(tag[0]);
+  return content ? content[1].trim() : '';
+}
+
+let pendingBuild = null; // a newer build we have seen and are waiting to take
+let versionBusyTimer = null;
+let lastVersionCheckMs = 0;
+
+/* Nothing is on screen that a reload would interrupt. A lesson playing, the
+   slides up, a preview, a reading overlay, the Settings panel, the caption
+   question, someone typing bullets, or the splash waiting for a leader to
+   press Begin: all of those are the room's, not ours. In practice this means
+   the Check-in Display is showing, or the Journey window has ended. */
+function safeToReload() {
+  const el = document.activeElement;
+  const typing =
+    !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+  return (
+    !previewMode &&
+    !slideshowActive() &&
+    journeyVideo.classList.contains('hidden') &&
+    !journeyVideo.hasAttribute('src') &&
+    !readerOverlayOpen() &&
+    settingsPanel.classList.contains('hidden') &&
+    !isCaptionPromptOpen() &&
+    !isAwaitingPlay() &&
+    !typing
+  );
+}
+
+// One indirection, so a test can watch for the reload without navigating.
+function reloadPage() {
+  location.reload();
+}
+
+function scheduleBusyRecheck() {
+  if (versionBusyTimer) return;
+  versionBusyTimer = setTimeout(() => {
+    versionBusyTimer = null;
+    takeNewBuild();
+  }, VERSION_BUSY_RECHECK_MS);
+}
+
+async function takeNewBuild() {
+  if (!pendingBuild) return;
+  if (!safeToReload()) {
+    scheduleBusyRecheck();
+    return;
+  }
+  let html;
+  try {
+    const res = await fetchWithTimeout(`index.html?b=${Date.now()}`, { cache: 'no-store' }, 5000);
+    if (!res.ok) return; // try again on the next tick
+    html = await res.text();
+  } catch {
+    return;
+  }
+  // Still the old page at this edge: reloading now would land back on the
+  // build we are already running.
+  if (buildIdInHtml(html) !== pendingBuild) return;
+  // Re-checked after the await: a leader can have started the lesson while
+  // that request was in flight.
+  if (!safeToReload()) {
+    scheduleBusyRecheck();
+    return;
+  }
+  console.log(`Journey: reloading for build ${pendingBuild}`);
+  reloadPage();
+}
+
+async function checkForNewBuild() {
+  lastVersionCheckMs = Date.now();
+  const mine = currentBuildId();
+  if (!mine) return; // a page with no build id has nothing to compare
+  if (pendingBuild) {
+    takeNewBuild(); // already know; this tick is just another chance to take it
+    return;
+  }
+  let data;
+  try {
+    const res = await fetchWithTimeout(
+      `version.json?b=${Date.now()}`,
+      { cache: 'no-store' },
+      5000
+    );
+    if (!res.ok) return; // no version.json: nothing to compare, no news
+    data = await res.json();
+  } catch {
+    return;
+  }
+  const build = data && typeof data.build === 'string' ? data.build.trim() : '';
+  if (!build || build === mine) return;
+  console.log(`Journey: a newer build is deployed (${build}); this page is ${mine}`);
+  pendingBuild = build;
+  takeNewBuild();
+}
+
+setInterval(checkForNewBuild, VERSION_POLL_MS);
+// A kiosk that was offline through a deploy should not wait out the timer.
+// 'online' fires in bursts on flapping WiFi, so it is rate limited.
+window.addEventListener('online', () => {
+  if (Date.now() - lastVersionCheckMs < VERSION_ONLINE_MIN_GAP_MS) return;
+  checkForNewBuild();
+});

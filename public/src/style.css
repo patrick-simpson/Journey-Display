@@ -201,6 +201,29 @@ html.cursor-hidden * {
   background: rgba(255, 255, 255, 0.32);
 }
 
+/* "Skip to slides" is quieter again than "Start over": it is always on the
+   splash, so it must not compete with Begin Video for the eye, while still
+   being a fair target from across a room. */
+#journey-splash-slides-btn {
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  padding: 0.7em 1.6em;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: clamp(0.95rem, 2.8vw, 1.2rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  touch-action: manipulation;
+}
+
+#journey-splash-slides-btn:hover,
+#journey-splash-slides-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
 #journey-splash-play-icon,
 .journey-splash-play-icon {
   font-size: 1.2rem;
@@ -1216,6 +1239,11 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 #journey-splash-startover-btn:active {
   background: rgba(255, 255, 255, 0.4);
+  transition: none;
+}
+
+#journey-splash-slides-btn:active {
+  background: rgba(255, 255, 255, 0.32);
   transition: none;
 }
 

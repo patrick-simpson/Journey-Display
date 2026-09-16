@@ -4,7 +4,7 @@
 // that has broken before.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bootKiosk, tick, PI_ZERO, DESKTOP } from './kiosk-dom.mjs';
+import { bootKiosk, installCaches, tick, PI_ZERO, DESKTOP } from './kiosk-dom.mjs';
 
 const LESSONS = {
   version: 1,
@@ -55,42 +55,6 @@ const ANSWERED = { 'journey.captions': 'off' };
 
 const LOW_POWER_URL = 'https://patrick-simpson.github.io/Awana-Check-in-Display/?lowPower=1';
 const FULL_URL = 'https://patrick-simpson.github.io/Awana-Check-in-Display/';
-
-/* A Cache API just real enough for cacheLessonBundle(): one Map per bucket,
-   keyed by absolute URL the way a browser keys it, so store-before-evict can
-   be watched. Installed AFTER boot on purpose: schedule.js feature-checks
-   `caches` at call time, and leaving it undefined at startup is the path a
-   fresh kiosk takes. */
-function installCaches(window) {
-  const buckets = new Map();
-  const abs = (key) => new window.URL(String(key), 'https://example.test/').href;
-  const bucket = (name) => {
-    if (!buckets.has(name)) buckets.set(name, new Map());
-    return buckets.get(name);
-  };
-  const open = async (name) => {
-    const store = bucket(name);
-    return {
-      match: async (key) => store.get(abs(key)),
-      put: async (key, response) => {
-        store.set(abs(key), response);
-      },
-      keys: async () => [...store.keys()].map((url) => ({ url })),
-      delete: async (request) => store.delete(abs(request.url || request)),
-    };
-  };
-  window.caches = {
-    open,
-    match: async (key) => {
-      for (const store of buckets.values()) {
-        const hit = store.get(abs(key));
-        if (hit) return hit;
-      }
-      return undefined;
-    },
-  };
-  return { buckets, keysIn: (name) => [...bucket(name).keys()] };
-}
 
 test('detectDeviceProfile reads the machine, not the brand', () => {
   const kiosk = bootKiosk(ROUTES, ANSWERED);
