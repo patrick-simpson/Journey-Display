@@ -1033,9 +1033,33 @@ video's ending used to do.
   shortcut now also requires the Settings panel closed and no text field
   focused: with real textareas on the page, a space between two words must
   stay a space.
-- **Four ways in, never just `ended`** (`endOfLessonHandoff()`): the
-  video's own `ended` event, the near-end stall watchdog, a manual → , and
-  a fatal video error all funnel through one handoff. Hanging the slides off
+- **The deck can also be reached WITHOUT the video** (owner request
+  2026-09-16), because some weeks the room has already watched the lesson or
+  there is no time for it, and the slides are the part the leader needs.
+  Two entry points, both landing on the same `startTeachingSlides()`:
+  - **On the 6:30 splash**: a quieter secondary button, "Skip to slides",
+    beside Begin Video / Resume / Start over (it never replaces them), and
+    **Shift+→** (`skipToTeachingSlides()`). Plain → still begins the video,
+    deliberately: a reflexive tap must never skip a lesson, which is the
+    same reason Space stays "pause" during playback. Gated exactly like
+    Begin Video (`isAwaitingPlay()` plus the Settings panel closed and no
+    text field focused), repeats ignored, nothing awaited before the stage
+    appears, and `journeyVideo.src` is never set at all. It runs in the
+    SCHEDULED (non-preview) mode, so Finish hands back to the Check-in
+    Display exactly as it does after a video, and it clears
+    `journey.resume` because the lesson is being called done, which is what
+    `finishTeachingSlides()` does at the other end of the same show.
+  - **In the picker**: a third first-level choice, "Teaching slides",
+    beside Student / Leader, enabled for every week including 27 (the deck
+    exists whether or not a Leader Video does). `startSlidesPreview()` runs
+    it in `previewMode` with `previewWeek` set, so the right deck shows,
+    Finish runs `endPreview()`, the poll and the hourly refresh stay out of
+    the way, and ⇄ tears it down through `stopJourneyContent()`.
+  The splash hint line now reads "Space / → begin · Shift+→ slides ·
+  S settings" and is still hidden on touch-only devices.
+- **Four ways in from a video, never just `ended`** (`endOfLessonHandoff()`):
+  the video's own `ended` event, the near-end stall watchdog, a manual → ,
+  and a fatal video error all funnel through one handoff. Hanging the slides off
   `ended` alone stranded a leader mid-club on 2026-09-06: the lesson wedged
   on its last chunk over church WiFi, `ended` never fired, and the room sat
   on a frozen final frame under "Loading video…" with no way to reach the

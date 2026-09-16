@@ -37,6 +37,7 @@ const journeySplashPlayBtn = document.getElementById('journey-splash-play-btn');
 const journeySplashResumeBtn = document.getElementById('journey-splash-resume-btn');
 const journeySplashResumeLabel = document.getElementById('journey-splash-resume-label');
 const journeySplashStartOverBtn = document.getElementById('journey-splash-startover-btn');
+const journeySplashSlidesBtn = document.getElementById('journey-splash-slides-btn');
 const journeySplashQuality = document.getElementById('journey-splash-quality');
 const journeyVideo = document.getElementById('journey-video');
 const journeyLoading = document.getElementById('journey-loading');
@@ -58,6 +59,7 @@ const settingsVariantPicker = document.getElementById('settings-variant-picker')
 const settingsVariantPrompt = document.getElementById('settings-variant-prompt');
 const settingsVariantStudentBtn = document.getElementById('settings-variant-student');
 const settingsVariantLeaderBtn = document.getElementById('settings-variant-leader');
+const settingsVariantSlidesBtn = document.getElementById('settings-variant-slides');
 const settingsVariantBackBtn = document.getElementById('settings-variant-back');
 const settingsStudentPicker = document.getElementById('settings-student-picker');
 const settingsStudentPrompt = document.getElementById('settings-student-prompt');
@@ -1632,6 +1634,37 @@ journeySplashStartOverBtn.addEventListener('click', () => {
   beginScheduledPlay(0);
 });
 
+/* Skip the video, show this week's teaching slides (owner request
+   2026-09-16). Some weeks the room has already watched the lesson, or there
+   is no time for it, and the deck is the part the leader actually needs.
+
+   It is the same slideshow the end-of-video handoff runs, in the same
+   scheduled (non-preview) mode, so Finish hands back to the Check-in Display
+   exactly as it does after a video. No video is ever attached:
+   startTeachingSlides() releases the element and hides the splash itself.
+   The resume mark goes, because the lesson is being treated as done, which is
+   what finishTeachingSlides() does at the other end of the same show. Nothing
+   is awaited before the stage appears; slide images load as they always do. */
+function skipToTeachingSlides() {
+  // Same gate as Begin Video, plus the panel: the Settings overlay covers the
+  // splash, so a press that reaches this while it is open is not a press.
+  if (!isAwaitingPlay() || !settingsPanel.classList.contains('hidden')) return false;
+  const week = currentLesson && currentLesson.week;
+  if (!startTeachingSlides(week, () => setView('checkin'))) {
+    // No deck for this week at all: leave the splash exactly as it was
+    // rather than tearing the screen down for nothing.
+    console.warn('Journey: no teaching slides for week', week);
+    return false;
+  }
+  clearResumePoint();
+  return true;
+}
+
+journeySplashSlidesBtn.addEventListener('click', () => {
+  audioUnlocked = true;
+  skipToTeachingSlides();
+});
+
 // The scheduled show plays the Student Video, so that's the transcript to
 // offer. requestPlayback() asks about captions only if this device has never
 // answered, then starts playback either way.
@@ -1715,6 +1748,22 @@ document.addEventListener('keydown', (e) => {
       const back = e.code === 'Comma' || e.code === 'BracketLeft';
       seekBy(back ? -SEEK_STEP_S : SEEK_STEP_S);
     }
+    return;
+  }
+  /* Shift+→ on the splash goes straight to the teaching slides. Gated
+     exactly like Begin Video below, and deliberately a modified key: plain →
+     still begins the video, so no reflexive tap can skip the lesson. */
+  if (
+    e.code === 'ArrowRight' &&
+    e.shiftKey &&
+    !e.repeat &&
+    !typing &&
+    isAwaitingPlay() &&
+    settingsPanel.classList.contains('hidden')
+  ) {
+    e.preventDefault();
+    audioUnlocked = true;
+    skipToTeachingSlides();
     return;
   }
   if (e.code !== 'Space' && e.code !== 'ArrowRight') return;
@@ -2024,6 +2073,9 @@ function onLessonPicked(lesson) {
   // consistent extra click beats a clever inconsistency.
   pendingPreviewLesson = lesson;
   settingsVariantPrompt.textContent = `"${lesson.title}" — which video?`;
+  // The deck is generated for every week, including 27, which has no Leader
+  // Video, so this choice is never disabled.
+  settingsVariantSlidesBtn.disabled = false;
   settingsVariantLeaderBtn.disabled = !lesson.leaderDownloadUrl;
   settingsLessonList.classList.add('hidden');
   settingsVariantPicker.classList.remove('hidden');
@@ -2658,6 +2710,37 @@ settingsCloseBtn.addEventListener('click', closeSettingsPanel);
 settingsBackdrop.addEventListener('click', closeSettingsPanel);
 
 settingsVariantBackBtn.addEventListener('click', resetSettingsPanelToList);
+
+/* The picker's third choice: that week's teaching slides on their own, with
+   no video at all. It is a preview like any other pick, so previewMode holds
+   off the 15s scheduler poll and the hourly refresh, Finish runs endPreview()
+   and the ⇄ button tears it down through stopJourneyContent(). previewWeek is
+   set for the same reason a video preview sets it: the deck on screen is that
+   lesson's, not the scheduled one's. */
+function startSlidesPreview(week) {
+  ++journeyRequestToken; // invalidate any in-flight playback request
+  previewMode = true;
+  previewFallbackUrl = null;
+  previewWeek = week;
+  playingWeek = null; // a preview is never the scheduled show's resume point
+  if (startTeachingSlides(week, endPreview)) {
+    console.log(`Journey: previewing week ${week} teaching slides`);
+    return true;
+  }
+  // Nothing to show: hand control straight back rather than sitting in a
+  // preview with an empty stage.
+  previewMode = false;
+  previewWeek = null;
+  setView(scheduledPhase());
+  return false;
+}
+
+settingsVariantSlidesBtn.addEventListener('click', () => {
+  if (!pendingPreviewLesson) return;
+  const week = pendingPreviewLesson.week;
+  closeSettingsPanel();
+  startSlidesPreview(week);
+});
 
 /* Both roles' previews live in one function each, because the Read Prep
    overlay's timestamps start the same videos the picker does. `seekTo` is
