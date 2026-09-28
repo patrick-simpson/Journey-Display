@@ -44,7 +44,10 @@ gets there by itself.
   `index.html`'s `<meta name="journey-build">`, and appends `?v=<sha>` to
   every `STAMPED_ASSETS` path: `src/schedule.js`, `src/style.css`,
   `brand/tokens.css`, `brand/fonts.css` and the wordmark
-  `brand/logos/journey-white.svg`. It also rewrites the deployed
+  `brand/logos/journey-white.svg`, every copy of each (the wordmark is on
+  the page twice). A test stamps the real page and fails if any local
+  `src`/`href` is left without `?v=`, so an asset added to the page has to
+  be added to `STAMPED_ASSETS` too. It also rewrites the deployed
   `brand/fonts.css` so each font URL carries `?v=<first 12 hex of that
   font's sha256>` (see "Brand kit" below). The committed page keeps
   `content="dev"` and plain asset paths (a test pins that), the committed
@@ -157,7 +160,13 @@ setting has regressed.
   Mac. schedule.js is a classic
   script, so its top-level `function` declarations are reachable on `window`
   while its `let`/`const` state deliberately is not. Run
-  `node --check public/src/schedule.js` alongside it.
+  `node --check public/src/schedule.js` alongside it. The one thing jsdom
+  cannot see is layout, so `test/control-bar-layout.test.mjs` opens the
+  page in real Chromium through `playwright-core` (answering every request
+  from `public/` itself: no server, no port, no network, schedule.js not
+  run). It uses the same binary as the handout renderer
+  (`PLAYWRIGHT_CHROMIUM`, else `/opt/pw-browsers/chromium`) and is skipped,
+  and says so, on a machine without it.
 
 ## Brand kit (Awana 2026-27 catalog)
 
@@ -212,7 +221,8 @@ Read Prep, captions).
   one there; only the fills are baked, because an SVG drawn as an image
   cannot inherit `currentColor`.
 - **The Pi Zero paint budget is a test, not a habit.** `journey-splash-pulse`
-  is the only `@keyframes`; no `filter`, no `backdrop-filter`, no gradients;
+  is the only `@keyframes`; no `filter` (prefixed or not), no
+  `backdrop-filter`, no gradients;
   every `box-shadow`/`text-shadow` has zero blur (the kit's depth is a hard
   offset), with one exception, `#slide-template`'s soft text shadow, which
   copies Awana's deck. Measured in Chromium at 640x480 and 1080p: the idle
@@ -221,7 +231,10 @@ Read Prep, captions).
 - **Awana's deck is not ours.** The teaching-slide images and the TEMPLATE
   slide's type (`#slide-template`, Calibri/Carlito over the deck's own
   texture) stay exactly as they were; only the controls around them wear
-  the kit. The pillarbox stays black.
+  the kit. The pillarbox stays black. `test/brand-kit.test.mjs` pins the
+  deck's rules (`#slides-view`, `#slide-stage`, `#slide-image` and every
+  `#slide-template*`) declaration for declaration, and fails if any other
+  rule names those elements.
 
 ## Daily schedule
 
@@ -790,7 +803,13 @@ a reboot during a total outage has no app shell to load).
   shrinks silently rather than overflowing; measured at 844x390). In that
   block the scrubber's basis is `calc(100% - 8rem)` so it and the time
   readout fill the first row exactly and the pills wrap together beneath
-  them, rather than two or three tagging along on the scrubber's row. It fades out with the
+  them, rather than two or three tagging along on the scrubber's row. The
+  readout's box is the rest of that row, `calc(8rem - 6px)` (the column gap)
+  and right-aligned, not the width of its text: with the kit's narrower
+  Londrina pills a short `0:00`, which is what it says through the whole
+  loading wait, left room for Back 15s on the scrubber's row, and the pill
+  dropped back under the operator's finger when the duration arrived.
+  `test/control-bar-layout.test.mjs` measures it at the Pi's sizes. It fades out with the
   same `cursor-hidden` idle mechanism as the mouse cursor (touches
   count as activity too — phones have no mousemove) and is pinned
   visible while paused (`.force-visible`), since a frozen frame with no

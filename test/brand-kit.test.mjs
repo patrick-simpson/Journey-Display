@@ -174,11 +174,85 @@ test("the colours that were never Journey's are gone", () => {
   assert.deepEqual(systemType.map((r) => r.selector), [], 'every face comes from the kit');
 });
 
-test("Awana's template slide keeps the deck's own type", () => {
-  // The generated TEMPLATE slide reproduces Awana's deck, so it is the one
-  // place the kit's faces do not reach.
-  const rule = rules(styleCss).find((r) => r.selector === '#slide-template');
-  assert.match(rule.body, /font-family:\s*Calibri,\s*Carlito/);
+// Awana's deck as it stood before the kit (8f37f60), declaration for
+// declaration: the black pillarbox, the 4:3 stage, the slide images and the
+// generated TEMPLATE slide, whose type reproduces the deck's (Calibri/Carlito,
+// the deck's own sizes and soft shadow). The kit dresses the controls around
+// the deck, never the deck, so a change here is a change to Awana's slides and
+// has to be made on purpose, in this table as well as in style.css.
+const AWANA_DECK = {
+  '#slides-view': [
+    'position: absolute',
+    'inset: 0',
+    'z-index: 6',
+    'display: flex',
+    'align-items: center',
+    'justify-content: center',
+    'background: #000000',
+  ],
+  '#slide-stage': [
+    'position: relative',
+    'width: min(100vw, calc(100vh * 4 / 3))',
+    'height: min(100vh, calc(100vw * 3 / 4))',
+    'background: #000000',
+    'cursor: pointer',
+    'user-select: none',
+    '-webkit-user-select: none',
+  ],
+  '#slide-image': ['display: block', 'width: 100%', 'height: 100%', 'object-fit: contain'],
+  '#slide-template': [
+    'position: absolute',
+    'inset: 0',
+    'background-size: cover',
+    'background-position: center',
+    'color: #ffffff',
+    'font-family: Calibri, Carlito, system-ui, sans-serif',
+    'display: flex',
+    'flex-direction: column',
+    'padding: calc(min(100vh, 75vw) * 0.055) calc(min(100vw, 133.33vh) * 0.07) calc(min(100vh, 75vw) * 0.05)',
+    'text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35)',
+  ],
+  '#slide-template-heading': [
+    'flex: none',
+    'text-align: center',
+    'font-weight: 400',
+    'font-size: calc(min(100vh, 75vw) * 0.105)',
+    'line-height: 1.15',
+    'margin-bottom: calc(min(100vh, 75vw) * 0.07)',
+  ],
+  '#slide-template-bullets': [
+    'flex: 1',
+    'min-height: 0',
+    'list-style: none',
+    'margin: 0',
+    'padding: 0 0 0 calc(min(100vw, 133.33vh) * 0.02)',
+    'font-size: calc(min(100vh, 75vw) * 0.052)',
+    'line-height: 1.28',
+    'display: flex',
+    'flex-direction: column',
+    'gap: calc(min(100vh, 75vw) * 0.045)',
+  ],
+  '#slide-template-bullets li': ['position: relative', 'padding-left: 1.1em'],
+  '#slide-template-bullets li::before': ["content: '\\2022'", 'position: absolute', 'left: 0'],
+};
+
+test("Awana's deck keeps its own look, the template slide's type included", () => {
+  const declarations = (body) =>
+    body
+      .split(';')
+      .map((d) => d.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+  // Every rule that names the deck's elements, wherever it sits (a second
+  // rule for #slide-template-heading, or one inside a media query, counts).
+  const deck = rules(styleCss).filter((r) => /#slides-view|#slide-(?:stage|image|template)/.test(r.selector));
+  assert.deepEqual(
+    deck.map((r) => r.selector),
+    Object.keys(AWANA_DECK),
+    'no other rule reaches into the deck'
+  );
+  for (const { selector, body } of deck) {
+    assert.deepEqual(declarations(body), AWANA_DECK[selector], `${selector} is exactly as Awana's deck has it`);
+  }
 });
 
 test('the Pi Zero paint budget: one keyframe, no filters, no gradients, no blur', () => {
@@ -187,9 +261,11 @@ test('the Pi Zero paint budget: one keyframe, no filters, no gradients, no blur'
   for (const m of css.matchAll(/animation(?:-name)?\s*:\s*([^;]+);/g)) {
     assert.match(m[1], /^journey-splash-pulse\b/, 'the pulse is the only animation');
   }
-  assert.doesNotMatch(css, /(^|[^-])filter\s*:/, 'no filters');
-  assert.doesNotMatch(css, /backdrop-filter/, 'no backdrop blur');
-  assert.doesNotMatch(css, /gradient\(/, 'flat fills only');
+  // The property itself, prefixed or not (Chromium still honours
+  // -webkit-filter), in any case: CSS property names ignore it.
+  assert.doesNotMatch(css, /(^|[\s;{])(-[a-z]+-)?filter\s*:/i, 'no filters');
+  assert.doesNotMatch(css, /backdrop-filter/i, 'no backdrop blur');
+  assert.doesNotMatch(css, /gradient\(/i, 'flat fills only');
 
   // Every shadow is a hard offset (zero blur). The one exception is Awana's
   // own template slide, whose soft text shadow copies the deck.

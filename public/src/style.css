@@ -838,9 +838,17 @@ html.cursor-hidden #video-controls:not(.force-visible) {
     order: -2;
   }
 
+  /* The readout's box is the rest of that row (8rem less the 6px column
+     gap), whatever it says. Sized by its text, a short "0:00" (the whole
+     "Loading video…" wait, and any stream with no duration) left room for
+     the narrow Londrina "Back 15s" pill on the scrubber's row, and it
+     dropped back under the operator's finger when the duration arrived.
+     A fixed box also keeps the scrubber from resizing as the time ticks. */
   #video-time {
+    flex: 0 0 calc(8rem - 6px);
     order: -1;
     font-size: 0.95rem;
+    text-align: right;
   }
 
   #pause-btn,

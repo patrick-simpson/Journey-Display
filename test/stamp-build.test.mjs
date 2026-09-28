@@ -37,6 +37,27 @@ function scratchPublic() {
 const fontUrls = (css) => [...css.matchAll(/url\((['"]?)([^'")]+)\1\)/g)].map((m) => m[2]);
 const shortHash = (file) => createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 12);
 
+/* Every src/href on a page that names a file of this site (not another
+   origin, a data: URI or a fragment), in page order, every copy counted. */
+const localRefs = (page) =>
+  [...page.matchAll(/\s(?:src|href)=["']([^"']*)["']/g)]
+    .map((m) => m[1])
+    .filter((url) => url && !/^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(url));
+
+/* The stamped page must carry ?v=<build> on every local reference the plain
+   page has: the wordmark appears twice (the placeholder and the splash), so
+   "each asset versioned once" is not enough, and an asset added to the page
+   but not to STAMPED_ASSETS would otherwise go out on a plain URL, the
+   old-page/new-asset mix the stamp exists to prevent. */
+function assertEveryLocalRefStamped(stamped, build) {
+  const plain = localRefs(readFileSync(PAGE, 'utf8'));
+  assert.deepEqual(
+    localRefs(stamped),
+    plain.map((url) => `${url}?v=${build}`),
+    'every local src/href, every copy, carries the build id'
+  );
+}
+
 test('the committed page carries the placeholder the workflow replaces', () => {
   const html = readFileSync(PAGE, 'utf8');
   assert.match(html, /<meta name="journey-build" content="dev" \/>/);
@@ -67,6 +88,7 @@ test('stamping writes the build id into the meta and onto the assets', () => {
 
   assert.match(html, new RegExp(`<meta name="journey-build" content="${sha}"`));
   for (const asset of STAMPED_ASSETS) assert.ok(html.includes(`${asset}?v=${sha}`));
+  assertEveryLocalRefStamped(html, sha);
   assert.deepEqual(JSON.parse(version), { build: sha, builtAt: '2026-09-16T18:00:00.000Z' });
 
   // All three files really landed in the directory that gets uploaded.
@@ -127,6 +149,7 @@ test('stamping is idempotent, and a new build leaves no trace of the old one', (
   const next = stampBuild('bbb222', dir, '2026-09-16T19:00:00.000Z').html;
   assert.equal(next.includes('aaa111'), false);
   for (const asset of STAMPED_ASSETS) assert.ok(next.includes(`${asset}?v=bbb222`));
+  assertEveryLocalRefStamped(next, 'bbb222');
 
   // The font sheet too: stamping an already-stamped sheet changes nothing.
   const fontsOnce = readFileSync(path.join(dir, FONTS_CSS), 'utf8');
