@@ -1,3 +1,59 @@
+/* ── The kit, as this page uses it ─────────────────────────────────────
+   The Awana 2026-27 catalog's brand kit is mirrored byte for byte in
+   public/brand/ (see CLAUDE.md, "Brand kit"): brand/tokens.css defines the
+   --brand-* properties and brand/fonts.css the three self-hosted families,
+   both linked from index.html ahead of this sheet. Everything below reads
+   the kit through these aliases. Each one carries the kit's own value as its
+   fallback, so the kiosk still looks like itself if tokens.css ever failed to
+   load, and test/brand-kit.test.mjs fails if a fallback drifts from
+   tokens.css.
+
+   Journey's identity from the catalog: a deep ink field, the club purple, its
+   deep shade and a lavender tint. The one hot red-orange marks the one thing
+   to press. Galindo shouts, Londrina Solid labels, Figtree is read.
+
+   Built for a 2017 Pi Zero: flat fills and hard offsets only (no blur, no
+   filters, no gradients), and no new animation. The splash's single opacity
+   pulse (journey-splash-pulse, below) is still the only keyframe on the page.
+
+   --u is one hundredth of the width of the largest 16:9 box that fits the
+   screen, which is the unit the approved mockup was drawn in, so a 1080p TV
+   gets the mockup exactly. On a squarer screen it may grow by up to a
+   quarter into the spare height: the kiosk's HDMI safe mode is 640x480 (see
+   PI_SETUP.md), where the 16:9 box alone would leave the splash small in a
+   field of empty purple. Every size built on it has a rem floor, because the
+   page is also opened on phones. */
+:root {
+  --jr-ink: var(--brand-journey-ink, #403A77);
+  --jr-purple: var(--brand-journey, #8A649D);
+  --jr-deep: var(--brand-journey-deep, #56467F);
+  --jr-tint: var(--brand-journey-tint, #DED5EA);
+  --jr-hot: var(--brand-hot, #F15A28);
+  --jr-hot-deep: var(--brand-hot-deep, #9E3512);
+  --jr-sun: var(--brand-sun, #FCB614);
+  --jr-chip: var(--brand-chip, rgba(3, 4, 4, 0.5));
+  --jr-night: var(--brand-ink, #231F20);
+  --jr-font-shout: var(--brand-font-display, 'Galindo', 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif);
+  --jr-font-label: var(--brand-font-label, 'Londrina Solid', 'Arial Narrow', 'Helvetica Neue', sans-serif);
+  --jr-font-read: var(--brand-font-body, 'Figtree', 'Segoe UI', system-ui, sans-serif);
+  --u: min(1.25vw, 1.7778vh);
+
+  /* Wrapper art, baked from the kit's own shapes so each is ONE static image
+     (rasterised once, never repainted by anything that moves). The path data
+     is copied verbatim from public/brand/ and a test pins it there; only the
+     fills are baked in, because an SVG drawn as an image cannot inherit
+     currentColor.
+     - wave: brand/shapes/wave-journey.svg twice in one image, the deep shade
+       mirrored behind, the club purple in front (the mockup's bottom edge).
+     - tab: brand/shapes/tab-c-journey.svg, Journey's corner tab.
+     - doodles: the kit's sparkle, dot and squiggle (top right) and its
+       four-point sparkle and ring (left), in the mockup's two clusters. */
+  --jr-art-wave: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 576 325.62' preserveAspectRatio='none'><path fill='%2356467F' transform='matrix(-1.06 0 0 1 593.28 0)' d='M-44.64,327.18C-33.18,299.43 -32.31,269.45 -20.38,241.83C-8.45,214.21 19.95,187.39 56.86,186.99C69.04,186.86 80.92,189.63 92.90,191.35C110.53,193.89 128.68,194.16 146.42,192.16C163.36,190.24 180.46,186.03 193.34,177.12C207.02,167.66 214.55,153.99 222.53,141.08C237.45,116.91 256.98,92.66 287.56,80.90C315.33,70.23 347.96,71.53 378.43,75.43C408.91,79.32 439.36,85.59 470.17,84.07C526.12,81.31 575.00,41.71 594.00,0.00L594.00,343.62L-51.84,343.62L-44.64,327.18'/><path fill='%238A649D' transform='matrix(1 0 0 0.7143 0 93.03)' d='M-44.64,327.18C-33.18,299.43 -32.31,269.45 -20.38,241.83C-8.45,214.21 19.95,187.39 56.86,186.99C69.04,186.86 80.92,189.63 92.90,191.35C110.53,193.89 128.68,194.16 146.42,192.16C163.36,190.24 180.46,186.03 193.34,177.12C207.02,167.66 214.55,153.99 222.53,141.08C237.45,116.91 256.98,92.66 287.56,80.90C315.33,70.23 347.96,71.53 378.43,75.43C408.91,79.32 439.36,85.59 470.17,84.07C526.12,81.31 575.00,41.71 594.00,0.00L594.00,343.62L-51.84,343.62L-44.64,327.18'/></svg>");
+  --jr-art-tab: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 205.36 132.53' preserveAspectRatio='none'><path fill='%238A649D' d='M205.36,-35.10L-28.80,-35.10L-28.80,126.63C-17.85,129.47 -6.87,132.53 4.35,130.10C28.16,126.59 40.51,100.98 63.35,96.02C81.82,91.84 100.10,101.46 118.57,100.45C133.31,100.09 146.80,91.64 152.55,77.99C159.60,61.70 157.79,42.01 169.08,27.40C180.32,12.54 196.95,1.11 201.97,-17.74C203.57,-23.29 204.71,-29.13 205.36,-35.10'/></svg>");
+  --jr-art-doodles-right: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='80 6.6 9.6 8.58'><svg x='80' y='8' width='2.4' height='2.4' viewBox='0 0 12.61 12.61'><path fill='%23fff' d='M8.25,4.75L11.26,5.74C11.82,5.91 11.82,6.70 11.26,6.88L8.25,7.86C8.06,7.92 7.92,8.06 7.86,8.25L6.88,11.26C6.70,11.82 5.92,11.82 5.73,11.26L4.75,8.25C4.69,8.06 4.55,7.92 4.37,7.86L1.36,6.88C0.80,6.70 0.80,5.91 1.36,5.74L4.37,4.75C4.55,4.69 4.69,4.55 4.75,4.37L5.73,1.35C5.92,0.80 6.70,0.80 6.88,1.35L7.86,4.37C7.92,4.55 8.06,4.69 8.25,4.75'/></svg><svg x='84.5' y='6.6' width='1' height='1.0325' viewBox='0 0 8.62 8.90'><path fill='%23fff' d='M7.82,4.45C7.82,6.47 6.25,8.10 4.31,8.10C2.37,8.10 0.80,6.47 0.80,4.45C0.80,2.43 2.37,0.80 4.31,0.80C6.25,0.80 7.82,2.43 7.82,4.45'/></svg><svg x='87' y='9.6' width='2.6' height='5.578' viewBox='0 0 46.94 100.70' overflow='visible'><path fill='none' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' d='M1.50,1.72C9.83,1.50 16.86,10.90 14.30,18.83C12.77,23.59 8.49,27.69 9.06,32.65C9.67,37.92 15.41,40.95 20.61,41.98C25.81,43.01 31.51,43.11 35.73,46.32C40.83,50.20 42.06,57.43 41.32,63.79C40.58,70.15 38.29,76.29 37.93,82.68C37.56,89.07 39.74,96.28 45.44,99.20'/></svg></svg>");
+  --jr-art-doodles-left: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='9 26 4.8 5.18'><svg x='12' y='26' width='1.8' height='1.8' viewBox='0 0 12.99 12.99'><path fill='%23fff' d='M6.12,9.87L2.27,11.83C1.56,12.19 0.80,11.43 1.16,10.72L3.12,6.87C3.24,6.63 3.24,6.36 3.12,6.12L1.16,2.27C0.80,1.56 1.56,0.80 2.27,1.16L6.12,3.12C6.36,3.24 6.63,3.24 6.87,3.12L10.72,1.16C11.43,0.80 12.19,1.56 11.83,2.27L9.86,6.12C9.75,6.36 9.75,6.63 9.86,6.87L11.83,10.72C12.19,11.43 11.43,12.19 10.72,11.83L6.87,9.87C6.62,9.95 6.36,9.75 6.12,9.87'/></svg><svg x='9' y='30' width='1.2' height='1.18' viewBox='0 0 6.52 6.41'><path fill='%23fff' d='M5.09,3.20C5.09,2.14 4.28,1.30 3.26,1.30C2.25,1.31 1.42,2.17 1.43,3.22C1.44,4.27 2.26,5.09 3.30,5.08C4.31,5.08 5.08,4.27 5.09,3.20M5.72,3.20C5.72,4.56 4.66,5.60 3.27,5.61C1.89,5.61 0.81,4.56 0.81,3.21C0.80,1.87 1.88,0.81 3.26,0.81C4.65,0.80 5.71,1.83 5.72,3.20'/></svg></svg>");
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -45,16 +101,27 @@ html.cursor-hidden * {
   background: #000000;
 }
 
+/* No lesson resolved yet: the Journey wordmark on the deep ink field, with
+   the same bottom wave as the splash. Deliberately nothing else: this is the
+   "no data" state, and it must never look like a lesson waiting to start. */
 #journey-placeholder {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 4vh 4vw 16vh;
+  background: var(--jr-art-wave) left bottom / 100% 14% no-repeat, var(--jr-ink);
   color: #ffffff;
-  font-family: system-ui, sans-serif;
+  font-family: var(--jr-font-shout);
   font-size: 4rem;
   letter-spacing: 0.05em;
+}
+
+#journey-placeholder img {
+  display: block;
+  width: clamp(12rem, 44 * var(--u), 50rem);
+  height: auto;
 }
 
 #journey-video {
@@ -71,75 +138,166 @@ html.cursor-hidden * {
    animation is a cheap opacity pulse — this still has to render smoothly
    on a Raspberry Pi Zero. */
 #journey-splash {
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2vh;
   color: #ffffff;
-  font-family: system-ui, sans-serif;
+  font-family: var(--jr-font-read);
   text-align: center;
-  padding: 4vh 4vw;
+  padding: 4vh 4vw 8.5vh;
+  overflow: hidden;
+  background: var(--jr-art-wave) left bottom / 100% 14% no-repeat, var(--jr-ink);
+}
+
+/* The two doodle clusters: static images on pseudo-elements, so the markup
+   carries none of them. The right one hangs from the top corner (clear of
+   the settings button), the left one sits beside the lesson name. */
+#journey-splash::before,
+#journey-splash::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+#journey-splash::before {
+  top: calc(6.6 * var(--u));
+  right: calc(10.4 * var(--u));
+  width: calc(9.6 * var(--u));
+  height: calc(8.58 * var(--u));
+  background-image: var(--jr-art-doodles-right);
+}
+
+#journey-splash::after {
+  top: calc(50% - 2.1 * var(--u));
+  left: calc(9 * var(--u));
+  width: calc(4.8 * var(--u));
+  height: calc(5.18 * var(--u));
+  background-image: var(--jr-art-doodles-left);
+}
+
+/* A phone held upright has no spare margin for them: the right cluster
+   would land on the settings button. */
+@media (max-width: 600px) {
+  #journey-splash::before,
+  #journey-splash::after {
+    display: none;
+  }
 }
 
 /* Splash type scales with the viewport (clamp between phone-readable and
    the TV sizes these used to be fixed at) — the page is occasionally
    opened on a phone, where the old fixed sizes overflowed the screen. */
+/* The catalog's Journey wordmark (brand/logos/journey-white.svg, the O a
+   disc with a mountain peak cut out) over ADVOCATES in tracked Londrina. */
 #journey-splash-wordmark {
   display: flex;
-  align-items: baseline;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5em;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.5rem, 2 * var(--u), 2.4rem);
 }
 
 #journey-splash-journey {
-  font-size: clamp(2.4rem, 9vw, 5rem);
-  font-weight: 800;
-  letter-spacing: 0.03em;
+  display: block;
+  line-height: 0;
 }
 
+#journey-splash-journey img {
+  display: block;
+  width: clamp(12rem, 36 * var(--u), 44rem);
+  height: auto;
+}
+
+/* Letter-spacing also trails the last letter, so the same amount on the left
+   keeps the word centred under the mark. */
 #journey-splash-advocates {
-  font-size: clamp(1rem, 3.5vw, 1.8rem);
-  font-weight: 600;
-  color: #f2b705;
+  padding-left: 0.34em;
+  font-family: var(--jr-font-label);
+  font-size: clamp(0.95rem, 2.4 * var(--u), 3rem);
+  line-height: 1;
+  color: var(--jr-tint);
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.34em;
 }
 
+/* "Large Group Time" is Journey's corner tab: the kit's wavy tab shape in the
+   club purple, bleeding off the top-left corner, with the label set into it.
+   Sized in em so the tab always grows with its own text (a phone's floor
+   size included). Out of the flow, so the column stays centred. */
 #journey-splash-banner {
-  padding: 0.5em 1.4em;
-  border-radius: 999px;
-  background: #c8102e;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 11.4em;
+  height: 7.4em;
+  padding: 1.14em 0 0 1.24em;
+  background: var(--jr-art-tab) left top / 100% 100% no-repeat;
   color: #ffffff;
-  font-size: clamp(1rem, 3.5vw, 1.6rem);
-  font-weight: 700;
+  font-family: var(--jr-font-label);
+  font-size: clamp(0.85rem, 2.1 * var(--u), 2.6rem);
+  line-height: 1;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  text-align: center;
+  letter-spacing: 0.06em;
+  text-align: left;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 #journey-splash-lesson {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.3em;
-  margin-top: 1vh;
+  gap: clamp(0.2rem, 0.4 * var(--u), 0.5rem);
+  margin-top: clamp(1rem, 3.2 * var(--u), 4rem);
 }
 
+/* WEEK 4 · UNIT 1 · LESSON 4 (see splashLessonText() in schedule.js). */
 #journey-splash-week {
-  font-size: clamp(0.95rem, 3vw, 1.3rem);
-  opacity: 0.7;
+  font-family: var(--jr-font-label);
+  font-size: clamp(0.85rem, 2 * var(--u), 2.5rem);
+  line-height: 1;
+  color: var(--jr-tint);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
+/* The lesson's name, shouted: Galindo in caps with the deep shade as a hard
+   offset shadow (a flat second fill, painted once; never a blur). Capped at
+   7vw so the longest name in the course (RESURRECTION, week 18) stays clear
+   of the left doodle cluster on the Pi's 4:3 screen; a 16:9 TV never
+   reaches the cap. */
 #journey-splash-title {
-  font-size: clamp(1.4rem, 5.5vw, 3rem);
-  font-weight: 700;
+  font-family: var(--jr-font-shout);
+  font-weight: 400;
+  font-size: clamp(2rem, min(6.6 * var(--u), 7vw), 8rem);
+  line-height: 0.98;
+  text-transform: uppercase;
+  text-shadow: 0.06em 0.06em 0 var(--jr-deep);
   max-width: 90vw;
+  text-wrap: balance;
+}
+
+/* A title that did not split into a one-word name (splashLessonText() fell
+   back to the whole title) would be a wall of shouted lines; set it at the
+   size the old splash gave the title instead. */
+#journey-splash-title.is-long {
+  font-size: clamp(1.4rem, 3.6 * var(--u), 4.4rem);
+  line-height: 1.05;
+  /* Clear of both doodle clusters, which reach 13.8u in from each side. */
+  max-width: calc(100vw - 30 * var(--u));
+}
+
+/* Phones have no doodles (see above), so the title may use the width. After
+   the base rule on purpose: same specificity, so the later one wins. */
+@media (max-width: 600px) {
+  #journey-splash-title.is-long {
+    max-width: 90vw;
+  }
 }
 
 /* The splash's action row. Normally it holds one button ("Begin Video");
@@ -147,27 +305,35 @@ html.cursor-hidden * {
    swaps that for "Resume at M:SS" + "Start over" (see offerResume). Wraps on
    a phone rather than pushing either button off the screen. */
 #journey-splash-actions {
-  margin-top: 3vh;
+  margin-top: clamp(1.4rem, 5 * var(--u), 6.2rem);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: clamp(0.6rem, 2vw, 1.2rem);
+  gap: clamp(0.6rem, 1.4 * var(--u), 1.8rem);
 }
 
+/* Begin Video (and Resume, which takes its place) is the catalog's hot
+   sticker colour, so the one thing to press is the one thing that's orange.
+   Its depth is a hard offset in the hot's deep shade, like the kit's
+   stickers. Hover and keyboard focus add a lavender ring rather than a new
+   colour, so the hot stays the hot. */
 #journey-splash-play-btn,
 #journey-splash-resume-btn {
   display: flex;
   align-items: center;
-  gap: 0.6em;
+  gap: 0.45em;
   border: none;
   border-radius: 999px;
-  padding: 0.9em 2em;
-  background: #c8102e;
+  padding: 0.435em 1.13em;
+  background: var(--jr-hot);
+  box-shadow: 0.13em 0.13em 0 var(--jr-hot-deep);
   color: #ffffff;
-  font-family: inherit;
-  font-size: clamp(1.15rem, 4vw, 1.6rem);
-  font-weight: 700;
+  font-family: var(--jr-font-label);
+  font-size: clamp(1.15rem, 2.3 * var(--u), 2.9rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.06em;
   cursor: pointer;
   transition: background-color 0.2s ease;
   touch-action: manipulation;
@@ -177,7 +343,8 @@ html.cursor-hidden * {
 #journey-splash-play-btn:focus-visible,
 #journey-splash-resume-btn:hover,
 #journey-splash-resume-btn:focus-visible {
-  background: #e8123a;
+  outline: 0.12em solid var(--jr-tint);
+  outline-offset: 0.12em;
 }
 
 /* "Start over" is the secondary of the pair: same size to stay a fair
@@ -185,12 +352,14 @@ html.cursor-hidden * {
 #journey-splash-startover-btn {
   border: none;
   border-radius: 999px;
-  padding: 0.9em 2em;
-  background: rgba(255, 255, 255, 0.18);
+  padding: 0.435em 1.13em;
+  background: var(--jr-purple);
   color: #ffffff;
-  font-family: inherit;
-  font-size: clamp(1.05rem, 3.4vw, 1.4rem);
-  font-weight: 600;
+  font-family: var(--jr-font-label);
+  font-size: clamp(1.15rem, 2.3 * var(--u), 2.9rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.06em;
   cursor: pointer;
   transition: background-color 0.2s ease;
   touch-action: manipulation;
@@ -198,21 +367,25 @@ html.cursor-hidden * {
 
 #journey-splash-startover-btn:hover,
 #journey-splash-startover-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.32);
+  background: var(--jr-deep);
+  outline: 0.12em solid var(--jr-tint);
+  outline-offset: 0.12em;
 }
 
 /* "Skip to slides" is quieter again than "Start over": it is always on the
    splash, so it must not compete with Begin Video for the eye, while still
    being a fair target from across a room. */
 #journey-splash-slides-btn {
-  border: 2px solid rgba(255, 255, 255, 0.35);
+  border: max(2px, 0.11em) solid rgba(222, 213, 234, 0.6);
   border-radius: 999px;
-  padding: 0.7em 1.6em;
+  padding: 0.45em 1.1em;
   background: transparent;
-  color: rgba(255, 255, 255, 0.85);
-  font-family: inherit;
-  font-size: clamp(0.95rem, 2.8vw, 1.2rem);
-  font-weight: 600;
+  color: var(--jr-tint);
+  font-family: var(--jr-font-label);
+  font-size: clamp(1rem, 2 * var(--u), 2.5rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.06em;
   cursor: pointer;
   transition: background-color 0.2s ease;
   touch-action: manipulation;
@@ -220,29 +393,32 @@ html.cursor-hidden * {
 
 #journey-splash-slides-btn:hover,
 #journey-splash-slides-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(222, 213, 234, 0.16);
+  border-color: var(--jr-tint);
   color: #ffffff;
 }
 
 #journey-splash-play-icon,
 .journey-splash-play-icon {
-  font-size: 1.2rem;
+  font-size: 0.8em;
 }
 
+/* Figtree, the reading voice. The keys are plain words, as drawn in the
+   mockup, not boxed keycaps. */
 #journey-splash-prompt {
-  margin-top: 1vh;
-  font-size: 1.1rem;
+  margin-top: clamp(0.8rem, 1.9 * var(--u), 2.4rem);
+  font-size: clamp(0.8rem, 1.25 * var(--u), 1.6rem);
+  color: rgba(255, 255, 255, 0.85);
   opacity: 0.6;
   animation: journey-splash-pulse 2.4s ease-in-out infinite;
 }
 
 #journey-splash-prompt kbd {
-  display: inline-block;
-  padding: 0.15em 0.5em;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.15);
+  display: inline;
+  padding: 0;
+  background: none;
   font-family: inherit;
-  font-size: 0.95em;
+  font-size: 1em;
 }
 
 @keyframes journey-splash-pulse {
@@ -272,9 +448,9 @@ html.cursor-hidden * {
   max-width: min(52ch, 88vw);
   padding: 0.6rem 0.9rem;
   border-radius: 10px;
-  border-left: 4px solid #f0b429;
-  background: rgba(0, 0, 0, 0.45);
-  color: #ffe9b8;
+  border-left: 4px solid var(--jr-sun);
+  background: var(--jr-deep);
+  color: #ffffff;
   font-size: clamp(0.9rem, 1.5vw, 1.2rem);
   line-height: 1.4;
   text-align: left;
@@ -285,6 +461,8 @@ html.cursor-hidden * {
    reads as "working on it" rather than a dead black screen. Same cheap
    opacity-pulse-only animation budget as the splash — no spinners with
    transforms, this renders on a Pi Zero. */
+/* Deep ink, still see-through: when a video stalls mid-lesson its frozen
+   frame stays faintly visible under the words, as it always did. */
 #journey-loading {
   position: absolute;
   inset: 0;
@@ -294,23 +472,25 @@ html.cursor-hidden * {
   justify-content: center;
   gap: 1.2vh;
   color: #ffffff;
-  font-family: system-ui, sans-serif;
+  font-family: var(--jr-font-read);
   text-align: center;
   padding: 4vh 4vw;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(64, 58, 119, 0.82);
   z-index: 5;
   pointer-events: none;
 }
 
 #journey-loading-text {
-  font-size: clamp(1.4rem, 5vw, 2.4rem);
-  font-weight: 700;
+  font-family: var(--jr-font-shout);
+  font-size: clamp(1.4rem, 4.2 * var(--u), 5rem);
+  font-weight: 400;
+  /* No shadow here: this is the element that pulses. */
   animation: journey-splash-pulse 2.4s ease-in-out infinite;
 }
 
 #journey-loading-note {
-  font-size: clamp(0.95rem, 3vw, 1.2rem);
-  opacity: 0.6;
+  font-size: clamp(0.95rem, 1.6 * var(--u), 2rem);
+  color: var(--jr-tint);
   max-width: 80vw;
 }
 
@@ -335,7 +515,7 @@ html.cursor-hidden * {
   gap: 12px;
   padding: 10px 16px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(64, 58, 119, 0.9);
   z-index: 10;
   transition: opacity 0.25s ease;
   touch-action: manipulation;
@@ -346,6 +526,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   pointer-events: none;
 }
 
+/* The bar's pills are lavender with ink labels in Londrina, the kit's
+   button voice; hover and focus go white, a press goes club purple. */
 #pause-btn,
 #back15-btn,
 #fwd15-btn,
@@ -354,11 +536,13 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   padding: 10px 18px;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.55);
-  color: #000000;
-  font-family: system-ui, sans-serif;
-  font-size: 1.1rem;
-  font-weight: 600;
+  background: var(--jr-tint);
+  color: var(--jr-ink);
+  font-family: var(--jr-font-label);
+  font-size: 1.2rem;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
   display: flex;
   align-items: center;
   gap: 0.4em;
@@ -372,7 +556,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 #back15-btn:focus-visible,
 #fwd15-btn:hover,
 #fwd15-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.85);
+  background: #ffffff;
 }
 
 /* Scrubber: sized for fingers (28px thumb), plain flat colors only. */
@@ -390,7 +574,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 #video-scrubber::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(222, 213, 234, 0.4);
 }
 
 #video-scrubber::-webkit-slider-thumb {
@@ -407,7 +591,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 #video-scrubber::-moz-range-track {
   height: 8px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(222, 213, 234, 0.4);
 }
 
 #video-scrubber::-moz-range-thumb {
@@ -427,23 +611,26 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   padding: 10px 16px;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.55);
-  color: #000000;
-  font-family: system-ui, sans-serif;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  background: var(--jr-tint);
+  color: var(--jr-ink);
+  font-family: var(--jr-font-label);
+  font-size: 1.2rem;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
 #cc-btn:hover,
 #cc-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.85);
+  background: #ffffff;
 }
 
+/* On is the hot: the one state on this bar that must read from across the
+   room at a glance. */
 #cc-btn[aria-pressed='true'] {
-  background: #c8102e;
+  background: var(--jr-hot);
   color: #ffffff;
 }
 
@@ -481,9 +668,9 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   max-width: 92%;
   padding: 0.2em 0.55em;
   border-radius: 6px;
-  background-color: rgba(0, 0, 0, 0.55);
+  background-color: rgba(64, 58, 119, 0.8);
   color: #ffffff;
-  font-family: system-ui, sans-serif;
+  font-family: var(--jr-font-read);
   font-size: calc(clamp(18px, 4.5vmin, 56px) * var(--caption-scale, 1));
   font-weight: 600;
   line-height: 1.3;
@@ -491,22 +678,28 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   text-wrap: balance;
   /* The band is deliberately semi-transparent, so over a bright or busy
      frame the white text can lose contrast against it — the shadow keeps
-     the letterforms readable without making the band opaque. */
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+     the letterforms readable without making the band opaque. A hard offset
+     (the kit's only kind of shadow), not a blur: a cue changes every few
+     seconds, and a blurred shadow is the costliest text a Pi Zero paints. */
+  text-shadow: 0.05em 0.05em 0 rgba(35, 31, 32, 0.85);
 }
 
 /* Settings → Captions → "Dark backdrop": a solid band instead of the
    translucent one, for a lesson whose frames are bright enough that even
    the shadowed white text loses contrast. Flat colour only — no blur or
-   gradient — like everything else on the Pi's paint budget. */
+   gradient — like everything else on the Pi's paint budget. The deep ink
+   holds white text at about 10:1. */
 #caption-overlay.caption-backdrop #caption-text {
-  background-color: #000000;
+  background-color: var(--jr-ink);
 }
 
 /* ── Caption yes/no prompt ─────────────────────────────────────────────
    Shown once per device (the answer is remembered) between the operator's
    "start" gesture and playback. Same flat-color, opacity-only budget as the
    splash it replaces on screen. */
+/* It takes the splash's place on screen, so it wears the splash's field and
+   bottom wave: the question in Galindo, Yes (the focused default) in the hot,
+   No in the splash's outline style. */
 #caption-prompt {
   position: absolute;
   inset: 0;
@@ -516,16 +709,20 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   align-items: center;
   justify-content: center;
   gap: 3vh;
-  padding: 4vh 4vw;
-  background: #000000;
+  padding: 4vh 4vw 8.5vh;
+  background: var(--jr-art-wave) left bottom / 100% 14% no-repeat, var(--jr-ink);
   color: #ffffff;
-  font-family: system-ui, sans-serif;
+  font-family: var(--jr-font-read);
   text-align: center;
 }
 
 #caption-prompt-q {
-  font-size: clamp(1.6rem, 6vw, 3.2rem);
-  font-weight: 800;
+  font-family: var(--jr-font-shout);
+  font-size: clamp(1.8rem, 5.4 * var(--u), 6.5rem);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0.06em 0.06em 0 var(--jr-deep);
 }
 
 #caption-prompt-buttons {
@@ -537,41 +734,50 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 #caption-prompt-buttons button {
   min-width: clamp(9rem, 26vw, 15rem);
-  padding: clamp(0.8em, 2.5vh, 1.1em) clamp(1.4em, 4vw, 2.4em);
-  border: none;
+  padding: clamp(0.5em, 2vh, 0.7em) clamp(1.2em, 3vw, 1.8em);
+  border: max(2px, 0.08em) solid rgba(222, 213, 234, 0.6);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-  font-family: inherit;
-  font-size: clamp(1.2rem, 4vw, 2rem);
-  font-weight: 700;
+  background: transparent;
+  color: var(--jr-tint);
+  font-family: var(--jr-font-label);
+  font-size: clamp(1.3rem, 3 * var(--u), 3.6rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.06em;
   cursor: pointer;
   transition: background-color 0.2s ease;
   touch-action: manipulation;
 }
 
 #caption-yes {
-  background: #c8102e !important;
+  background: var(--jr-hot) !important;
+  border-color: var(--jr-hot) !important;
+  box-shadow: 0.13em 0.13em 0 var(--jr-hot-deep);
+  color: #ffffff !important;
 }
 
 #caption-prompt-buttons button:hover,
 #caption-prompt-buttons button:focus-visible {
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(222, 213, 234, 0.16);
+  border-color: var(--jr-tint);
+  color: #ffffff;
 }
 
+/* Yes arrives focused (Space/Enter take it), so its focus ring is the
+   lavender halo the splash's Begin Video wears, never a second colour. */
 #caption-yes:hover,
 #caption-yes:focus-visible {
-  background: #e8123a !important;
+  outline: 0.12em solid var(--jr-tint);
+  outline-offset: 0.12em;
 }
 
 #caption-prompt-buttons .key-hint {
   opacity: 0.75;
-  font-weight: 600;
 }
 
 #caption-prompt-note {
-  font-size: clamp(0.95rem, 2.6vw, 1.3rem);
-  opacity: 0.7;
+  font-size: clamp(0.95rem, 1.6 * var(--u), 2rem);
+  color: var(--jr-tint);
   max-width: 40ch;
 }
 
@@ -585,8 +791,9 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 #video-time {
   flex: none;
   color: #ffffff;
-  font-family: system-ui, sans-serif;
+  font-family: var(--jr-font-read);
   font-size: 1.05rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -659,9 +866,12 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 #unmute-btn:hover,
 #unmute-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.85);
+  background: #ffffff;
 }
 
+/* The corner buttons are the kit's chip: charcoal at half strength with a
+   white glyph, which reads on every background they float over (the lobby's
+   sky blue, the Journey ink, a video frame) without shouting over any. */
 #toggle-btn {
   position: fixed;
   bottom: max(3vh, 24px);
@@ -671,8 +881,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   padding: 0 14px;
   border-radius: 999px;
   border: none;
-  background: rgba(255, 255, 255, 0.35);
-  color: #000000;
+  background: var(--jr-chip);
+  color: #ffffff;
   font-size: 1.4rem;
   line-height: 1;
   cursor: pointer;
@@ -682,7 +892,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 #toggle-btn:hover,
 #toggle-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--jr-purple);
 }
 
 /* Third corner control — top-right, so it doesn't crowd the bottom row
@@ -697,8 +907,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   padding: 0 14px;
   border-radius: 999px;
   border: none;
-  background: rgba(255, 255, 255, 0.35);
-  color: #000000;
+  background: var(--jr-chip);
+  color: #ffffff;
   font-size: 1.4rem;
   line-height: 1;
   cursor: pointer;
@@ -708,7 +918,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 #settings-btn:hover,
 #settings-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--jr-purple);
 }
 
 /* ── Video settings panel ──────────────────────────────────────────
@@ -725,10 +935,13 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   justify-content: center;
 }
 
+/* A flat scrim, then the card on the Journey ink with a hard offset in the
+   club purple for its depth (the kit's misregistered-print look; the old
+   60px blurred shadow was the most expensive thing on this page to paint). */
 #settings-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(35, 31, 32, 0.72);
 }
 
 #settings-card {
@@ -738,12 +951,12 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: #1a1a1a;
+  background: var(--jr-ink);
   color: #ffffff;
   border-radius: 20px;
   padding: 2rem;
-  font-family: system-ui, sans-serif;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  font-family: var(--jr-font-read);
+  box-shadow: 10px 10px 0 var(--jr-purple);
 }
 
 #settings-header {
@@ -754,8 +967,11 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #settings-header h2 {
-  font-size: 2.2rem;
-  font-weight: 700;
+  font-family: var(--jr-font-shout);
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.1;
+  text-shadow: 0.06em 0.06em 0 var(--jr-deep);
 }
 
 #settings-close-btn {
@@ -763,7 +979,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   min-height: 60px;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(222, 213, 234, 0.16);
   color: #ffffff;
   font-size: 1.6rem;
   cursor: pointer;
@@ -771,12 +987,12 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 #settings-close-btn:hover,
 #settings-close-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(222, 213, 234, 0.32);
 }
 
 #settings-preview-note {
   font-size: 1.25rem;
-  opacity: 0.7;
+  color: var(--jr-tint);
   margin-bottom: 1.25rem;
 }
 
@@ -803,7 +1019,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   padding: 0.9rem 1.2rem;
   border: none;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(222, 213, 234, 0.08);
   color: #ffffff;
   font-family: inherit;
   font-size: 1.5rem;
@@ -813,17 +1029,22 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 .settings-lesson-row:hover,
 .settings-lesson-row:focus-visible {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(222, 213, 234, 0.2);
 }
 
+/* "WEEK 4" as a Londrina kicker beside the title. */
 .settings-lesson-row .settings-lesson-week {
   flex: none;
-  opacity: 0.6;
+  min-width: 4.6em;
+  color: var(--jr-tint);
+  font-family: var(--jr-font-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
 }
 
 .settings-lesson-row.settings-lesson-current {
-  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline: 2px solid var(--jr-tint);
 }
 
 #settings-variant-prompt,
@@ -848,11 +1069,13 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   padding: 1.4rem;
   border: none;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--jr-purple);
   color: #ffffff;
-  font-family: inherit;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-family: var(--jr-font-label);
+  font-size: 1.7rem;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.05em;
   cursor: pointer;
 }
 
@@ -862,7 +1085,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 #settings-student-buttons button:focus-visible,
 #settings-leader-buttons button:hover,
 #settings-leader-buttons button:focus-visible {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--jr-deep);
+  outline: 2px solid var(--jr-tint);
 }
 
 #settings-variant-buttons button:disabled {
@@ -875,9 +1099,10 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 #settings-leader-back {
   border: none;
   background: none;
-  color: rgba(255, 255, 255, 0.7);
-  font-family: inherit;
-  font-size: 1.3rem;
+  color: var(--jr-tint);
+  font-family: var(--jr-font-label);
+  font-size: 1.4rem;
+  letter-spacing: 0.04em;
   cursor: pointer;
   align-self: flex-start;
   padding: 0.5rem 0;
@@ -894,13 +1119,16 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 /* ── Leader handout viewer: full-screen overlay with the PDF in an
    iframe (Chromium's built-in viewer) and a big close button. ────── */
+/* Both reading overlays share one header: a deep-shade bar with the title
+   as a Londrina label and a lavender Close pill. The PDF itself is Chromium's
+   own viewer and is left alone. */
 #handout-view {
   position: fixed;
   inset: 0;
   z-index: 40;
   display: flex;
   flex-direction: column;
-  background: #1a1a1a;
+  background: var(--jr-ink);
 }
 
 #handout-header {
@@ -909,13 +1137,16 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.9rem 1.5rem;
+  background: var(--jr-deep);
   color: #ffffff;
-  font-family: system-ui, sans-serif;
+  font-family: var(--jr-font-read);
 }
 
 #handout-title {
-  font-size: clamp(1.1rem, 2.5vw, 1.6rem);
-  font-weight: 700;
+  font-family: var(--jr-font-label);
+  font-size: clamp(1.2rem, 2.6vw, 1.8rem);
+  font-weight: 400;
+  letter-spacing: 0.03em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -927,24 +1158,25 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   padding: 0 1.6rem;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  font-family: inherit;
-  font-size: 1.25rem;
-  font-weight: 600;
+  background: var(--jr-tint);
+  color: var(--jr-ink);
+  font-family: var(--jr-font-label);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
 #handout-close-btn:hover,
 #handout-close-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.35);
+  background: #ffffff;
 }
 
 #handout-frame {
   flex: 1;
   width: 100%;
   border: none;
-  background: #444444;
+  background: var(--jr-deep);
 }
 
 /* ── Leader prep: the handout's page-1 summary as text we lay out ─────
@@ -957,9 +1189,9 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   z-index: 40;
   display: flex;
   flex-direction: column;
-  background: #121212;
+  background: var(--jr-ink);
   color: #ffffff;
-  font-family: system-ui, sans-serif;
+  font-family: var(--jr-font-read);
 }
 
 #prep-header {
@@ -969,12 +1201,14 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.9rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--jr-deep);
 }
 
 #prep-title {
-  font-size: clamp(1.05rem, 2.4vw, 1.6rem);
-  font-weight: 700;
+  font-family: var(--jr-font-label);
+  font-size: clamp(1.15rem, 2.5vw, 1.8rem);
+  font-weight: 400;
+  letter-spacing: 0.03em;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -987,21 +1221,23 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   padding: 0 1.6rem;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  font-family: inherit;
-  font-size: 1.25rem;
-  font-weight: 600;
+  background: var(--jr-tint);
+  color: var(--jr-ink);
+  font-family: var(--jr-font-label);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
 #prep-close-btn:hover,
 #prep-close-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.35);
+  background: #ffffff;
 }
 
 #prep-close-btn:active {
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--jr-purple);
+  color: #ffffff;
   transition: none;
 }
 
@@ -1029,10 +1265,16 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   margin-bottom: clamp(1.25rem, 3vh, 2rem);
 }
 
+/* Section heads are Londrina kickers in the lavender tint: BIG IDEA, KEY
+   POINTS, SCRIPTURE, DISCUSSION QUESTIONS. */
 #prep-body h3 {
-  font-size: 1.15em;
-  font-weight: 700;
-  color: #ff6b83;
+  font-family: var(--jr-font-label);
+  font-size: 1.2em;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--jr-tint);
   margin-bottom: 0.4em;
 }
 
@@ -1056,13 +1298,13 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 #prep-body .prep-note,
 #prep-body .prep-footer {
-  opacity: 0.7;
+  color: var(--jr-tint);
   font-size: 0.8em;
 }
 
 #prep-body .prep-footer {
   padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(222, 213, 234, 0.25);
 }
 
 /* ── The transcript inside Read Prep ──────────────────────────────────
@@ -1074,7 +1316,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   max-width: 34em;
   margin: clamp(1.25rem, 3vh, 2rem) auto 0;
   padding-top: clamp(1rem, 2.5vh, 1.5rem);
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(222, 213, 234, 0.25);
 }
 
 .prep-transcript-toggle {
@@ -1083,22 +1325,24 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   padding: 0.85em 1.1em;
   border: none;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--jr-purple);
   color: #ffffff;
-  font-family: inherit;
-  font-size: 1em;
-  font-weight: 600;
+  font-family: var(--jr-font-label);
+  font-size: 1.05em;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   text-align: left;
   cursor: pointer;
 }
 
 .prep-transcript-toggle:hover,
 .prep-transcript-toggle:focus-visible {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--jr-deep);
+  outline: 2px solid var(--jr-tint);
 }
 
 .prep-transcript-toggle:active {
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--jr-deep);
   transition: none;
 }
 
@@ -1115,29 +1359,31 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 .prep-modes-label {
-  font-size: 0.8em;
+  font-family: var(--jr-font-label);
+  font-size: 0.85em;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.7;
+  color: var(--jr-tint);
 }
 
 .prep-mode-btn {
   min-height: 48px;
   padding: 0.5em 1.1em;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 2px solid rgba(222, 213, 234, 0.5);
   border-radius: 999px;
   background: none;
   color: #ffffff;
-  font-family: inherit;
-  font-size: 0.85em;
-  font-weight: 600;
+  font-family: var(--jr-font-label);
+  font-size: 0.9em;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
 .prep-mode-btn[aria-pressed='true'] {
-  background: #ffffff;
-  border-color: #ffffff;
-  color: #121212;
+  background: var(--jr-tint);
+  border-color: var(--jr-tint);
+  color: var(--jr-ink);
 }
 
 .prep-mode-btn:hover,
@@ -1151,9 +1397,13 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #prep-body .prep-para-heading {
-  font-size: 1.05em;
-  font-weight: 700;
-  color: #ff6b83;
+  font-family: var(--jr-font-label);
+  font-size: 1.1em;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jr-tint);
   margin: 1.4em 0 0.4em;
 }
 
@@ -1175,23 +1425,24 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   padding: 0.1em 0.35em;
   border: none;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.85);
+  background: rgba(222, 213, 234, 0.16);
+  color: var(--jr-tint);
   font-family: inherit;
   font-size: 0.8em;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .prep-time:hover,
 .prep-time:focus-visible {
-  background: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
+  background: var(--jr-tint);
+  color: var(--jr-ink);
 }
 
 .prep-time:active {
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--jr-purple);
+  color: #ffffff;
   transition: none;
 }
 
@@ -1218,7 +1469,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 .settings-list-note {
   padding: 0.9rem 1.2rem;
   font-size: 1.4rem;
-  opacity: 0.7;
+  color: var(--jr-tint);
 }
 
 /* ── Instant press feedback ───────────────────────────────────────────
@@ -1231,19 +1482,22 @@ html.cursor-hidden #video-controls:not(.force-visible) {
    very next paint instead of easing in; the release still eases out via
    each control's own base transition. These sit at the end of the sheet so
    they win the cascade over the hover/focus rules above. */
+/* A pressed hot button sinks onto its own offset: the deep shade fills it
+   and the shadow goes, a flat colour swap like every press here. */
 #journey-splash-play-btn:active,
 #journey-splash-resume-btn:active {
-  background: #a00d25;
+  background: var(--jr-hot-deep);
+  box-shadow: none;
   transition: none;
 }
 
 #journey-splash-startover-btn:active {
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--jr-deep);
   transition: none;
 }
 
 #journey-splash-slides-btn:active {
-  background: rgba(255, 255, 255, 0.32);
+  background: rgba(222, 213, 234, 0.32);
   transition: none;
 }
 
@@ -1252,31 +1506,39 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 #fwd15-btn:active,
 #unmute-btn:active,
 #cc-btn:active {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--jr-purple);
+  color: #ffffff;
   transition: none;
 }
 
 #cc-btn[aria-pressed='true']:active {
-  background: #a00d25;
+  background: var(--jr-hot-deep);
   transition: none;
 }
 
 #toggle-btn:active,
 #settings-btn:active {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--jr-deep);
   transition: none;
 }
 
 .settings-lesson-row:active {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(222, 213, 234, 0.34);
 }
 
 #settings-variant-buttons button:active:not(:disabled),
 #settings-student-buttons button:active,
-#settings-leader-buttons button:active,
-#settings-close-btn:active,
+#settings-leader-buttons button:active {
+  background: var(--jr-deep);
+}
+
+#settings-close-btn:active {
+  background: rgba(222, 213, 234, 0.45);
+}
+
 #handout-close-btn:active {
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--jr-purple);
+  color: #ffffff;
 }
 
 #settings-variant-back:active,
@@ -1286,12 +1548,13 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #caption-prompt-buttons button:active {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(222, 213, 234, 0.34);
   transition: none;
 }
 
 #caption-yes:active {
-  background: #ff2e52 !important;
+  background: var(--jr-hot-deep) !important;
+  box-shadow: none;
   transition: none;
 }
 
@@ -1395,7 +1658,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
   gap: 12px;
   padding: 10px 16px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(64, 58, 119, 0.9);
   z-index: 10;
   transition: opacity 0.25s ease;
   touch-action: manipulation;
@@ -1406,6 +1669,8 @@ html.cursor-hidden #slide-controls {
   pointer-events: none;
 }
 
+/* Back is a lavender pill, Next the hot (the one to press, with the hot's
+   hard offset), in the video bar's Londrina voice. */
 #slide-prev-btn,
 #slide-next-btn {
   flex: none;
@@ -1413,28 +1678,32 @@ html.cursor-hidden #slide-controls {
   padding: 12px 22px;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.55);
-  color: #000000;
-  font-family: system-ui, sans-serif;
-  font-size: 1.15rem;
-  font-weight: 600;
+  background: var(--jr-tint);
+  color: var(--jr-ink);
+  font-family: var(--jr-font-label);
+  font-size: 1.3rem;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.05em;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
 #slide-next-btn {
-  background: #c8102e;
+  background: var(--jr-hot);
+  box-shadow: 3px 3px 0 var(--jr-hot-deep);
   color: #ffffff;
 }
 
 #slide-prev-btn:hover,
 #slide-prev-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.85);
+  background: #ffffff;
 }
 
 #slide-next-btn:hover,
 #slide-next-btn:focus-visible {
-  background: #e8123a;
+  outline: 2px solid var(--jr-tint);
+  outline-offset: 2px;
 }
 
 #slide-prev-btn:disabled {
@@ -1443,19 +1712,23 @@ html.cursor-hidden #slide-controls {
 }
 
 #slide-prev-btn:active:not(:disabled) {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--jr-purple);
+  color: #ffffff;
   transition: none;
 }
 
 #slide-next-btn:active {
-  background: #a00d25;
+  background: var(--jr-hot-deep);
+  box-shadow: none;
   transition: none;
 }
 
 #slide-counter {
-  color: #ffffff;
-  font-family: system-ui, sans-serif;
-  font-size: 1.15rem;
+  color: var(--jr-tint);
+  font-family: var(--jr-font-label);
+  font-size: 1.3rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1479,17 +1752,23 @@ html.cursor-hidden #slide-controls {
 #settings-quality {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(222, 213, 234, 0.25);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
+/* Section heads are Londrina kickers, as on the splash. */
 #settings-slides h3,
 #settings-captions h3,
 #settings-quality h3 {
-  font-size: 1.6rem;
-  font-weight: 700;
+  font-family: var(--jr-font-label);
+  font-size: 1.7rem;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jr-tint);
 }
 
 /* Settings -> Playback quality: Auto / Full quality / Low power, one pressed
@@ -1504,20 +1783,21 @@ html.cursor-hidden #slide-controls {
 .quality-btn {
   min-height: 56px;
   padding: 0.5em 1.4em;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 2px solid rgba(222, 213, 234, 0.5);
   border-radius: 999px;
   background: none;
   color: #ffffff;
-  font-family: inherit;
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-family: var(--jr-font-label);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
 .quality-btn[aria-pressed='true'] {
-  background: #ffffff;
-  border-color: #ffffff;
-  color: #121212;
+  background: var(--jr-tint);
+  border-color: var(--jr-tint);
+  color: var(--jr-ink);
 }
 
 .quality-btn:hover,
@@ -1537,7 +1817,7 @@ html.cursor-hidden #slide-controls {
 .settings-slides-hint,
 .settings-hint {
   font-size: 1.2rem;
-  opacity: 0.7;
+  color: var(--jr-tint);
 }
 
 .settings-slides-hint kbd,
@@ -1545,9 +1825,11 @@ html.cursor-hidden #slide-controls {
   display: inline-block;
   padding: 0.05em 0.45em;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(222, 213, 234, 0.18);
+  color: #ffffff;
   font-family: inherit;
   font-size: 0.95em;
+  font-weight: 700;
 }
 
 .settings-slides-field,
@@ -1566,7 +1848,7 @@ html.cursor-hidden #slide-controls {
   padding: 0.5rem 0.8rem;
   border-radius: 10px;
   border: none;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(222, 213, 234, 0.18);
   color: #ffffff;
   cursor: pointer;
 }
@@ -1578,7 +1860,7 @@ html.cursor-hidden #slide-controls {
 
 .settings-slides-label {
   font-size: 1.3rem;
-  opacity: 0.85;
+  color: var(--jr-tint);
   margin-top: 0.25rem;
 }
 
@@ -1595,7 +1877,7 @@ html.cursor-hidden #slide-controls {
 .settings-check input {
   width: 1.6rem;
   height: 1.6rem;
-  accent-color: #c8102e;
+  accent-color: var(--jr-hot);
   cursor: pointer;
 }
 
@@ -1615,32 +1897,38 @@ html.cursor-hidden #slide-controls {
   gap: 0.8rem;
   align-self: flex-start;
   padding: 0.6rem 1.1rem;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(222, 213, 234, 0.4);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(222, 213, 234, 0.08);
   color: #ffffff;
-  font-family: inherit;
-  font-size: 1.3rem;
+  font-family: var(--jr-font-label);
+  font-size: 1.4rem;
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
 #notes-edit-toggle:hover,
 #notes-edit-toggle:focus-visible {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(222, 213, 234, 0.2);
 }
 
 #notes-edit-toggle:active {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(222, 213, 234, 0.32);
   transition: none;
 }
 
+/* The one thing on this panel that is "different from what was written":
+   the kit's hot marks what is new. */
 #notes-edited-badge {
   padding: 0.15em 0.7em;
   border-radius: 999px;
-  background: #c8102e;
+  background: var(--jr-hot);
   color: #ffffff;
+  font-family: var(--jr-font-label);
   font-size: 0.85em;
-  font-weight: 600;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -1663,18 +1951,21 @@ html.cursor-hidden #slide-controls {
 }
 
 .notes-edit-heading {
-  font-size: 1.25rem;
-  font-weight: 600;
-  opacity: 0.85;
+  font-family: var(--jr-font-label);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jr-tint);
 }
 
 .notes-edit-input {
   width: 100%;
   box-sizing: border-box;
   padding: 0.6rem 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(222, 213, 234, 0.3);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(222, 213, 234, 0.08);
   color: #ffffff;
   font-family: inherit;
   font-size: 1.2rem;
@@ -1683,8 +1974,8 @@ html.cursor-hidden #slide-controls {
 }
 
 .notes-edit-input:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.14);
+  outline: 2px solid var(--jr-tint);
+  background: rgba(222, 213, 234, 0.14);
 }
 
 #notes-edit-actions {
@@ -1698,26 +1989,27 @@ html.cursor-hidden #slide-controls {
   padding: 0.6rem 1.1rem;
   border: none;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(222, 213, 234, 0.18);
   color: #ffffff;
-  font-family: inherit;
-  font-size: 1.2rem;
+  font-family: var(--jr-font-label);
+  font-size: 1.3rem;
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
 #notes-reset-btn:hover,
 #notes-reset-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(222, 213, 234, 0.32);
 }
 
 #notes-reset-btn:active {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(222, 213, 234, 0.42);
   transition: none;
 }
 
 #notes-edit-status {
   font-size: 1.15rem;
-  opacity: 0.7;
+  color: var(--jr-tint);
 }
 
 /* Phone: one scroller, not two. The card itself scrolls and the lesson list
@@ -1729,6 +2021,11 @@ html.cursor-hidden #slide-controls {
     flex: none;
     min-height: 0;
     overflow-y: visible;
+  }
+
+  /* The week kicker's TV column would cost a phone row most of its width. */
+  .settings-lesson-row .settings-lesson-week {
+    min-width: 0;
   }
 
   .settings-slides-field,

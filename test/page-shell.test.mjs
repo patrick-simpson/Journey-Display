@@ -2,7 +2,8 @@
 // longer shows at all.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bootKiosk } from './kiosk-dom.mjs';
+import { readFileSync } from 'node:fs';
+import { bootKiosk, tick, PI_ZERO } from './kiosk-dom.mjs';
 
 const ROUTES = {
   'current-lesson.json': {
@@ -134,4 +135,102 @@ test('a double-click on the Journey layer toggles the page, a control does not',
   dblclick(kiosk, 'journey-placeholder');
   assert.deepEqual(calls, ['enter', 'exit']);
   kiosk.close();
+});
+
+/* ── The splash, in the kit ───────────────────────────────────────────── */
+
+test('the splash names the lesson as a kicker over its one-word name', () => {
+  const kiosk = bootKiosk(ROUTES);
+  const { splashLessonText } = kiosk.window;
+  assert.deepEqual(
+    { ...splashLessonText({ week: 4, title: 'Unit 1, Lesson 4: Logic' }) },
+    { kicker: 'Week 4 · Unit 1 · Lesson 4', headline: 'Logic' }
+  );
+  assert.deepEqual(
+    { ...splashLessonText({ week: 18, title: '  unit 5,  lesson 2 :  Resurrection ' }) },
+    { kicker: 'Week 18 · Unit 5 · Lesson 2', headline: 'Resurrection' }
+  );
+  // A title in any other shape loses nothing: the whole of it is the
+  // headline, and the week alone is the kicker.
+  assert.deepEqual(
+    { ...splashLessonText({ week: 9, title: 'A Special Evening: Q&A' }) },
+    { kicker: 'Week 9', headline: 'A Special Evening: Q&A' }
+  );
+  assert.deepEqual({ ...splashLessonText({ week: 2, title: null }) }, { kicker: 'Week 2', headline: '' });
+  kiosk.close();
+});
+
+test('the splash and the placeholder carry the Journey wordmark and this week', async () => {
+  const kiosk = bootKiosk(ROUTES);
+  const { document, window } = kiosk;
+  for (const id of ['journey-splash-journey', 'journey-placeholder']) {
+    const mark = document.querySelector(`#${id} img`);
+    assert.equal(mark.getAttribute('src'), 'brand/logos/journey-white.svg');
+    assert.equal(mark.getAttribute('alt'), 'Journey', 'the mark still reads "Journey" aloud');
+  }
+  for (let i = 0; i < 4; i += 1) await tick();
+  window.setView('journey');
+  assert.equal(document.getElementById('journey-splash').classList.contains('hidden'), false);
+  assert.equal(document.getElementById('journey-splash-week').textContent, 'Week 1 · Unit 1 · Lesson 1');
+  assert.equal(document.getElementById('journey-splash-title').textContent, 'Apologetics');
+  assert.equal(document.getElementById('journey-splash-title').classList.contains('is-long'), false);
+  assert.equal(document.getElementById('journey-splash-banner').textContent, 'Large Group Time');
+  kiosk.close();
+});
+
+test('a title that does not split is shown whole, at the smaller size', async () => {
+  const kiosk = bootKiosk({
+    'current-lesson.json': {
+      json: { ...ROUTES['current-lesson.json'].json, week: 9, title: 'A Special Evening: Questions and Answers' },
+    },
+  });
+  for (let i = 0; i < 4; i += 1) await tick();
+  kiosk.window.setView('journey');
+  const title = kiosk.document.getElementById('journey-splash-title');
+  assert.equal(kiosk.document.getElementById('journey-splash-week').textContent, 'Week 9');
+  assert.equal(title.textContent, 'A Special Evening: Questions and Answers');
+  assert.equal(title.classList.contains('is-long'), true);
+  kiosk.close();
+});
+
+test('every lesson in the course splits into a short one-word name', () => {
+  // The 14-character "is-long" line in showJourneyContent() is only safe if
+  // no real lesson name comes near it.
+  const lessons = JSON.parse(readFileSync(new URL('../public/lessons.json', import.meta.url), 'utf8'));
+  const kiosk = bootKiosk(ROUTES);
+  for (const lesson of lessons.lessons) {
+    const { kicker, headline } = kiosk.window.splashLessonText(lesson);
+    assert.match(kicker, new RegExp(`^Week ${lesson.week} · Unit ${lesson.unit} · Lesson ${lesson.lesson}$`));
+    assert.match(headline, /^\S{1,12}$/, `week ${lesson.week}: "${headline}"`);
+  }
+  kiosk.close();
+});
+
+test('the brand fonts are asked for at startup, and nothing waits on them', async () => {
+  const asked = [];
+  const kiosk = bootKiosk(ROUTES, {}, PI_ZERO, (window) => {
+    // A font load that never settles: the flaky evening this exists for.
+    window.document.fonts = { load: (face) => (asked.push(face), new Promise(() => {})) };
+  });
+  assert.deepEqual(asked, ['400 1em Galindo', '400 1em "Londrina Solid"', '400 1em Figtree']);
+  for (let i = 0; i < 4; i += 1) await tick();
+  kiosk.window.setView('journey');
+  assert.equal(
+    kiosk.document.getElementById('journey-splash').classList.contains('hidden'),
+    false,
+    'the splash is up with the fonts still loading'
+  );
+  kiosk.close();
+
+  // A browser that throws on the request, or has no font API at all, still
+  // boots: the fallback faces are the only cost.
+  const throwing = bootKiosk(ROUTES, {}, PI_ZERO, (window) => {
+    window.document.fonts = {
+      load: () => {
+        throw new window.DOMException('bad font shorthand', 'SyntaxError');
+      },
+    };
+  });
+  assert.equal(typeof throwing.window.splashLessonText, 'function', 'schedule.js ran to the end');
+  throwing.close();
 });

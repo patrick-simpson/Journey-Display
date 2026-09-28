@@ -9,6 +9,11 @@
        kiosk compares it with version.json to notice a new deploy and reload
        itself when nothing is on screen. -->
   <meta name="journey-build" content="dev" />
+  <!-- The Awana 2026-27 brand kit, mirrored byte for byte in brand/ (see
+       CLAUDE.md, "Brand kit"): its colour tokens and its three self-hosted
+       font families. Nothing on this page loads a font from the network. -->
+  <link rel="stylesheet" href="brand/tokens.css" />
+  <link rel="stylesheet" href="brand/fonts.css" />
   <link rel="stylesheet" href="src/style.css" />
 </head>
 <body>
@@ -26,11 +31,11 @@
 
   <div id="journey-view" class="view hidden">
     <div id="journey-placeholder">
-      <span>Journey</span>
+      <span><img src="brand/logos/journey-white.svg" alt="Journey" draggable="false" /></span>
     </div>
     <div id="journey-splash" class="hidden">
       <div id="journey-splash-wordmark">
-        <span id="journey-splash-journey">Journey</span>
+        <span id="journey-splash-journey"><img src="brand/logos/journey-white.svg" alt="Journey" draggable="false" /></span>
         <span id="journey-splash-advocates">Advocates</span>
       </div>
       <div id="journey-splash-banner">Large Group Time</div>

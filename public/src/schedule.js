@@ -745,6 +745,20 @@ journeyVideo.addEventListener('loadedmetadata', () => {
   syncScrubber();
 });
 
+// The splash names the lesson the way the catalog's Large Group Time page
+// does: a small kicker ("Week 4 · Unit 1 · Lesson 4") over the lesson's own
+// name, shouted ("Logic"). lessons.json titles all read "Unit N, Lesson M:
+// Name"; a title in any other shape keeps the whole title as the headline and
+// the week alone as the kicker, so a change on Awana's side can cost the
+// layout but never a word. Pure, so the tests can pin it.
+function splashLessonText(lesson) {
+  const week = `Week ${lesson.week}`;
+  const title = String(lesson.title == null ? '' : lesson.title);
+  const match = /^\s*Unit\s+(\d+)\s*,\s*Lesson\s+(\d+)\s*:\s*(\S.*?)\s*$/i.exec(title);
+  if (!match) return { kicker: week, headline: title };
+  return { kicker: `${week} · Unit ${match[1]} · Lesson ${match[2]}`, headline: match[3] };
+}
+
 // Entering the journey window no longer autoplays anything: it shows a
 // branded "Large Group Time" splash naming this week's lesson, and waits
 // for the operator to actually start the video (Space / → / the on-screen
@@ -776,8 +790,12 @@ async function showJourneyContent() {
   // in-flight playback request this call just invalidated would otherwise
   // sit on top of it (and its stall note would fire over it 12s later).
   hideVideoLoading();
-  journeySplashWeek.textContent = `Week ${currentLesson.week}`;
-  journeySplashTitle.textContent = currentLesson.title;
+  const splashText = splashLessonText(currentLesson);
+  journeySplashWeek.textContent = splashText.kicker;
+  journeySplashTitle.textContent = splashText.headline;
+  // Every real lesson name is one word of at most 12 letters; anything longer
+  // is a fallback title and gets the smaller size (see style.css).
+  journeySplashTitle.classList.toggle('is-long', splashText.headline.length > 14);
   showQualityNote(currentLesson);
   // Decided from localStorage alone — no fetch stands between the splash
   // appearing and the operator seeing which buttons it offers.
@@ -3490,6 +3508,29 @@ loadTeachingSlides();
 // Small (~58KB) and only read when a leader presses "Read Prep" — but warmed
 // here, because the whole point is that it opens on a dead connection.
 loadLeaderPrep();
+
+/* The brand kit's fonts are self-hosted (brand/fonts.css), but a browser only
+   fetches a web font once text set in it is actually rendered, and on this
+   kiosk that first happens at the 6:30 splash: in the evening, on the
+   connection this page already distrusts. So all three are asked for here,
+   while the Check-in Display is up and nothing is waiting on them. A loaded
+   face stays loaded for the life of the page, which on the kiosk is the whole
+   day. Fire and forget: nothing awaits this, and a failure only means the
+   splash uses the fallback faces the tokens name. */
+const BRAND_FONT_FACES = ['400 1em Galindo', '400 1em "Londrina Solid"', '400 1em Figtree'];
+
+function warmBrandFonts() {
+  const fonts = document.fonts;
+  if (!fonts || typeof fonts.load !== 'function') return;
+  for (const face of BRAND_FONT_FACES) {
+    try {
+      fonts.load(face).catch(() => {});
+    } catch {
+      // A browser that rejects the shorthand outright: fallbacks it is.
+    }
+  }
+}
+warmBrandFonts();
 
 /* ── Self-updating kiosk ──────────────────────────────────────────────
    The Pi is wall-mounted and nobody wants to SSH in or find a keyboard to

@@ -1,0 +1,59 @@
+/*
+ * Awana app family brand tokens (2026-27 catalog).
+ *
+ * The same values as tokens.json, as CSS custom properties, for pages that
+ * style themselves with plain CSS (the Journey kiosk and the printer's
+ * dashboard read a byte-identical mirror of this file). A unit test in the
+ * signage repo (src/lib/brandKit.test.js) fails if the two files disagree,
+ * so edit both together.
+ */
+:root {
+  --brand-puggles: #1DB6D9;
+  --brand-puggles-deep: #1A627C;
+  --brand-puggles-tint: #BCDCEE;
+  --brand-cubbies: #4C72B8;
+  --brand-cubbies-deep: #2F4F8A;
+  --brand-cubbies-tint: #C4DDF3;
+  --brand-sparks: #F04A4B;
+  --brand-sparks-deep: #B82B32;
+  --brand-sparks-tint: #FDDACF;
+  --brand-tnt: #58BD79;
+  --brand-tnt-deep: #2F8A4E;
+  --brand-tnt-tint: #D0E9D5;
+  --brand-trek: #047E71;
+  --brand-trek-deep: #02554C;
+  --brand-trek-tint: #CCEAEC;
+  --brand-journey: #8A649D;
+  --brand-journey-deep: #56467F;
+  --brand-journey-tint: #DED5EA;
+  --brand-journey-ink: #403A77;
+
+  --brand-sky: #B3D0E7;
+  --brand-cloud: #D6EFF8;
+  --brand-ink: #231F20;
+  --brand-chip: rgba(3, 4, 4, 0.5);
+  --brand-hot: #F15A28;
+  --brand-hot-deep: #9E3512;
+  --brand-sun: #FCB614;
+  --brand-orange: #FAA41D;
+  --brand-orange-deep: #C97A08;
+  --brand-cream: #FFE8C2;
+  --brand-blue: #4C72B8;
+  --brand-blue-deep: #34569A;
+
+  --brand-font-display: 'Galindo', 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif;
+  --brand-font-label: 'Londrina Solid', 'Arial Narrow', 'Helvetica Neue', sans-serif;
+  --brand-font-body: 'Figtree', 'Segoe UI', system-ui, sans-serif;
+
+  --brand-beat: 100ms;
+  --brand-dur-quick: 200ms;
+  --brand-dur-exit: 280ms;
+  --brand-dur-settle: 520ms;
+  --brand-dur-pop: 460ms;
+  --brand-dur-wipe: 640ms;
+  --brand-dur-stinger: 560ms;
+  --brand-ease-wipe: cubic-bezier(0.76, 0, 0.24, 1);
+  --brand-ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --brand-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --brand-ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+}

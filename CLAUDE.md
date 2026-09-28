@@ -42,12 +42,18 @@ gets there by itself.
   the Pages upload and rewrites the copy being uploaded: it writes
   `public/version.json` (`{ build, builtAt }`), puts the same SHA in
   `index.html`'s `<meta name="journey-build">`, and appends `?v=<sha>` to
-  `src/schedule.js` and `src/style.css`. The committed page keeps
-  `content="dev"` and plain asset paths (a test pins that), and
-  `version.json` is gitignored, so a checkout and the jsdom harness see
-  the page exactly as before. The script is idempotent and throws if the
-  meta is missing, which fails the deploy loudly rather than shipping a
-  page that can never update itself.
+  every `STAMPED_ASSETS` path: `src/schedule.js`, `src/style.css`,
+  `brand/tokens.css`, `brand/fonts.css` and the wordmark
+  `brand/logos/journey-white.svg`. It also rewrites the deployed
+  `brand/fonts.css` so each font URL carries `?v=<first 12 hex of that
+  font's sha256>` (see "Brand kit" below). The committed page keeps
+  `content="dev"` and plain asset paths (a test pins that), the committed
+  `brand/` stays byte-identical to the kit, and `version.json` is
+  gitignored, so a checkout and the jsdom harness see the page exactly as
+  before. The script is idempotent and throws if the meta is missing, if
+  `brand/fonts.css` is missing or names no fonts, or if it names a font the
+  deploy does not carry, which fails the deploy loudly rather than shipping
+  a page that can never update itself or 404s its own type.
 - **The `?v=` is not decoration.** Pages serves every asset with
   `max-age=600` and Chromium reuses a still-fresh subresource across a
   reload, so without it a reload would come back running the *previous*
@@ -125,7 +131,9 @@ setting has regressed.
   Chromium kiosk browser matters more than developer convenience.
 - Only `public/` is deployed to GitHub Pages (see
   `.github/workflows/deploy.yml`) — repo docs, workflow files, etc.
-  never end up served on the live site.
+  never end up served on the live site. (The one README that is served is
+  `public/brand/README.md`, because the kit mirror is the whole kit, byte
+  for byte; see "Brand kit" below.)
 - `public/index.html` is the only page. It mounts two full-viewport
   layers and toggles a `hidden` class between them rather than
   destroying/recreating either — the Awana Check-in Display iframe
@@ -150,6 +158,70 @@ setting has regressed.
   script, so its top-level `function` declarations are reachable on `window`
   while its `let`/`const` state deliberately is not. Run
   `node --check public/src/schedule.js` alongside it.
+
+## Brand kit (Awana 2026-27 catalog)
+
+Owner decision 2026-09-27: every screen in the Awana family (lobby signage,
+projector, this kiosk, the label printer) wears the 2026-27 catalog's design
+language and full official branding. For Journey that means the catalog's
+own identity: the wordmark whose O is a disc with a mountain peak cut out,
+the club purple `#8A649D`, its deep shade `#56467F`, the deep ink `#403A77`
+and the lavender tint `#DED5EA`, plus the house hot `#F15A28` for the one
+thing to press. Three voices: **Galindo** shouts (the lesson name, the
+caption question, the settings title), **Londrina Solid** labels (kickers,
+the corner tab, every button), **Figtree** is read (hints, settings text,
+Read Prep, captions).
+
+- **`public/brand/` is a byte-identical mirror of the whole kit**, whose
+  canonical copy is `Awana-Check-in-Display/shared/brand/` (read its
+  README). Never edit it here. `node scripts/sync-brand-kit.mjs
+  <signage-checkout>` re-copies it and rewrites
+  `data/brand-kit-manifest.json` (a sha256 per file plus the signage commit
+  that last touched the kit); `--check` compares without writing and exits 1
+  on drift. `test/brand-kit.test.mjs` fails if the mirror and the manifest
+  disagree in any file, so a hand edit, a half copy or a dropped file is
+  caught here even though the canonical repo is not. Commit the mirror and
+  the manifest together.
+- **Self-hosted, never the network.** `index.html` links
+  `brand/tokens.css` and `brand/fonts.css` ahead of `src/style.css`; no
+  font, stylesheet or image comes from anywhere else (a test pins the only
+  cross-origin URL on the page to the Check-in Display iframe). A browser
+  fetches a web font only once text set in it is rendered, which here would
+  first happen at the 6:30 splash on the evening connection, so
+  `warmBrandFonts()` asks `document.fonts` for the three faces at startup,
+  fire and forget; nothing awaits it and a failure only means the fallbacks.
+  The TTFs and Londrina's 900 weight are in the mirror but never fetched.
+- **Versioned like the code.** `scripts/stamp-build.mjs` puts `?v=<sha>` on
+  both kit stylesheets and the wordmark, and `?v=<font's own hash>` on every
+  URL inside the deployed `brand/fonts.css`, so a self-updated kiosk never
+  pairs new `@font-face` rules with old font bytes, and a deploy that did
+  not touch the fonts does not make the Pi fetch them again (see
+  "Self-updating kiosk").
+- **`style.css` reads the kit through `--jr-*` aliases** at the top of the
+  sheet, each `var(--brand-…, <the kit's own value>)`, so the page still looks
+  like itself if `tokens.css` failed to load; the test fails if a fallback
+  drifts from `tokens.css`. `--u` is 1/100 of the largest 16:9 box's width
+  (allowed to grow a quarter into spare height on the 640x480 safe-mode
+  screen); every size built on it keeps a rem floor for phones.
+- **The wrapper art is baked, not markup.** The bottom wave (the kit's
+  Journey wave twice in one image, deep behind, purple in front), the corner
+  tab and the two doodle clusters are SVG data URIs in `style.css`, drawn as
+  backgrounds and pseudo-elements, so `index.html` gained only the wordmark
+  `<img>`s and every id and class stayed put. Their path data is copied
+  verbatim from `public/brand/shapes/` and `doodles/`, and a test pins each
+  one there; only the fills are baked, because an SVG drawn as an image
+  cannot inherit `currentColor`.
+- **The Pi Zero paint budget is a test, not a habit.** `journey-splash-pulse`
+  is the only `@keyframes`; no `filter`, no `backdrop-filter`, no gradients;
+  every `box-shadow`/`text-shadow` has zero blur (the kit's depth is a hard
+  offset), with one exception, `#slide-template`'s soft text shadow, which
+  copies Awana's deck. Measured in Chromium at 640x480 and 1080p: the idle
+  splash and the loading overlay repaint nothing while their pulse runs (it
+  runs on the compositor).
+- **Awana's deck is not ours.** The teaching-slide images and the TEMPLATE
+  slide's type (`#slide-template`, Calibri/Carlito over the deck's own
+  texture) stay exactly as they were; only the controls around them wear
+  the kit. The pillarbox stays black.
 
 ## Daily schedule
 
@@ -176,7 +248,8 @@ Vimeo — confirmed by fetching the real page; each lesson ships both a
 "Leader Video" and a "Student Video", and this repo always uses the
 Student Video, since that's the one meant to play to the kids). If
 `public/current-lesson.json` hasn't resolved a lesson yet, it falls
-back to the plain placeholder (dark background + "Journey" text) —
+back to the plain placeholder (the Journey wordmark on the deep ink
+field, nothing else) —
 never a broken `<video>` — same "missing data renders nothing"
 principle as the sibling Awana-Check-in-Display repo.
 
@@ -510,10 +583,18 @@ a reboot during a total outage has no app shell to load).
   "Loading…" pulse is indistinguishable from progress.
 - **The video no longer autoplays at 6:30.** Crossing into the
   scheduled window shows a branded "Large Group Time" splash
-  (`#journey-splash`) instead — a "Journey / Advocates" wordmark, the
-  "Large Group Time" banner, and this week's lesson prominently named
-  (`Week N` + `lessons.json`'s `title`, both filled in from
-  `currentLesson` by `showJourneyContent()`). The lesson video itself
+  (`#journey-splash`) instead — the catalog's Journey wordmark over
+  ADVOCATES, the "Large Group Time" corner tab, and this week's lesson
+  prominently named: a kicker (`Week 4 · Unit 1 · Lesson 4`) over the
+  lesson's own name (`Logic`), both split out of `lessons.json`'s `title` by
+  the pure `splashLessonText()` and filled in from `currentLesson` by
+  `showJourneyContent()`. A title that is not "Unit N, Lesson M: Name" keeps
+  the whole title as the headline and `Week N` alone as the kicker, so a
+  change on Awana's side can cost the layout but never a word; a headline
+  over 14 characters gets `.is-long`, the smaller size the old title used
+  (every real name is one word of at most 12 letters, and a test walks all
+  32). The headline is capped at `7vw` so RESURRECTION (week 18, the
+  longest) clears the left doodle cluster on the Pi's 640x480 screen. The lesson video itself
   is still queued up in the background exactly as before (see the
   pre-fetch bullet right below) — only the on-screen *playback* waits.
   An operator starts it with **Space**, **→**, or the on-screen "Begin
@@ -720,7 +801,8 @@ a reboot during a total outage has no app shell to load).
   precedence). The bar's right inset reserves room for the view-toggle
   button in the corner.
 - **The splash and loading overlays are viewport-responsive**
-  (`clamp()` type sizes, wrapping wordmark) — the page is occasionally
+  (`clamp()` type sizes and a clamp()-sized wordmark image, each with a
+  rem floor) — the page is occasionally
   opened on a phone, where the original fixed TV sizes overflowed; the
   Space/→ keyboard hint is hidden on touch-only devices. A
   failed/stalled video load falls back to the placeholder too, rather

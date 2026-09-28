@@ -164,8 +164,9 @@ for real:
   clock in the top right, and see the note above)
 - The video only appears between 6:30 PM and 7:15 PM
 - Check that you have an internet connection
-- Seeing the word "Journey" on a plain dark screen (not a black/blank
-  screen) is normal — it means the week's lesson hasn't resolved yet or
+- Seeing the Journey logo on a plain purple screen, with no lesson name
+  and no buttons (not a black/blank screen), is normal — it means the
+  week's lesson hasn't resolved yet or
   couldn't load, and the display intentionally shows a placeholder
   instead of a broken video
 

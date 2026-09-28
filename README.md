@@ -223,8 +223,8 @@ schedule for real:
 - The video only appears between 6:30 PM and 7:15 PM
 - Make sure you have an internet connection
 - Wait a minute and refresh the browser (F5)
-- If you see the word "Journey" on a plain dark screen instead of a
-  video, that's normal and expected — it means this week's lesson
+- If you see the Journey logo on a plain purple screen (no lesson name,
+  no buttons) instead of a video, that's normal and expected — it means this week's lesson
   hasn't been resolved yet, or the video couldn't load, and the display
   is deliberately showing a plain placeholder instead of a broken video
 - The video plays at a somewhat lower picture quality than Awana's
@@ -290,7 +290,8 @@ one-time preview and never changes what plays automatically at 6:30 PM.
 
 - `public/index.html` — the whole app. Two full-viewport layers (Check-in Display iframe, Journey video) are both always mounted; a small script toggles which one is visible.
 - `public/src/schedule.js` — the 6:30/7:15 schedule and the manual toggle button's behavior.
-- `public/src/style.css` — full-bleed layout and button styling.
+- `public/src/style.css` — full-bleed layout and button styling, in the Awana 2026-27 catalog's Journey look.
+- `public/brand/` — a byte-identical copy of the Awana brand kit (colours, the Journey logo, and the three self-hosted fonts), so the kiosk never needs the network for its own look. Don't edit it by hand; see CLAUDE.md.
 - `public/lessons.json` — the fixed week→video map for the 32-week Advocates course.
 - `public/current-lesson.json` — which week is "current" right now, refreshed nightly by GitHub Actions.
 

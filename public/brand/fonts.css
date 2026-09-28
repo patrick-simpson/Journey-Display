@@ -1,0 +1,39 @@
+/*
+ * @font-face rules for pages with no bundler (the Journey kiosk, the
+ * printer dashboard). URLs are relative to this file, so a mirror of the
+ * whole brand/ folder works wherever it is served from. The signage and
+ * projector pages load the same families from @fontsource instead.
+ * All three families are SIL Open Font License 1.1 (fonts/OFL-*.txt).
+ */
+@font-face {
+  font-family: 'Galindo';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/galindo-latin-400-normal.woff2') format('woff2'),
+       url('fonts/Galindo-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Londrina Solid';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/londrina-solid-latin-400-normal.woff2') format('woff2'),
+       url('fonts/LondrinaSolid-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Londrina Solid';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('fonts/londrina-solid-latin-900-normal.woff2') format('woff2'),
+       url('fonts/LondrinaSolid-Black.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('fonts/figtree-latin-wght-normal.woff2') format('woff2-variations'),
+       url('fonts/Figtree-Variable.ttf') format('truetype');
+}
