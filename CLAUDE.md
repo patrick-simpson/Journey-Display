@@ -151,6 +151,55 @@ setting has regressed.
   while its `let`/`const` state deliberately is not. Run
   `node --check public/src/schedule.js` alongside it.
 
+## About page (`public/about.html`)
+
+A static showcase page for church leadership, one of three sibling pages
+(Club Label Printer's home page, the Check-in Display's `about.html`, and
+this). It is one plain HTML file with no script at all: the shared
+`public/family.css` beside it (linked as `family.css?v=N`), and its own page
+styles inline in a `<style>` block. There is no `about.css`.
+
+- **The kiosk never loads it.** `index.html` does not link it, and it must
+  never load `schedule.js` or `style.css`; nothing here should ever add
+  weight to the Pi's page. `scripts/stamp-build.mjs` stamps `index.html`
+  only, so `about.html` needs no build meta and is left untouched by the
+  deploy (checked by running the stamp over a scratch copy of `public/`).
+- **`family.css` is byte-identical across the three repos.** The canonical
+  copy is `Print-TwoTimTwo-Labels/styles/family.css` and its spec is
+  `Print-TwoTimTwo-Labels/docs/FAMILY-DESIGN.md`; change it there and copy
+  the file byte-for-byte to all three, never edit this copy on its own.
+  Anything page-specific goes in `about.html`'s inline `<style>` with the
+  `jd-` prefix, built on the family tokens.
+- **Bump the `?v=` token on BOTH about pages whenever `family.css` changes**
+  (this one and the Check-in Display's `public/about.html`). Pages serves the
+  stylesheet with `max-age=600`, and the Check-in Display's service worker
+  serves same-origin stylesheets cache-first under its build's cache name,
+  so a deploy that changes only the CSS under an unchanged URL may never
+  reach a screen that already has the old copy. HTML is fetched fresh, so a
+  new query string on the link is what carries the change.
+- **Licensing wording is strict** (see "Licensing boundary" above): the page
+  says the kiosk plays curriculum the church already licenses through its
+  own Awana Ministry Membership, used only within the church's own program
+  (its kiosk and its leaders) and never shared or offered anywhere else, and
+  that each lesson is prepared so even the little Pi plays it smoothly. It
+  never says the kiosk plays "a copy", a "smaller copy", or anything
+  "re-encoded" or "transcoded", and never implies the Pi plays full
+  quality. It must never link to, name the URL or filename of, or advertise
+  any lesson video, transcoded copy, Release asset, transcript, handout or
+  slide image, and never say "re-host", "mirror", or "download" anywhere
+  near the videos (the phrase is "saved ahead on the kiosk itself"). Screen
+  mocks are CSS recreations with placeholder text: no video frames, no
+  slide artwork, no curriculum text or imagery, no Awana logos.
+- **The room is students.** Journey is the high-school ministry, so the page
+  says "students", never "children", about the people watching the lesson.
+- **Never link to the live kiosk.** Links out go to the two sibling pages
+  (the labels home page and the Check-in Display's `about.html`) and the
+  three GitHub repos only, never to this site's root or `index.html`, and
+  never to the Check-in Display's root or `countdown.html`.
+- Trademark: the "Not affiliated with or endorsed by Awana® Clubs
+  International" line sits at the top, in the meta description and in the
+  footer's full disclaimer.
+
 ## Daily schedule
 
 `public/src/schedule.js` holds the switching logic:
@@ -826,14 +875,17 @@ directly):
   being an apologist." — a perfectly sensible line that **does not exist
   in the audio at all**; re-decoding that 0.64s window returns only the
   tail of the previous sentence. Two defences, both now permanent:
-  - `scripts/validate-captions.py` gates publishing. It flags any cue
-    carrying >=25 characters faster than **26 chars/sec** (brisk human
-    speech peaks near 20; the worst offender was 106) and any cue that
-    largely duplicates its neighbour. `build-student-vtt.py` refuses to
-    write a week whose flags are neither corrected nor listed under
-    `"verified"` in that week's corrections file. Flags are not proof of
-    a hallucination — they are a demand to check that cue against audio.
-  - `scripts/../verify-cue.py` (scratch tooling) re-decodes the window
+  - `scripts/validate-captions.py` gates publishing. It BLOCKS any cue
+    of >=25 characters faster than **40 chars/sec** (`BLOCK_RATE`;
+    brisk human speech peaks near 20, and the worst offender was 106), a
+    near-duplicate of its neighbour, or a sub-0.6s echo cue, and marks
+    26-40 chars/sec as REVIEW (`REVIEW_RATE`: a careful read, not a
+    gate). `build-student-captions.py` repeats the rate and
+    near-duplicate detectors and refuses to write a week whose flagged
+    cues are neither corrected nor listed under `"verified"` in that
+    week's corrections file. Flags are not proof of a hallucination —
+    they are a demand to check that cue against audio.
+  - `scripts/verify-caption-cue.py` re-decodes the window
     around a cue independently (beam 10, no conditioning, so it cannot
     inherit the original's invention) and prints it beside the current
     text and neighbours. Note the only ffmpeg on the box is Playwright's
