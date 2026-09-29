@@ -4,6 +4,8 @@ A simple kiosk website that displays the **Journey: Advocates** video lesson on 
 
 > This project is an independent, church-built tool. It is **not affiliated with, endorsed by, or approved by Awana Clubs International** — it simply plays curriculum video the church already licenses through its own Awana Ministry Membership, for internal, on-device use only.
 
+**About page (what it does, in plain words):** https://patrick-simpson.github.io/Journey-Display/about.html
+
 - **6:30 PM – 7:15 PM:** Shows the current week's Journey lesson video
 - **All other times:** Shows the Awana Check-in Display
 - **Runs on:** Raspberry Pi (any model, including Pi Zero)
