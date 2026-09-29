@@ -9,7 +9,8 @@
 // blur) is pinned rather than remembered.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -66,10 +67,11 @@ test('the mirror carries everything this page loads, fonts with their licences',
     'tokens.json',
     'fonts.css',
     'logos/journey-white.svg',
-    'fonts/galindo-latin-400-normal.woff2',
+    'fonts/paytone-one-full-400-normal.woff2',
+    'fonts/PaytoneOne-Regular.ttf',
     'fonts/londrina-solid-latin-400-normal.woff2',
     'fonts/figtree-latin-wght-normal.woff2',
-    'fonts/OFL-Galindo.txt',
+    'fonts/OFL-PaytoneOne.txt',
     'fonts/OFL-LondrinaSolid.txt',
     'fonts/OFL-Figtree.txt',
   ]) {
@@ -78,6 +80,115 @@ test('the mirror carries everything this page loads, fonts with their licences',
   // Every font the kit's sheet names is really there.
   for (const m of read('brand/fonts.css').matchAll(/url\((['"]?)([^'")?]+)\1\)/g)) {
     assert.ok(existsSync(path.join(PUBLIC, 'brand', m[2])), `brand/${m[2]} exists`);
+  }
+});
+
+/* The sfnt table directory's OS/2 table, for the two numbers the fit rests on. */
+function os2(ttf) {
+  const tables = ttf.readUInt16BE(4);
+  for (let i = 0; i < tables; i += 1) {
+    const rec = 12 + i * 16;
+    if (ttf.toString('latin1', rec, rec + 4) === 'OS/2') {
+      const at = ttf.readUInt32BE(rec + 8);
+      return { capHeight: ttf.readInt16BE(at + 88), sTypoAscender: ttf.readInt16BE(at + 68) };
+    }
+  }
+  throw new Error('no OS/2 table');
+}
+const unitsPerEm = (ttf) => {
+  const tables = ttf.readUInt16BE(4);
+  for (let i = 0; i < tables; i += 1) {
+    const rec = 12 + i * 16;
+    if (ttf.toString('latin1', rec, rec + 4) === 'head') return ttf.readUInt16BE(ttf.readUInt32BE(rec + 8) + 18);
+  }
+  throw new Error('no head table');
+};
+
+test('the shout is Paytone One, whole, and Galindo is gone from everything the page reaches', () => {
+  // Owner decision 2026-09-29: Galindo "looks too much like SpongeBob".
+  assert.deepEqual(
+    Object.keys(manifest.files).filter((rel) => /galindo/i.test(rel)),
+    [],
+    'no Galindo file in the mirror'
+  );
+  assert.deepEqual(readdirSync(path.join(PUBLIC, 'brand', 'fonts')).filter((f) => /galindo/i.test(f)), []);
+  // (style.css's comments say why the sizes are fitted, and so name it; what
+  // may not is a rule, a font load or a page.)
+  for (const rel of ['index.html', 'about.html', 'src/style.css', 'src/schedule.js', 'brand/fonts.css', 'brand/tokens.css']) {
+    const text = rel.endsWith('.css') ? stripComments(read(rel)) : read(rel);
+    assert.doesNotMatch(text, /galindo/i, `${rel} does not name Galindo`);
+  }
+  // The stylesheet's own stack and the kit's tokens both lead with Paytone One.
+  assert.match(read('brand/tokens.css'), /--brand-font-display:\s*'Paytone One',/);
+  assert.match(styleCss, /--jr-font-shout:\s*var\(--brand-font-display,\s*'Paytone One',/);
+  const faces = [...read('brand/fonts.css').matchAll(/@font-face\s*\{[^}]*font-family:\s*'Paytone One'[^}]*\}/g)];
+  assert.equal(faces.length, 1, 'one @font-face for the shout');
+  assert.match(faces[0][0], /paytone-one-full-400-normal\.woff2'\)\s*format\('woff2'\)/);
+  assert.match(faces[0][0], /PaytoneOne-Regular\.ttf'\)\s*format\('truetype'\)/);
+});
+
+test('the shout font is the unmodified whole font, in the TTF and in the WOFF2', () => {
+  // The OFL reserves the name "Paytone One", so a subset or a re-encode under
+  // that name is a licence problem, and a hand-edited mirror would hide it.
+  // The manifest already pins these files to the kit; this pins what the kit
+  // must have put there (the canonical repo's own test decodes the WOFF2 table
+  // by table). Both files are read whole, never trimmed to latin.
+  const dir = path.join(PUBLIC, 'brand', 'fonts');
+  const ttf = readFileSync(path.join(dir, 'PaytoneOne-Regular.ttf'));
+  assert.equal(ttf.length, 114648);
+  assert.equal(
+    createHash('sha256').update(ttf).digest('hex'),
+    '1c07073b0b578199b54c7866d55e2b631d285e8aa4bb4fbc08809d980cd49b14',
+    'the TTF is upstream google/fonts ofl/paytoneone, Version 1.002, byte for byte'
+  );
+  const woff2 = readFileSync(path.join(dir, 'paytone-one-full-400-normal.woff2'));
+  assert.equal(woff2.toString('latin1', 0, 4), 'wOF2');
+  assert.equal(woff2.readUInt32BE(8), woff2.length, 'the header knows its own length');
+  assert.equal(woff2.readUInt16BE(12), ttf.readUInt16BE(4), 'every table of the TTF, none dropped');
+  assert.equal(woff2.readUInt32BE(16), ttf.length, 'it expands to exactly the whole TTF');
+  const licence = readFileSync(path.join(dir, 'OFL-PaytoneOne.txt'), 'utf8');
+  assert.match(licence, /Reserved Font Names? "?'?Paytone/i);
+  assert.match(licence, /SIL OPEN FONT LICENSE Version 1\.1/i);
+});
+
+test('every shout size keeps the caps as tall as the Galindo it was tuned on', () => {
+  // Galindo's H stood .725 em tall; Paytone One's stands .688. The shout sizes
+  // in style.css were drawn for the first, so each is multiplied by
+  // --jr-shout-fit. The number must follow the font that ships: swap the shout
+  // again and this fails until the fit (and the lift) are measured afresh.
+  const GALINDO_CAP_EM = 0.725;
+  const ttf = readFileSync(path.join(PUBLIC, 'brand', 'fonts', 'PaytoneOne-Regular.ttf'));
+  const cap = os2(ttf).capHeight / unitsPerEm(ttf);
+  assert.equal(cap, 0.688);
+  const fit = parseFloat(styleCss.match(/--jr-shout-fit:\s*([\d.]+)\s*;/)[1]);
+  assert.ok(
+    Math.abs(fit * cap - GALINDO_CAP_EM) < 0.01,
+    `--jr-shout-fit ${fit} x ${cap} em is within 1% of ${GALINDO_CAP_EM} em`
+  );
+
+  // Every rule that sets the shout face scales its size by the fit, so a new
+  // shout rule cannot quietly draw its caps 5% short.
+  const shoutRules = rules(styleCss).filter((r) => /font-family:\s*var\(--jr-font-shout\)/.test(r.body));
+  assert.ok(shoutRules.length >= 5, 'the placeholder, splash, loading, caption and settings rules');
+  for (const { selector, body } of shoutRules) {
+    const size = body.match(/font-size:\s*([^;]+);/);
+    assert.ok(size, `${selector} sets a size`);
+    assert.match(size[1], /var\(--jr-shout-fit\)/, `${selector}'s shout size carries the fit`);
+  }
+});
+
+test('the headlines stacked over other lines sit on the cap line the design was drawn with', () => {
+  // Paytone One's ascent (1.113 em) is far above its caps (.688 em), where
+  // Galindo's was .983 em over .725, so at one line-height its caps sit about
+  // .15 em lower in the box. Lifted by --jr-shout-lift, on paint alone: `top`
+  // on a relative box moves nothing else and clips nothing.
+  const lift = styleCss.match(/--jr-shout-lift:\s*(-\d*\.?\d+em)\s*;/);
+  assert.ok(lift, 'a negative em lift');
+  for (const id of ['#journey-splash-title', '#caption-prompt-q', '#journey-loading-text']) {
+    const rule = rules(styleCss).find((r) => r.selector === id);
+    assert.ok(rule, `${id} has its rule`);
+    assert.match(rule.body, /position:\s*relative/, `${id} is a relative box`);
+    assert.match(rule.body, /top:\s*var\(--jr-shout-lift\)/, `${id} carries the lift`);
   }
 });
 

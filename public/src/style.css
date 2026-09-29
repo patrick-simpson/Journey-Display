@@ -10,7 +10,7 @@
 
    Journey's identity from the catalog: a deep ink field, the club purple, its
    deep shade and a lavender tint. The one hot red-orange marks the one thing
-   to press. Galindo shouts, Londrina Solid labels, Figtree is read.
+   to press. Paytone One shouts, Londrina Solid labels, Figtree is read.
 
    Built for a 2017 Pi Zero: flat fills and hard offsets only (no blur, no
    filters, no gradients), and no new animation. The splash's single opacity
@@ -33,9 +33,22 @@
   --jr-sun: var(--brand-sun, #FCB614);
   --jr-chip: var(--brand-chip, rgba(3, 4, 4, 0.5));
   --jr-night: var(--brand-ink, #231F20);
-  --jr-font-shout: var(--brand-font-display, 'Galindo', 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif);
+  --jr-font-shout: var(--brand-font-display, 'Paytone One', 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif);
   --jr-font-label: var(--brand-font-label, 'Londrina Solid', 'Arial Narrow', 'Helvetica Neue', sans-serif);
   --jr-font-read: var(--brand-font-body, 'Figtree', 'Segoe UI', system-ui, sans-serif);
+  /* Every shout size below was tuned when Galindo was the shout. Paytone One
+     draws shorter capitals at one font-size (cap height .688 em against
+     Galindo's .725) and sits lower in its line box (its ascent, 1.113 em, is
+     far above its caps; Galindo's was .983 em), so each shout size is
+     multiplied by --jr-shout-fit to keep the caps as tall as they were, and
+     the headlines that stack over something are lifted by --jr-shout-lift to
+     keep the gap between their caps and the lines around them. Both are
+     measured, not guessed (see CLAUDE.md, "Brand kit"); a test fails if a
+     rule that sets the shout face forgets the fit. The lift is `top` on a
+     relatively positioned box, so it moves paint and nothing else: no
+     sibling shifts and nothing is clipped. */
+  --jr-shout-fit: 1.05;
+  --jr-shout-lift: -0.15em;
   --u: min(1.25vw, 1.7778vh);
 
   /* Wrapper art, baked from the kit's own shapes so each is ONE static image
@@ -114,7 +127,7 @@ html.cursor-hidden * {
   background: var(--jr-art-wave) left bottom / 100% 14% no-repeat, var(--jr-ink);
   color: #ffffff;
   font-family: var(--jr-font-shout);
-  font-size: 4rem;
+  font-size: calc(4rem * var(--jr-shout-fit));
   letter-spacing: 0.05em;
 }
 
@@ -266,15 +279,19 @@ html.cursor-hidden * {
   letter-spacing: 0.1em;
 }
 
-/* The lesson's name, shouted: Galindo in caps with the deep shade as a hard
+/* The lesson's name, shouted: Paytone One in caps with the deep shade as a hard
    offset shadow (a flat second fill, painted once; never a blur). Capped at
    7vw so the longest name in the course (RESURRECTION, week 18) stays clear
    of the left doodle cluster on the Pi's 4:3 screen; a 16:9 TV never
-   reaches the cap. */
+   reaches the cap. The fit and the lift (see the top of this sheet) keep the
+   caps as tall, and the gap under the kicker as tight, as the design was
+   drawn with Galindo. */
 #journey-splash-title {
+  position: relative;
+  top: var(--jr-shout-lift);
   font-family: var(--jr-font-shout);
   font-weight: 400;
-  font-size: clamp(2rem, min(6.6 * var(--u), 7vw), 8rem);
+  font-size: calc(clamp(2rem, min(6.6 * var(--u), 7vw), 8rem) * var(--jr-shout-fit));
   line-height: 0.98;
   text-transform: uppercase;
   text-shadow: 0.06em 0.06em 0 var(--jr-deep);
@@ -286,7 +303,7 @@ html.cursor-hidden * {
    back to the whole title) would be a wall of shouted lines; set it at the
    size the old splash gave the title instead. */
 #journey-splash-title.is-long {
-  font-size: clamp(1.4rem, 3.6 * var(--u), 4.4rem);
+  font-size: calc(clamp(1.4rem, 3.6 * var(--u), 4.4rem) * var(--jr-shout-fit));
   line-height: 1.05;
   /* Clear of both doodle clusters, which reach 13.8u in from each side. */
   max-width: calc(100vw - 30 * var(--u));
@@ -481,8 +498,10 @@ html.cursor-hidden * {
 }
 
 #journey-loading-text {
+  position: relative;
+  top: var(--jr-shout-lift);
   font-family: var(--jr-font-shout);
-  font-size: clamp(1.4rem, 4.2 * var(--u), 5rem);
+  font-size: calc(clamp(1.4rem, 4.2 * var(--u), 5rem) * var(--jr-shout-fit));
   font-weight: 400;
   /* No shadow here: this is the element that pulses. */
   animation: journey-splash-pulse 2.4s ease-in-out infinite;
@@ -698,7 +717,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
    "start" gesture and playback. Same flat-color, opacity-only budget as the
    splash it replaces on screen. */
 /* It takes the splash's place on screen, so it wears the splash's field and
-   bottom wave: the question in Galindo, Yes (the focused default) in the hot,
+   bottom wave: the question in Paytone One, Yes (the focused default) in the hot,
    No in the splash's outline style. */
 #caption-prompt {
   position: absolute;
@@ -717,8 +736,10 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 }
 
 #caption-prompt-q {
+  position: relative;
+  top: var(--jr-shout-lift);
   font-family: var(--jr-font-shout);
-  font-size: clamp(1.8rem, 5.4 * var(--u), 6.5rem);
+  font-size: calc(clamp(1.8rem, 5.4 * var(--u), 6.5rem) * var(--jr-shout-fit));
   font-weight: 400;
   line-height: 1;
   text-transform: uppercase;
@@ -976,7 +997,7 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 #settings-header h2 {
   font-family: var(--jr-font-shout);
-  font-size: 2.4rem;
+  font-size: calc(2.4rem * var(--jr-shout-fit));
   font-weight: 400;
   line-height: 1.1;
   text-shadow: 0.06em 0.06em 0 var(--jr-deep);

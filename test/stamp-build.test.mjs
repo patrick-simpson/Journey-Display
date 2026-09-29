@@ -115,17 +115,37 @@ test('every font URL carries the hash of the very bytes it names', () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('every font URL in the sheet is versioned exactly once, the shout included', () => {
+  // The sheet names each file once; stamping must keep that: same URLs in the
+  // same order, none dropped or doubled, each with a single ?v=.
+  const dir = scratchPublic();
+  const plain = fontUrls(readFileSync(FONTS_SHEET, 'utf8'));
+  const stamped = fontUrls(stampBuild('ggg777', dir, '2026-09-16T18:00:00.000Z').fontsCss);
+  assert.deepEqual(stamped.map((url) => url.split('?')[0]), plain);
+  assert.equal(new Set(plain).size, plain.length, 'the kit lists each font file once');
+  for (const url of stamped) assert.equal(url.split('?').length, 2, `${url} has exactly one query`);
+  // Paytone One is two files (the WOFF2 the kiosk fetches, the TTF behind it),
+  // both whole fonts: each is versioned by its own bytes.
+  for (const rel of ['fonts/paytone-one-full-400-normal.woff2', 'fonts/PaytoneOne-Regular.ttf']) {
+    const hits = stamped.filter((url) => url.startsWith(`${rel}?v=`));
+    assert.equal(hits.length, 1, `${rel} is in the sheet once, versioned`);
+    assert.equal(hits[0], `${rel}?v=${shortHash(path.join(dir, 'brand', rel))}`);
+  }
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test('a changed font gets a new URL, an unchanged one keeps its old one', () => {
   const dir = scratchPublic();
   const before = fontUrls(stampBuild('ddd444', dir, '2026-09-16T18:00:00.000Z').fontsCss);
-  const galindo = path.join(dir, 'brand', 'fonts', 'galindo-latin-400-normal.woff2');
-  writeFileSync(galindo, Buffer.concat([readFileSync(galindo), Buffer.from([0])]));
+  // A scratch copy, so appending a byte here never touches the kit's font.
+  const shout = path.join(dir, 'brand', 'fonts', 'paytone-one-full-400-normal.woff2');
+  writeFileSync(shout, Buffer.concat([readFileSync(shout), Buffer.from([0])]));
   const after = fontUrls(stampBuild('eee555', dir, '2026-09-16T19:00:00.000Z').fontsCss);
 
   const changed = before.filter((url, i) => url !== after[i]);
   assert.deepEqual(
     changed.map((url) => url.split('?')[0]),
-    ['fonts/galindo-latin-400-normal.woff2'],
+    ['fonts/paytone-one-full-400-normal.woff2'],
     'only the font whose bytes moved got a new URL'
   );
   rmSync(dir, { recursive: true, force: true });
@@ -133,8 +153,8 @@ test('a changed font gets a new URL, an unchanged one keeps its old one', () => 
 
 test('a font sheet naming a missing font, or no fonts at all, fails the deploy', () => {
   const dir = scratchPublic();
-  rmSync(path.join(dir, 'brand', 'fonts', 'Galindo-Regular.ttf'));
-  assert.throws(() => stampBuild('fff666', dir), /Galindo-Regular\.ttf/);
+  rmSync(path.join(dir, 'brand', 'fonts', 'PaytoneOne-Regular.ttf'));
+  assert.throws(() => stampBuild('fff666', dir), /PaytoneOne-Regular\.ttf/);
   rmSync(dir, { recursive: true, force: true });
 
   assert.throws(() => stampFontsCss('@font-face { font-family: X; }', () => 'x'), /no fonts/);

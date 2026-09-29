@@ -212,7 +212,7 @@ test('the brand fonts are asked for at startup, and nothing waits on them', asyn
     // A font load that never settles: the flaky evening this exists for.
     window.document.fonts = { load: (face) => (asked.push(face), new Promise(() => {})) };
   });
-  assert.deepEqual(asked, ['400 1em Galindo', '400 1em "Londrina Solid"', '400 1em Figtree']);
+  assert.deepEqual(asked, ['400 1em "Paytone One"', '400 1em "Londrina Solid"', '400 1em Figtree']);
   for (let i = 0; i < 4; i += 1) await tick();
   kiosk.window.setView('journey');
   assert.equal(

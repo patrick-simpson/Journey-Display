@@ -3517,7 +3517,7 @@ loadLeaderPrep();
    face stays loaded for the life of the page, which on the kiosk is the whole
    day. Fire and forget: nothing awaits this, and a failure only means the
    splash uses the fallback faces the tokens name. */
-const BRAND_FONT_FACES = ['400 1em Galindo', '400 1em "Londrina Solid"', '400 1em Figtree'];
+const BRAND_FONT_FACES = ['400 1em "Paytone One"', '400 1em "Londrina Solid"', '400 1em Figtree'];
 
 function warmBrandFonts() {
   const fonts = document.fonts;

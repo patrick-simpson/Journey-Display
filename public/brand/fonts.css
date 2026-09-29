@@ -4,14 +4,19 @@
  * whole brand/ folder works wherever it is served from. The signage and
  * projector pages load the same families from @fontsource instead.
  * All three families are SIL Open Font License 1.1 (fonts/OFL-*.txt).
+ *
+ * Paytone One (the shout) is the FULL, unmodified font in both files: its
+ * license reserves the name "Paytone One", so nothing here is a subset, and
+ * the WOFF2 is a lossless compression of the TTF's untouched tables (see
+ * README.md, "Paytone One and the OFL"). Do not subset or re-encode it.
  */
 @font-face {
-  font-family: 'Galindo';
+  font-family: 'Paytone One';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('fonts/galindo-latin-400-normal.woff2') format('woff2'),
-       url('fonts/Galindo-Regular.ttf') format('truetype');
+  src: url('fonts/paytone-one-full-400-normal.woff2') format('woff2'),
+       url('fonts/PaytoneOne-Regular.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Londrina Solid';

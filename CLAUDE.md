@@ -176,10 +176,60 @@ language and full official branding. For Journey that means the catalog's
 own identity: the wordmark whose O is a disc with a mountain peak cut out,
 the club purple `#8A649D`, its deep shade `#56467F`, the deep ink `#403A77`
 and the lavender tint `#DED5EA`, plus the house hot `#F15A28` for the one
-thing to press. Three voices: **Galindo** shouts (the lesson name, the
+thing to press. Three voices: **Paytone One** shouts (the lesson name, the
 caption question, the settings title), **Londrina Solid** labels (kickers,
 the corner tab, every button), **Figtree** is read (hints, settings text,
 Read Prep, captions).
+
+- **Paytone One replaced Galindo as the shout on 2026-09-29** (owner: Galindo
+  "looks too much like SpongeBob"; picked from a side-by-side render). The
+  kit's `tokens.css` names it in `--brand-font-display`, `style.css` reads it
+  through `--jr-font-shout`, and `warmBrandFonts()` asks for
+  `400 1em "Paytone One"`. Nothing in `public/` outside the mirror may name
+  Galindo again (a test fails if it does); the posters' and the Check-in
+  Display's faces are not this repo's business.
+- **Paytone One ships WHOLE, never as a subset.** Its licence (SIL OFL 1.1)
+  reserves the name "Paytone One", and a latin subset or a re-encode is a
+  Modified Version that may not carry it. So `fonts/PaytoneOne-Regular.ttf`
+  is upstream's file byte for byte and `fonts/paytone-one-full-400-normal.woff2`
+  is the same font with every table untouched, compressed (README in the kit,
+  "Paytone One and the OFL"). `test/brand-kit.test.mjs` pins the TTF's hash
+  and that the WOFF2 expands to exactly the whole TTF. Do not swap in
+  `@fontsource` files or trim the font to save bytes: the WOFF2 is 42.7 KB
+  where Galindo's latin subset was 20 KB, a one-time fetch per font version
+  (`warmBrandFonts()` runs it while the Check-in Display is up, and
+  `stamp-build.mjs` versions the URL by the font's own hash). A browser that
+  cannot decode the WOFF2 falls through to the TTF (114 KB) with the same
+  metrics, which was checked by serving a garbage and a 404 WOFF2.
+- **The shout is fitted, not just swapped.** Every shout size in `style.css`
+  was drawn for Galindo. Paytone One's caps are shorter at one font-size
+  (cap height .688 em against .725) and sit lower in a tight line box (ascent
+  1.113 em against .983), so a bare swap made the lesson name 5% smaller,
+  dropped it about .15 em away from the kicker it belongs under, and crowded
+  the buttons below. Two tokens at the top of `style.css` undo that:
+  `--jr-shout-fit: 1.05` multiplies every shout size (a test fails if a rule
+  that sets the shout face leaves it out, and if the number stops matching
+  the shipped font's cap height), and `--jr-shout-lift: -0.15em` is `top` on
+  a relative box for the headlines stacked over other lines (the splash
+  title, the caption question, the loading text): paint moves, layout and
+  neighbours do not, and nothing is clipped. Measured against the Galindo
+  screens at 640x480 and 1080p, the caps land within 3 px of where they were
+  and the kicker-to-caps gap within 3 px; the widest name (RESURRECTION) is
+  4% narrower than it was, so the doodle clearance the 7vw cap protects only
+  grew. The settings title is fitted but not lifted: it is centred on its
+  close button, and Paytone One centres on it better than Galindo did.
+  `test/splash-fit.test.mjs` boots the page in Chromium (Pi user agent) and
+  checks all 32 lesson names at 592x432, 640x480, 720p and 1080p: the shout
+  face really loaded, one line, clear of the doodle cluster and the buttons,
+  the kicker-to-caps air in range, and an accented capital (Paytone One
+  reaches 1.16 em, past its own ascent) has no ancestor that clips it.
+  Changing the shout again means re-measuring both numbers, not just the name.
+- **Paytone One covers more than Galindo did** (Ș ș Ț ț, all Vietnamese, all
+  of Latin Extended-A), but still no Cyrillic, Greek, Hebrew, Arabic,
+  Devanagari, Thai or CJK: those fall through the stack to the system's
+  rounded face, as before. Its digits are proportional unless
+  `font-variant-numeric: tabular-nums` is set; nothing on this kiosk sets a
+  number in the shout face.
 
 - **`public/brand/` is a byte-identical mirror of the whole kit**, whose
   canonical copy is `Awana-Check-in-Display/shared/brand/` (read its

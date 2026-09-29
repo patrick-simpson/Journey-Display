@@ -1,9 +1,9 @@
 {
   "note": "sha256 of every file in public/brand/, a byte-identical mirror of Awana-Check-in-Display/shared/brand/. Regenerate with scripts/sync-brand-kit.mjs; never edit by hand.",
   "source": "Awana-Check-in-Display/shared/brand/",
-  "kitCommit": "0ec240c25189d06cb3af0a61e0b4981ec5b35491",
+  "kitCommit": "8b26893eec6ad649e1821ad504aceb8c900d1dd2",
   "files": {
-    "README.md": "1c5104ec3266b10333105d8d56400f4dc5aad520721a3ec2deaab6d0e51a7666",
+    "README.md": "1b98cf886c458f531b253758955291e893d17a66996cb553db3516bf2d1f9c58",
     "doodles/check.svg": "891605300e09d4831904be7ea25d96790f1bd6c1267882f29d092b552c4d7e49",
     "doodles/chevron.svg": "abd4aca7947f7d22973076de9f725f729fdbd1695a05b390e95a8d7fbb209819",
     "doodles/coil-line.svg": "b4977a1051a3e7cd48cd3caaa34c1844ed4198af3ee69a16f7d4ea658ac639cd",
@@ -25,18 +25,18 @@
     "doodles/steps-block.svg": "da00c2b9b7225dad13f1aed0fed4b8115a61263d12a76d411b0dba8e158ad374",
     "doodles/zigzag-steps.svg": "9444e427bb6147ce42c2914b090e27cf1ea1c41ee25849269e83782d831604e5",
     "doodles/zigzag.svg": "3418fdf8c6d410612584a6124d1c93c3be160e1de4aa7076eefe979393999b86",
-    "fonts.css": "a106d80c29ca3540d824825e7ecf2d6b445158abfa2a1637ce2d03bcc464bfe3",
+    "fonts.css": "234ead8bdf08eeb6bd077582fc8be931040498861fdc78ae2b569d4fc3399312",
     "fonts/Figtree-Variable.ttf": "26ad3db9b31ff7dde67a91ff515d022d2f495cd506590699cf264f0bfe6fb714",
-    "fonts/Galindo-Regular.ttf": "335a73def6a890d38e8793a81077a8e15987b1a4e5366847e138b5beb13bf0fe",
     "fonts/LondrinaSolid-Black.ttf": "8c63a15e3fa34e0b362abeb903944a2bd45e71b1efa122486c0a47e295eae06f",
     "fonts/LondrinaSolid-Regular.ttf": "e82b9b3ee21ccf153dcf67e5f4226a210474591a6ad31b5f17f2f14dc2524514",
     "fonts/OFL-Figtree.txt": "140d37233e7f3ce7313798befa9600893bcceaf41a55fa0fa5ad52f7f657a268",
-    "fonts/OFL-Galindo.txt": "117fa195cff980e3b10fd8e8e21658c6ec954b0886647970a03c9694d3553b69",
     "fonts/OFL-LondrinaSolid.txt": "66b5c49d384cba754806a891ebd52f2ca08dd05c0eb3c56170192da466a00a20",
+    "fonts/OFL-PaytoneOne.txt": "12404fcefccc3cb964cb2406510ba679b30f7d7ae689db08df5b455ae24b3feb",
+    "fonts/PaytoneOne-Regular.ttf": "1c07073b0b578199b54c7866d55e2b631d285e8aa4bb4fbc08809d980cd49b14",
     "fonts/figtree-latin-wght-normal.woff2": "4ba7d3d096695818fe0686be4f1e82c6b05134e18a22260336130335027462dd",
-    "fonts/galindo-latin-400-normal.woff2": "1b7367c81a461cc154d3aebcbd4babf98aa8091170a3293e4d00eabfebad6eba",
     "fonts/londrina-solid-latin-400-normal.woff2": "7ad0db37df9a924eb0fb15f3814f8e9fdf0273fac6cd78292b00582bafa0c634",
     "fonts/londrina-solid-latin-900-normal.woff2": "ed455d5fb4d1b1e9e1892db85d1026c9e435dc4412ede3244c7ff92ef8b50ad9",
+    "fonts/paytone-one-full-400-normal.woff2": "12d4f8895ced4e53ccc2496c80b9c5a6b081cef68605af532d7869a61f1c5621",
     "logos/awana-clubs-black.svg": "8ed2f46fb588a35f35ddd18026ed9cca294268564e40ea577a6c1f0b9c017051",
     "logos/awana-clubs-white.svg": "8d28eb2a30f8de8a7c465375fff8c462a7efcf57d750e13070965564c77d8abb",
     "logos/cubbies-black.svg": "d1a4659ea3caec57d420ddd6576f05011513fb3fee6460cda25909bb836133a1",
@@ -75,7 +75,7 @@
     "shapes/wave-sparks.svg": "71f9d1da46c33fbe1f9b97f5661572b1908382c3450c04366260e39f9c9a98a7",
     "shapes/wave-tnt.svg": "9157cd3f481d8ec9ec3f26dcf81ff1032a3b326961cd62d61c6b7f8bc571c802",
     "shapes/wave-trek.svg": "71ed5a3154235df7612f0dd4447e71e05f95d92fe61447812ece1b762b4723a7",
-    "tokens.css": "1e2cda1cb7ec80717169d93939a2d6743f2067b1b62a8e780bff2ab41a2b9649",
-    "tokens.json": "70465c75ab9deebdcde2c0dd661501d9a16d70bb0ababe91241e855f1b255ea3"
+    "tokens.css": "57cecdda11152796084bdf46a5c7e2bcea7ea7191c64431083dd9b0b47384d82",
+    "tokens.json": "ddb549348d5c5076fa9387f0da707bc10e63610e5c45ca996e729dccaf8d01ed"
   }
 }
