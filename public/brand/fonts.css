@@ -2,13 +2,17 @@
  * @font-face rules for pages with no bundler (the Journey kiosk, the
  * printer dashboard). URLs are relative to this file, so a mirror of the
  * whole brand/ folder works wherever it is served from. The signage and
- * projector pages load the same families from @fontsource instead.
+ * projector pages declare the same Paytone One and Londrina Solid faces in
+ * their own stylesheets, on these very files, and take only Figtree from
+ * @fontsource (Figtree's license reserves no font name, so a latin subset
+ * of it is fine, and is what figtree-latin-wght-normal.woff2 is).
  * All three families are SIL Open Font License 1.1 (fonts/OFL-*.txt).
  *
- * Paytone One (the shout) is the FULL, unmodified font in both files: its
- * license reserves the name "Paytone One", so nothing here is a subset, and
- * the WOFF2 is a lossless compression of the TTF's untouched tables (see
- * README.md, "Paytone One and the OFL"). Do not subset or re-encode it.
+ * Paytone One (the shout) and Londrina Solid (the label voice) are the FULL,
+ * unmodified fonts in both of their files: each license reserves the font's
+ * name, so nothing here is a subset, and each WOFF2 is a lossless
+ * compression of its TTF's untouched tables (see README.md, "Reserved Font
+ * Names and the OFL"). Do not subset or re-encode either of them.
  */
 @font-face {
   font-family: 'Paytone One';
@@ -23,7 +27,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('fonts/londrina-solid-latin-400-normal.woff2') format('woff2'),
+  src: url('fonts/londrina-solid-full-400-normal.woff2') format('woff2'),
        url('fonts/LondrinaSolid-Regular.ttf') format('truetype');
 }
 @font-face {
@@ -31,7 +35,7 @@
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src: url('fonts/londrina-solid-latin-900-normal.woff2') format('woff2'),
+  src: url('fonts/londrina-solid-full-900-normal.woff2') format('woff2'),
        url('fonts/LondrinaSolid-Black.ttf') format('truetype');
 }
 @font-face {
