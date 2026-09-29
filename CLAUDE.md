@@ -326,7 +326,11 @@ styles inline in a `<style>` block. There is no `about.css`.
   Check-in Display's page: the Begin Video orange is `#CF4518`, not the kit's
   `#F15A28`, so its white label passes AA at mock size.
   `test/about-page.test.mjs` pins the palette to `brand/tokens.css`, the
-  loaded faces, the departure and the no-image rule. The playback, slide-bar
+  loaded faces, the departure and the no-image rule, and that nothing is
+  fetched from another host but the ONE Google stylesheet for the editorial
+  faces and its two preconnects (a v1 `css?family=Paytone+One` link, a mirror,
+  a preload, an `@import`, a page-local `@font-face` or a `url()` to another
+  host all fail it). The playback, slide-bar
   and Read Prep recreations below it are still the pre-kit black / red /
   system-ui drawings; redraw them the same way when they are next touched.
 - **Licensing wording is strict** (see "Licensing boundary" above): the page

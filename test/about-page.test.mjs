@@ -38,6 +38,43 @@ test('the about page names neither Galindo nor Lilita One, and asks Google only 
   assert.deepEqual(families.sort(), ['Fraunces', 'IBM+Plex+Mono', 'Source+Sans+3']);
 });
 
+// The test above pins the css2 request's family list, but a brand face could
+// reach the page by any other road: the v1 API (css?family=Paytone+One), a
+// third-party mirror, a preload of a woff2, an @import, a page-local
+// @font-face. Paytone One's and Londrina's licenses reserve their names, so
+// the only copy this page may draw is the kit's own full file. So these list
+// everything the page fetches from another host and allow exactly one thing:
+// the Google stylesheet for the editorial faces (and its preconnects).
+const attr = (tag, name) => {
+  const m = tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'));
+  return (m?.[1] ?? m?.[2] ?? m?.[3] ?? '').trim();
+};
+const links = [...live.matchAll(/<link\b[^>]*>/gi)].map(([tag]) => ({ rel: attr(tag, 'rel').toLowerCase(), href: attr(tag, 'href') }));
+// Absolute (https://x) or protocol-relative (//x), whatever the scheme.
+const isExternal = (url) => /^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(url);
+const isEditorialSheet = (l) => l.rel === 'stylesheet' && /^https:\/\/fonts\.googleapis\.com\/css2\?/.test(l.href);
+const isGooglePreconnect = (l) => l.rel === 'preconnect'
+  && ['https://fonts.googleapis.com', 'https://fonts.gstatic.com'].includes(l.href);
+
+test('every <link> to another host is the one editorial Google stylesheet or a Google preconnect', () => {
+  const stray = links.filter((l) => isExternal(l.href) && !isEditorialSheet(l) && !isGooglePreconnect(l));
+  assert.deepEqual(stray, []);
+  assert.equal(links.filter(isEditorialSheet).length, 1);
+});
+
+test('the about page has no @import, no page-local @font-face and no url() to another host', () => {
+  assert.doesNotMatch(live, /@import\b/i);
+  assert.doesNotMatch(live, /@font-face\b/i);
+  const urls = [...live.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))\s*\)/gi)].map((m) => (m[1] ?? m[2] ?? m[3]).trim());
+  assert.deepEqual(urls.filter(isExternal), []);
+});
+
+test('no address on the about page names a brand face', () => {
+  const addresses = live.match(/(?:https?:)?\/\/[^\s"'<>)]+/gi) ?? [];
+  assert.ok(addresses.length > 0, 'found the page\'s addresses');
+  assert.deepEqual(addresses.filter((a) => /paytone|londrina|figtree|galindo|lilita/i.test(a)), []);
+});
+
 test('the about page loads the kit\'s own self-hosted faces, never a third party\'s', () => {
   assert.match(live, /<link[^>]+rel="stylesheet"[^>]+href="brand\/fonts\.css"/);
   const fontsCss = read('brand/fonts.css');
