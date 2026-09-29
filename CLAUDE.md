@@ -312,6 +312,23 @@ styles inline in a `<style>` block. There is no `about.css`.
   so a deploy that changes only the CSS under an unchanged URL may never
   reach a screen that already has the old copy. HTML is fetched fresh, so a
   new query string on the link is what carries the change.
+- **The 6:30 start screen (Fig. 1 and the resume card) is drawn in the kit,
+  with the kit's own faces.** The page links `brand/fonts.css` (the same
+  self-hosted mirror the kiosk loads, full unmodified fonts) beside its
+  Google link, which asks for the editorial faces only (Fraunces, Source Sans
+  3, IBM Plex Mono): never Galindo (owner, 2026-09-29), never a Google or
+  subset copy of a brand face. The recreation follows `public/src/style.css`'s
+  splash: the deep ink field, the club purple corner tab and waves, Paytone
+  One for the shout (with `1.05` fit and the `-.15em` lift), Londrina Solid
+  for labels and buttons, Figtree for the hint. Its art is drawn fresh for the
+  page (no kit file, no `<img>`), and "Journey" is set as plain text, not the
+  wordmark: no Awana logo on this page. One deliberate departure, as on the
+  Check-in Display's page: the Begin Video orange is `#CF4518`, not the kit's
+  `#F15A28`, so its white label passes AA at mock size.
+  `test/about-page.test.mjs` pins the palette to `brand/tokens.css`, the
+  loaded faces, the departure and the no-image rule. The playback, slide-bar
+  and Read Prep recreations below it are still the pre-kit black / red /
+  system-ui drawings; redraw them the same way when they are next touched.
 - **Licensing wording is strict** (see "Licensing boundary" above): the page
   says the kiosk plays curriculum the church already licenses through its
   own Awana Ministry Membership, used only within the church's own program
