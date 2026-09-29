@@ -161,7 +161,8 @@ setting has regressed.
   script, so its top-level `function` declarations are reachable on `window`
   while its `let`/`const` state deliberately is not. Run
   `node --check public/src/schedule.js` alongside it. The one thing jsdom
-  cannot see is layout, so `test/control-bar-layout.test.mjs` opens the
+  cannot see is layout, so `test/control-bar-layout.test.mjs` (and
+  `test/corner-buttons.test.mjs`, see "Embedding note") opens the
   page in real Chromium through `playwright-core` (answering every request
   from `public/` itself: no server, no port, no network, schedule.js not
   run). It uses the same binary as the handout renderer
@@ -1301,8 +1302,10 @@ video's ending used to do.
 ### Manual video preview (Settings panel)
 
 A third corner button (`#settings-btn`, top-right, same subtle style as
-the other two) opens a panel listing every lesson in `lessons.json`, so
-an operator can play any week on demand — for testing, previewing an
+the other two; stacked above the toggle while the Check-in Display shows,
+see "The corner-button contract" under "Embedding note") opens a panel
+listing every lesson in `lessons.json`, so an operator can play any week on
+demand — for testing, previewing an
 upcoming lesson, or catching up after a missed night.
 
 - **Always a one-off.** Picking a lesson plays it immediately and never
@@ -1372,3 +1375,30 @@ own iframe's `contentWindow` **and** `event.origin` is the display's
 origin or this page's own. A double-click on `#journey-view` does the
 same thing locally, inert over a control, a text field, the settings
 panel or a reading overlay.
+
+**The corner-button contract.** The ⇄ toggle and the ⚙ gear float over the
+Check-in Display's iframe all through the check-in phase, and a frame can
+never paint over its parent: live on 2026-09-29 the toggle covered the last
+digit of the lobby's RIGHT NOW clock at 720p and the gear the end of its
+OVERCAST chip at 1080p. The two sides now agree on one place for the
+buttons. While the display shows, the gear stacks 8px above the toggle
+(`#checkin-view:not(.hidden) ~ #settings-btn` in `style.css`, no script),
+so both sit in ONE 48px column in the bottom-right corner, `max(3vw, 24px)`
+in from the right edge, the toggle `max(3vh, 24px)` up from the bottom. The
+display, finding itself framed (`window.self !== window.top`), keeps its
+corner chip, its tonight ticker and a long child's name out of that column
+(its `src/lib/embed.js` and the `html.embedded` rules in its `app.css`).
+The display's top-right is its own: its status sticker and weather chip are
+measured to the pixel there against the headline under them and the notice
+band beside them, so they have nowhere to go (moved down under a button, a
+tall sticker ran into the headline on the Pi; moved left, the widest weather
+chip ran into the band). So the gear leaves it, and only while the display
+shows: over the lesson, the splash and the slides it keeps the top-right. Both buttons stay in the page's tab order (toggle, then gear)
+and keep their size and chip style.
+`test/corner-buttons.test.mjs` pins the column and the top-right, and that
+the frame fills the viewport from 0,0 (so the display's 1vw is ours), in
+Chromium at 592x432, 640x480, 720p and 1080p. Nothing crosses the wire and
+the iframe URL is unchanged. If the buttons ever move, grow or get a sibling
+over the frame, change the display's `HOST_CONTROL` (`src/lib/embed.js`), its
+`html.embedded` rules and its `e2e/embedHost.js` in step, and land the
+display first: until it knows, a button in a new place sits on its chips.

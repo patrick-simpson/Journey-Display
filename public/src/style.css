@@ -926,7 +926,8 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 
 /* Third corner control — top-right, so it doesn't crowd the bottom row
    (unmute bottom-left, view-toggle bottom-right). Same overscan-safe
-   inset and sizing as the other two. */
+   inset and sizing as the other two. Over the Check-in Display it stacks
+   above the toggle instead (below). */
 #settings-btn {
   position: fixed;
   top: max(3vh, 24px);
@@ -948,6 +949,21 @@ html.cursor-hidden #video-controls:not(.force-visible) {
 #settings-btn:hover,
 #settings-btn:focus-visible {
   background: var(--jr-purple);
+}
+
+/* While the Check-in Display shows, the gear joins the toggle: stacked 8px
+   above it in the bottom-right corner, one column of two buttons. The
+   display is a frame, and a frame can never paint over its parent, so a
+   button in its top-right sat on the lobby's weather chip and status
+   sticker, whose room there is measured to the pixel against the headline
+   under them. The display keeps its bottom-right chips, ticker and a long
+   child's name out of exactly this column (its src/lib/embed.js and the
+   html.embedded rules in its app.css), and test/corner-buttons.test.mjs
+   pins the column. See CLAUDE.md, "The corner-button contract". Everywhere
+   else (the lesson, the splash, the slides) the gear keeps the top-right. */
+#checkin-view:not(.hidden) ~ #settings-btn {
+  top: auto;
+  bottom: calc(max(3vh, 24px) + 48px + 8px);
 }
 
 /* ── Video settings panel ──────────────────────────────────────────
