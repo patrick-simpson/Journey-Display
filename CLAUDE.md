@@ -1386,8 +1386,13 @@ buttons. While the display shows, the gear stacks 8px above the toggle
 so both sit in ONE 48px column in the bottom-right corner, `max(3vw, 24px)`
 in from the right edge, the toggle `max(3vh, 24px)` up from the bottom. The
 display, finding itself framed (`window.self !== window.top`), keeps its
-corner chip, its tonight ticker and a long child's name out of that column
-(its `src/lib/embed.js` and the `html.embedded` rules in its `app.css`).
+corner chip, its tonight ticker, a long child's name and its own operator
+panels (Settings, the slide editor, the debug panel, the first-run card) out
+of that column (its `src/lib/embed.js` and the `html.embedded` rules in its
+`app.css`): a click in the column always lands on these buttons, so before
+the display's panels kept out, a click on the right end of its Settings SAVE
+at 640x480 opened this page's settings panel instead. README.md's "Previewing
+Any Lesson" tells the operator where the gear is in each view.
 The display's top-right is its own: its status sticker and weather chip are
 measured to the pixel there against the headline under them and the notice
 band beside them, so they have nowhere to go (moved down under a button, a

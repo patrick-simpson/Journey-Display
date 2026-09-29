@@ -275,9 +275,12 @@ The video lessons come from the **Journey: Advocates** curriculum hosted by Awan
 
 ### Previewing Any Lesson (Settings Button)
 
-A small gear (⚙) button in the top-right corner opens a list of every
-lesson in the course. Tap a week to play it right now — this is just a
-one-time preview and never changes what plays automatically at 6:30 PM.
+A small gear (⚙) button opens a list of every lesson in the course. While
+the Check-in Display is showing (all day, except 6:30–7:15 PM) the gear sits
+in the bottom-right corner, just above the switch-display (⇄) button; over
+the lesson, the splash and the slides it is in the top-right corner. Tap a
+week to play it right now — this is just a one-time preview and never
+changes what plays automatically at 6:30 PM.
 
 - If you tap a lesson **outside 6:30–7:15 PM**, it asks whether you
   want the **Student Video** (what the kids normally see) or the

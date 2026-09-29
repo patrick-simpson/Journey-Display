@@ -8,14 +8,15 @@
 // gear stacked 8px above the toggle), 48px wide, max(3vw, 24px) in from the
 // right edge, the toggle max(3vh, 24px) up from the bottom, in a frame that
 // fills the viewport from 0,0 (so its 1vw is ours). The display, finding
-// itself framed, keeps its corner chip, its ticker and a long child's name
-// out of that column; the top-right is its own (its status sticker and
-// weather chip are measured to the pixel there). Its copy of the column is
-// HOST_CONTROL in its src/lib/embed.js (see "The corner-button contract" in
-// CLAUDE.md). Moving a button out of the column, or back into the display's
-// top-right, fails here. Elsewhere the gear keeps the top-right, as it always
-// has. Like control-bar-layout.test.mjs: Chromium, every request answered
-// from public/ by the test, schedule.js not run.
+// itself framed, keeps its corner chip, its ticker, a long child's name and
+// its own operator panels out of that column; the top-right is its own (its
+// status sticker and weather chip are measured to the pixel there). Its copy
+// of the column is HOST_CONTROL in its src/lib/embed.js (see "The
+// corner-button contract" in CLAUDE.md). Moving a button out of the column,
+// or back into the display's top-right, fails here. Elsewhere the gear keeps
+// the top-right, as it always has. Like control-bar-layout.test.mjs:
+// Chromium, every request answered from public/ by the test, schedule.js not
+// run. The last test holds README.md's directions to the same two places.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
@@ -99,4 +100,16 @@ test('over the Check-in Display both corner buttons keep to the one bottom-right
   } finally {
     await browser.close();
   }
+});
+
+// The operator's guide has to say where the gear is: it moves between views,
+// and README.md once sent an operator to the empty top-right corner of the
+// Check-in Display, the view the lesson preview is normally opened from.
+test('README.md tells the operator where the gear is over the Check-in Display and over everything else', () => {
+  const readme = readFileSync(path.join(path.dirname(PUBLIC), 'README.md'), 'utf8');
+  const section = readme.split(/^### /m).find((s) => s.startsWith('Previewing Any Lesson'));
+  assert.ok(section, 'README.md has its "Previewing Any Lesson" section');
+  const text = section.replace(/\s+/g, ' ');
+  assert.match(text, /While the Check-in Display is showing[^.]*the gear sits in the bottom-right corner, just above the switch-display \(⇄\) button/);
+  assert.match(text, /over the lesson, the splash and the slides it is in the top-right corner/);
 });
