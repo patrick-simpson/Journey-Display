@@ -155,6 +155,24 @@
         </label>
         <label class="settings-check"><input type="checkbox" id="captions-backdrop" /> <span><strong>Dark backdrop</strong> &mdash; a solid band behind the text, for bright video</span></label>
       </div>
+      <div id="settings-sync" class="hidden">
+        <h3>Sync</h3>
+        <p class="settings-hint">
+          Sign this screen in with the church passphrase. Captions, the teaching
+          slides&rsquo; settings and tonight&rsquo;s edited bullets then follow every
+          Journey screen; video quality stays on this one. It sets up the lobby
+          check-in screen here too.
+        </p>
+        <div id="sync-signin" class="sync-row">
+          <input id="sync-passphrase" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="go" placeholder="the church passphrase" aria-label="Passphrase" />
+          <button id="sync-signin-btn" type="button" class="quality-btn">Sign in</button>
+        </div>
+        <div id="sync-signed-in" class="sync-row hidden">
+          <span class="settings-hint">Signed in</span>
+          <button id="sync-signout-btn" type="button" class="quality-btn">Sign out</button>
+        </div>
+        <p id="sync-status" class="settings-hint" role="status"></p>
+      </div>
       <div id="settings-quality">
         <h3>Playback quality</h3>
         <p class="settings-hint">
@@ -227,5 +245,6 @@
   </div>
 
   <script src="src/schedule.js"></script>
+  <script src="src/sync.js"></script>
 </body>
 </html>

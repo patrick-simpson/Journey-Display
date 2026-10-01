@@ -47,6 +47,7 @@ const REPO = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 // referenced in index.html as a plain relative path, the way these are.
 export const STAMPED_ASSETS = [
   'src/schedule.js',
+  'src/sync.js',
   'src/style.css',
   'brand/tokens.css',
   'brand/fonts.css',

@@ -1366,6 +1366,33 @@ upcoming lesson, or catching up after a missed night.
   ends/errors or the operator taps the view-toggle button (deliberately
   reused rather than adding a fourth button) — never anything else.
 
+### Room settings sync (`public/src/sync.js`, owner-requested 2026-10-01)
+
+The Awana screens share one always-on sync service (the Awana Check-in
+Display repo's `worker/`; its `CLAUDE.md` "The sync service" and
+`worker/README.md`). Settings → **Sync** signs this kiosk in with the church
+passphrase, and then the ROOM settings follow every Journey screen: captions
+on/off (`journey.captions`, applied at the next video), caption size and
+backdrop, the teaching slides' auto-advance and extras, and tonight's edited
+bullets (`journey.slides.notesOverride`). **Video quality and the prep
+transcript choice never travel** (they belong to the device and the leader);
+the service's allowlist (`sanitizeJourney` in that repo's
+`src/lib/syncSpecs.js`) drops anything else.
+
+- Its own classic script, loaded after `schedule.js`, which it only touches
+  through `applyCaptionDisplayPrefs()` / `syncSlidesPrefInputs()` on `window`.
+  Stamped like the rest (`STAMPED_ASSETS`).
+- The sign-in uses the lobby signage's own slots (`awanaSyncSession.v1`,
+  `awanaDisplayKey.v1`, and `awanaConfig.v1`'s Pusher key if it has none):
+  this page and the embedded Check-in Display share an origin, so one sign-in
+  sets both up, and the iframe is reloaded once to pick it up.
+- Pi-light: one fetch at start, one every ten minutes and on `online`, and one
+  PUT a second after a change in the Settings card or a CC press (only when
+  the room's values actually differ). A 401 means the passphrase was changed:
+  the session is dropped and the panel says so.
+- Hidden, and silent, until the display site's `shared/sync.json` names a
+  service. `test/sync.test.mjs` boots the real page with a stand-in service.
+
 ## Embedding note
 
 The Awana Check-in Display (`https://patrick-simpson.github.io/Awana-Check-in-Display/`)
